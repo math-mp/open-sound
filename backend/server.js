@@ -1,3 +1,4 @@
+require('dotenv').config(); //puxa variaveis globais da env
 const express = require('express');
 const nodemailer = require('nodemailer');
 const cors = require('cors');
@@ -10,8 +11,8 @@ app.use(express.json());
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'matheus.minami.pacheco10@gmail.com',
-    pass: 'gysy mvba vzkl gfbk'
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_PASS
   },
   tls: { rejectUnauthorized: false }
 });
@@ -51,7 +52,7 @@ app.post('/api/registro', async (req, res) => {
 
     // 4. Envia o e-mail de verificação
     await transporter.sendMail({
-      from: '"Spotify Clone" <matheus.minami.pacheco10@gmail.com>',
+      from: '"Spotify Clone" <process.env.GMAIL_USER>',
       to: email,
       subject: 'Seu código de verificação 2FA',
       text: `Seu código de confirmação é: ${codigo}`

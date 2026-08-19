@@ -1,13 +1,19 @@
+// Configuração de conexão com o seu servidor PostgreSQL
 const { Pool } = require('pg');
 
-// Configuração de conexão com o seu servidor PostgreSQL
+//usa as variaveis da env e configura a conexão com o bd
 const pool = new Pool({
-  user: 'postgres',        // Seu usuário do PostgreSQL
-  host: 'localhost',       // Endereço do servidor
-  database: 'opensound_db',  // Nome do banco de dados criado
-  password: '1M2m3m4m5m!',   // Sua senha do PostgreSQL
-  port: 5434,              // Porta padrão do PostgreSQL
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
+
+module.exports = pool;
 
 // Criação da tabela de usuários se não existir
 const criarTabela = async () => {
