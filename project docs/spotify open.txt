@@ -1,0 +1,77 @@
+spotify open:
+
+*features*
+
+==universais
+
+-upload free
+=seleção de tipo de msc ( tipo hashtag ) categorização
+=msc explicita
+
+-tema claro/escuro
+-autentificação pra poder tocar a msc
+register ( 2 fator de ativação )
+email
+senha
+confirmar senha
+
+login (2 factor)
+email
+senha
+
+-fila de reprodução
+-musicas ready to play armazenadas BD
+-barra de busca
+
+==perfil
+foto de perfil
+status
+borda de foto
+banner
+seleção de tema padrão
+
+==conta
+-redefinir nome de perfil
+-redefinição de senha
+-pagamentos 
+-informação e suporte
+
+==biblioteca
+-playlists pináveis
+-playlist com hierarquia 
+-biblioteca organizável
+== abas separadas playlist e artista
+
+*ideias posteriores*
+
+---historico
+--filtros inteligentes
+--sugestões de usuario
+--chat de spotify
+--status de usuário
+--playlist compartilhada
+--comentário da msc
+--spotify virar naipe ticketmaster
+---relatório final de metadados
+=minutos escutados
+=artistas e musicas mais tocados
+
+==lucro empresarial==
+-taxa em cima de msc postada
+-patrocinios (ads)
+
+-premium:
+-retirada dos anúncios
+=anúncios aparecem a cada 3 musicas tocadas
+=caso contrario 5 minutos
+-customização avançada de perfil
+
+==lucro do artista==
+-sistema financeiro de pote de usuário
+se o usuário assina premium o lucro é distribuído percentualmente entre os artistas mais ouvidos por ele
+
+-membro do artista
+
+*ideias mais proximas*
+--deixar clipe disponível
+--verificado de artista

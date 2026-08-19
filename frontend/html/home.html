@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>spotify</title>
+    <link rel="stylesheet" href="../css/home.css">
+    <script src="../js/home.js" defer></script>
+</head>
+
+<body>
+    <!--navbar superior-->
+    <nav class="fixed-bar">
+
+        <!-- parte esquerda navbar-->
+        <div class="nav-left">
+            <button class="btn-navbar" id="btn-biblioteca">Minha Biblioteca</button>
+            <button class="btn-navbar" id="btn-upload">inicio</button>
+            <button class="btn-navbar" id="btn-upload">Upload</button>
+        </div>
+
+        <!-- parte central navbar-->
+        <div class="nav-center">
+            <form action="/buscar" method="get">
+            <input class="search-input" type="search" name="q" placeholder="procure musicas e artistas..." required>
+            </form>
+        </div>
+
+        <!-- parte direita navbar-->
+        <div class="nav-right">
+            <button  class="btn-navbar" id="btn-register">registre-se</button>
+            <button  class="btn-navbar" id="btn-entrar">Entrar</button>
+            <button  class="btn-navbar" id="btn-tema">tema</button>
+
+        </div>
+    </nav> 
+    <!--conteudo principal da pag-->
+    <div class="main-ctt">
+
+        <!--div dinamica musicas-->
+        <div class="top-msc">
+            <p class="textofofin">eu represento o conteudo dinamico das msc mais escutadas do mes </p>
+        </div>
+
+        <div class="double-div">
+            <!--div dinamica artistas-->
+            <div class="artists">
+            <p>eu represento o conteudo dinamico dos artista mais escutados do mes</p>
+            </div>
+            <!--div dinamica generos-->
+            <div class="genres">
+            <p>eu represento o conteudo fixo dos generos</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal/Popup -->
+    <div id="modal-registro" class="modal hidden">
+    <div class="conteudo-modal">
+        <button id="btn-fechar" class="btn-fechar">x</button>
+
+        <!-- Etapa 1: Formulário de Registro -->
+        <div id="etapa-registro" class="etapa">
+        <h2>Criar Conta</h2>
+        <form id="form-registro">
+            <input type="email" placeholder="Seu e-mail" required>
+            <input type="password" placeholder="Sua senha" required>
+            <button type="submit">Enviar</button>
+        </form>
+        </div>
+
+        <!-- Etapa 2: Confirmação 2FA -->
+        <div id="etapa-2fa" class="etapa hidden">
+        <h2>Verificação de Segurança</h2>
+        <p>Digite o código enviado ao seu e-mail:</p>
+        <input type="text" placeholder="Código de 6 dígitos">
+        <button id="btn-confirmar-2fa">Confirmar Código</button>
+        <button id="btn-reenviar-2fa" type="button">Reenviar código</button>
+        </div>
+    </div>
+    </div>
+
+</body>
+</html>

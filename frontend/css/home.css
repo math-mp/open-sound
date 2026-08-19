@@ -1,0 +1,172 @@
+*{
+box-sizing: border-box;
+margin: 0;
+padding: 0;
+}
+
+/*===navbar fixa===*/
+.fixed-bar {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  position: fixed;   /* Fixa a barra na tela */
+  top: 0;            /* Gruda no topo absoluto */
+  left: 0;           /* Alinha na borda esquerda */
+  width: 100%;       /* Ocupa toda a largura da página */
+  background: #333;  /* Cor de fundo da barra */
+  color: #fff;       /* Cor do texto */
+  padding: 15px 30px;     /* Espaçamento interno */
+  z-index: 1000;     /* Mantém a barra acima de outros elementos */
+}
+
+/* Os blocos da esquerda e da direita ganham o mesmo peso/espaço */
+.nav-left, .nav-right {
+  flex: 1; 
+  display: flex;
+  gap: 20px; /* Mantém o espaçamento que você já tinha entre os botões */
+}
+
+.nav-right {
+  justify-content: flex-end; /* Joga o botão Entrar totalmente para a direita */
+}
+
+/* O bloco do centro fica isolado e centralizado */
+.nav-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Estilo extra opcional para deixar o input de pesquisa bonito e largo */
+.nav-center input[type="search"] {
+  width: 300px;
+  padding: 8px 15px;
+  border-radius: 20px;
+  border: none;
+  outline: none;
+}
+
+.btn-navbar{
+    background-color: rgb(85, 97, 93);
+    border: none;
+    border-radius: 10px;
+    padding: 5px;
+
+}
+
+.fixed-bar button {
+  background-color: #ffffff; /* Fundo branco para contraste */
+  color: #000000;            /* Texto preto */
+  font-size: 14px;
+  font-weight: 700;          /* Texto em negrito */
+  padding: 10px 20px;        /* Espaçamento interno (vertical e horizontal) */
+  border: none;              /* Remove a borda padrão feia do navegador */
+  border-radius: 10px;       /* Bordas totalmente arredondadas estilo cápsula */
+  cursor: pointer;           /* Transforma o cursor em mãozinha ao passar o mouse */
+  transition: transform 0.2s ease, background-color 0.2s ease; /* Suaviza as animações */
+}
+
+/* Efeito ao passar o mouse por cima (Hover) */
+.fixed-bar button:hover {
+  background-color: #f6f6f6; /* Muda sutilmente a cor de fundo */
+  transform: scale(1.04);    /* Dá um leve zoom no botão (efeito moderno) */
+}
+
+/* Efeito ao clicar no botão (Active) */
+.fixed-bar button:active {
+  transform: scale(1.0);     /* Volta ao tamanho normal no clique */
+  background-color: #b3b3b3; /* Escurece o fundo durante o clique */
+}
+
+/*===conteudo principal===*/
+.main-ctt{
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+    place-items: center; 
+    width: 100vw;
+    height: 100vh;
+    padding-top: 60px;
+    justify-content: center;
+    align-items: center;
+
+}
+.top-msc{
+    display: flex;
+    background-color: #333;
+    width: 85vw;
+    height: 30vh;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+.double-div{
+    gap:30px;
+    background-color: #333;
+    display:flex;
+    width: 85vw;
+    height: 50vh;
+    justify-content: center;
+    align-items: center;
+}
+.artists{
+    background-color: aqua;
+    width: 40%;
+    height: 40%;
+    padding: 20px;
+
+}
+.genres{
+    background-color: rosybrown;
+    width: 40%;
+    height: 40%;
+    padding: 20px;
+}
+
+.textofofin{
+    color: blue;
+}
+
+/*===modal register css====*/
+
+/*faz o popup ficar invisivel*/
+.hidden{
+  display: none !important; 
+}
+
+/* Fundo escurecido do popup */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Caixa principal do popup */
+.conteudo-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: #fff;
+  padding: 30px;
+  border-radius: 8px;
+  position: relative;
+  width: 300px;
+}
+
+.btn-fechar {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  cursor: pointer;
+}
+
+.etapa{
+  display: flex;
+  flex-direction: column;
+}

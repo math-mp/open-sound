@@ -1,0 +1,40 @@
+mvp:
+
+tela inicial
+
+barra fixa superior contem {
+
+botão entrar ao clicar sobe popup de login
+
+botão registrar sobe popup de registro
+
+se já tiver conta faz login senão clica no botão registrar ou no link do popup{
+abre uma segunda parte de popup onde vc faz register com 2fa
+pedindo email e validação de código no email}.
+
+botão biblioteca {
+se estiver logado vai para a biblioteca senão popup de login
+
+barra de pesquisa alinhada a esquerda{ usuário digita e clica enter{
+faz pesquisa e mostra conteúdo dinamico= botões de capa de msc novamente
+
+botão upload se estiver logado vai para pagina de upload se não tiver logado coisa popup de faça login)
+}
+
+conteúdo principal {
+
+div recomendação centralizada abaixo da barra de pesquisa{
+conteúdo dinâmico = botões com a capa das msc mais escutadas do mês (ao clicar){se logado toca a msc senão popup de login}
+]
+
+div mãe{
+
+div recomendação artistas alinhada a esquerda {
+conteúdo dinâmico = botões com os artistas mais escutados do mês (ao clicar){se logado abre o perfil do artista senão popup de login}
+}
+
+div generos alinhada a direita {
+conteúdo fixo = botões de filtro que ao clicar retornam somente as msc com tal filtro se não tiver nada não retorna nada
+}
+
+

@@ -1,0 +1,10 @@
+dependências
+
+instalar node.js na maquina
+
+executar
+cd backend
+npm install
+
+ligar server:
+node ./server.js
