@@ -2,9 +2,12 @@ dependências
 
 instalar node.js na maquina
 
-executar
+executar no terminal
 cd backend
 npm install
 
 ligar server:
 node ./server.js
+
+desligar server:
+ctrl + c (no terminal)
