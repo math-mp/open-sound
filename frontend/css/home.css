@@ -170,3 +170,48 @@ padding: 0;
   display: flex;
   flex-direction: column;
 }
+
+/*====conteudo campo senha modal register====*/
+.campo-senha {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.campo-senha input {
+  width: 100%;
+  padding-right: 40px; /* espaço para o botão não sobrepor o texto */
+  box-sizing: border-box;
+}
+
+.btn-olho {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.regras-senha {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.regras-senha li {
+  margin: 3px 0;
+  color: #ff4d4d; /* Vermelho padrão quando não atendido */
+  transition: color 0.2s ease;
+}
+
+.regras-senha li.valido {
+  color: #2ecc71; /* Verde quando atendido */
+}

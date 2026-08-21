@@ -16,7 +16,7 @@
         <!-- parte esquerda navbar-->
         <div class="nav-left">
             <button class="btn-navbar" id="btn-biblioteca">Minha Biblioteca</button>
-            <button class="btn-navbar" id="btn-upload">inicio</button>
+            <button class="btn-navbar" id="btn-inicio">inicio</button>
             <button class="btn-navbar" id="btn-upload">Upload</button>
         </div>
 
@@ -65,7 +65,20 @@
         <h2>Criar Conta</h2>
         <form id="form-registro">
             <input type="email" placeholder="Seu e-mail" required>
-            <input type="password" placeholder="Sua senha" required>
+
+            <div class="campo-senha">
+                <input type="password" id="input-senha" placeholder="Sua senha" required>
+                <button type="button" id="btn-toggle-senha" class="btn-olho" aria-label="Mostrar ou ocultar senha">
+                👁️
+                </button>                
+            </div>
+            <ul id="regras-senha" class="regras-senha">
+            <li id="regra-tam">❌ Mínimo de 8 caracteres</li>
+            <li id="regra-mai">❌ Ao menos 1 letra maiúscula</li>
+            <li id="regra-min">❌ Ao menos 1 letra minúscula</li>
+            <li id="regra-num">❌ Ao menos 1 número</li>
+            <li id="regra-esp">❌ Ao menos 1 caractere especial (@$!%*?&#)</li>
+            </ul>
             <button type="submit">Enviar</button>
         </form>
         </div>

@@ -18,12 +18,37 @@ const transporter = nodemailer.createTransport({
   tls: { rejectUnauthorized: false }
 });
 
+// Funções de validação via RegEx
+function validarEmail(email) {
+  const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return regexEmail.test(email);
+}
+
+function validarSenhaForte(senha) {
+  // Mínimo 8 caracteres, 1 maiúscula, 1 minúscula, 1 número e 1 caractere especial
+  const regexSenha = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$/;
+  return regexSenha.test(senha);
+}
+
 // Rota 1: Cadastra o usuário 
 app.post('/api/registro', async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ status: 'erro', mensagem: 'E-mail e senha são obrigatórios.' });
+  }
+
+  // Validação do formato do E-mail
+  if (!validarEmail(email)) {
+    return res.status(400).json({ status: 'erro', mensagem: 'Por favor, insira um e-mail válido.' });
+  }
+
+  // Validação da força da Senha
+  if (!validarSenhaForte(password)) {
+    return res.status(400).json({
+      status: 'erro',
+      mensagem: 'A senha deve ter no mínimo 8 caracteres, incluindo pelo menos uma letra maiúscula, uma minúscula, um número e um caractere especial (@$!%*?&#).'
+    });
   }
 
   try {
