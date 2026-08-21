@@ -69,14 +69,14 @@
             <button type="submit">Enviar</button>
         </form>
         </div>
-
         <!-- Etapa 2: Confirmação 2FA -->
         <div id="etapa-2fa" class="etapa hidden">
         <h2>Verificação de Segurança</h2>
         <p>Digite o código enviado ao seu e-mail:</p>
         <input type="text" placeholder="Código de 6 dígitos">
         <button id="btn-confirmar-2fa">Confirmar Código</button>
-        <button id="btn-reenviar-2fa" type="button">Reenviar código</button>
+        <button id="btn-reenviar-2fa" type="button" disabled>Reenviar código</button>
+        <p id="mensagem-timer" class="texto-timer"></p><!--timer de reenvio-->
         </div>
     </div>
     </div>

@@ -1,107 +1,123 @@
-//===aparição modal==
-
+// === ELEMENTOS DO DOM ===
 const modal = document.getElementById('modal-registro');
 const btnFechar = document.getElementById('btn-fechar');
 const formRegistro = document.getElementById('form-registro');
 const etapaRegistro = document.getElementById('etapa-registro');
 const etapa2fa = document.getElementById('etapa-2fa');
 const btnRegister = document.getElementById('btn-register');
+const btnSubmitRegistro = formRegistro.querySelector('button[type="submit"]');
 
-// abre o popup ao clicar em registre-se
+const btnConfirmar2FA = document.getElementById('btn-confirmar-2fa');
+const btnReenviar2FA = document.getElementById('btn-reenviar-2fa');
+const mensagemTimer = document.getElementById('mensagem-timer');
+
+let emailUsuarioAtual = '';
+let tempoRestante = 60;
+let intervaloTimer = null;
+
+// === CONTROLE DO MODAL ===
+
+// Abre o popup ao clicar em Registre-se
 btnRegister.addEventListener('click', () => {
   modal.classList.remove('hidden');
 });
 
-// Fechar o popup ao clicar no botão 'X'
+// Fecha o popup ao clicar no botão 'X'
 btnFechar.addEventListener('click', () => {
   modal.classList.add('hidden');
 });
 
-// Alternar da tela de registro para a tela de 2FA ao enviar o formulário
+// === 1. SUBMIT DO REGISTRO (ÚNICO EVENTO) ===
 formRegistro.addEventListener('submit', async (event) => {
   event.preventDefault();
 
-  emailDigitado = formRegistro.querySelector('input[type="email"]').value;
-  const senhaDigitada = formRegistro.querySelector('input[type="password"]').value;
+  if (btnSubmitRegistro.disabled) return;
+
+  btnSubmitRegistro.disabled = true;
+  btnSubmitRegistro.textContent = 'Enviando...';
+
+  const email = formRegistro.querySelector('input[type="email"]').value.trim();
+  const password = formRegistro.querySelector('input[type="password"]').value.trim();
 
   try {
     const resposta = await fetch('http://localhost:3000/api/registro', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: emailDigitado, password: senhaDigitada })
+      body: JSON.stringify({ email, password })
     });
 
     const dados = await resposta.json();
 
-    // SÓ AVANÇA PARA O 2FA SE O SERVIDOR RETORNAR SUCESSO (Status 200)
     if (resposta.ok) {
-      alert('Código enviado para o seu e-mail!');
+      // Sucesso: guarda o e-mail e avança para a etapa do 2FA
+      emailUsuarioAtual = email;
       
-      // Oculta a tela de cadastro e mostra a tela de 2FA
       etapaRegistro.classList.add('hidden');
       etapa2fa.classList.remove('hidden');
-    } else {
-      // SE O E-MAIL JÁ EXISTIR (Status 400), EXIBE A MENSAGEM E PERMANECE NA TELA ATUAL
-      alert(dados.mensagem); 
-      // Nenhuma alteração nas classes CSS é feita aqui, então o usuário continua no cadastro
-    }
-  } catch (erro) {
-    alert('Erro de conexão com o servidor. Tente novamente mais tarde.');
-  }
-});
 
-//===retorno da api de registro===
+      iniciarTimer2FA();
+      btnSubmitRegistro.disabled = false;
+      btnSubmitRegistro.textContent = 'Enviar';
 
-let emailCadastrado = "";
-
-formRegistro.addEventListener('submit', async (event) => {
-  event.preventDefault();
-
-  emailCadastrado = formRegistro.querySelector('input[type="email"]').value;
-  const password = formRegistro.querySelector('input[type="password"]').value;
-
-  try {
-    const resposta = await fetch('http://localhost:3000/api/registro', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: emailCadastrado, password })
-    });
-
-    const dados = await resposta.json();
-
-    if (resposta.ok) {
-      etapaRegistro.classList.add('hidden');
-      etapa2fa.classList.remove('hidden');
-    } else {
+    } else if (resposta.status === 400) {
+      // E-mail já cadastrado/verificado: avisa e fecha o modal
       alert(dados.mensagem);
+      formRegistro.reset();
+      modal.classList.add('hidden');
+
+      btnSubmitRegistro.disabled = false;
+      btnSubmitRegistro.textContent = 'Enviar';
+
+    } else if (resposta.status === 429) {
+      // Cooldown ativo (menos de 60s)
+      alert(dados.mensagem);
+      btnSubmitRegistro.disabled = false;
+      btnSubmitRegistro.textContent = 'Enviar';
+
+    } else {
+      // Outros erros da API
+      alert(dados.mensagem || 'Ocorreu um erro ao tentar registrar.');
+      btnSubmitRegistro.disabled = false;
+      btnSubmitRegistro.textContent = 'Enviar';
     }
+
   } catch (erro) {
+    console.error('Erro de conexão:', erro);
     alert('Erro de conexão com o servidor.');
+    btnSubmitRegistro.disabled = false;
+    btnSubmitRegistro.textContent = 'Enviar';
   }
 });
 
-//===validção 2fa===
-
-const btnConfirmar2FA = document.getElementById('btn-confirmar-2fa');
-
+// === 2. VALIDAÇÃO DO 2FA ===
 btnConfirmar2FA.addEventListener('click', async () => {
-  console.log('Botão clicado!'); // Teste simples para ver se o evento dispara
+  const inputCodigo = document.querySelector('#etapa-2fa input');
+  const codigoDigitado = inputCodigo.value.trim();
 
-  const codigoDigitado = document.querySelector('#etapa-2fa input').value.trim();
+  if (!codigoDigitado) {
+    alert('Por favor, digite o código de 6 dígitos.');
+    return;
+  }
 
   try {
     const resposta = await fetch('http://localhost:3000/api/validar-2fa', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: emailDigitado, codigo: codigoDigitado })
+      body: JSON.stringify({ email: emailUsuarioAtual, codigo: codigoDigitado })
     });
 
     const dados = await resposta.json();
 
     if (resposta.ok) {
       alert('Conta validada com sucesso!');
-
       modal.classList.add('hidden');
+      
+      // Reseta formulários e telas
+      formRegistro.reset();
+      inputCodigo.value = '';
+      etapa2fa.classList.add('hidden');
+      etapaRegistro.classList.remove('hidden');
+      if (intervaloTimer) clearInterval(intervaloTimer);
     } else {
       alert(dados.mensagem);
     }
@@ -111,36 +127,50 @@ btnConfirmar2FA.addEventListener('click', async () => {
   }
 });
 
-//===reenvio de codigo 2fa===
+// === 3. TIMER E REENVIO DO 2FA ===
+function iniciarTimer2FA() {
+  tempoRestante = 60;
+  btnReenviar2FA.disabled = true;
+  mensagemTimer.textContent = `Aguarde ${tempoRestante}s para solicitar um novo código.`;
 
-// Seleciona o botão de reenviar código no HTML
-const btnReenviar2FA = document.getElementById('btn-reenviar-2fa'); 
+  if (intervaloTimer) clearInterval(intervaloTimer);
+
+  intervaloTimer = setInterval(() => {
+    tempoRestante--;
+
+    if (tempoRestante <= 0) {
+      clearInterval(intervaloTimer);
+      btnReenviar2FA.disabled = false;
+      mensagemTimer.textContent = '';
+    } else {
+      mensagemTimer.textContent = `Aguarde ${tempoRestante}s para solicitar um novo código.`;
+    }
+  }, 1000);
+}
 
 btnReenviar2FA.addEventListener('click', async () => {
-  if (!emailDigitado) {
-    alert('Erro: e-mail não identificado. Recarregue a página e tente novamente.');
-    return;
-  }
+  if (tempoRestante > 0) return;
 
-  // Desabilita temporariamente o botão para evitar múltiplos cliques
   btnReenviar2FA.disabled = true;
-  btnReenviar2FA.textContent = 'Enviando...';
+  mensagemTimer.textContent = 'Enviando novo código...';
 
   try {
     const resposta = await fetch('http://localhost:3000/api/reenviar-2fa', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: emailDigitado })
+      body: JSON.stringify({ email: emailUsuarioAtual })
     });
 
     const dados = await resposta.json();
-    alert(dados.mensagem);
 
+    if (resposta.ok) {
+      iniciarTimer2FA();
+    } else {
+      btnReenviar2FA.disabled = false;
+      mensagemTimer.textContent = dados.mensagem;
+    }
   } catch (erro) {
-    alert('Erro ao se conectar com o servidor para reenviar o código.');
-  } finally {
-    // Reabilita o botão após a resposta
     btnReenviar2FA.disabled = false;
-    btnReenviar2FA.textContent = 'Reenviar código';
+    mensagemTimer.textContent = 'Erro ao conectar ao servidor.';
   }
 });

@@ -3,6 +3,7 @@ const express = require('express');
 const nodemailer = require('nodemailer');
 const cors = require('cors');
 const pool = require('./database'); // Importa a conexão com o PostgreSQL
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 app.use(cors());
@@ -17,7 +18,7 @@ const transporter = nodemailer.createTransport({
   tls: { rejectUnauthorized: false }
 });
 
-// Rota 1: Cadastra o usuário apenas se o e-mail for novo
+// Rota 1: Cadastra o usuário 
 app.post('/api/registro', async (req, res) => {
   const { email, password } = req.body;
 
@@ -26,33 +27,56 @@ app.post('/api/registro', async (req, res) => {
   }
 
   try {
-    // 1. Verifica se o e-mail já existe no PostgreSQL
-    const usuarioExistente = await pool.query(
-      'SELECT * FROM usuarios WHERE email = $1',
-      [email]
-    );
+    // 1. Busca se o usuário já existe e calcula a diferença de segundos direto pelo banco
+  const usuarioExistente = await pool.query(
+  `SELECT *, EXTRACT(EPOCH FROM (NOW() - ultimo_envio_2fa))::INT AS diferenca_segundos 
+   FROM usuarios 
+   WHERE email = $1`,
+  [email]
+);
 
-    // Se encontrar algum registro, bloqueia o envio
-    if (usuarioExistente.rows.length > 0) {
-      return res.status(400).json({ 
-        status: 'erro', 
-        mensagem: 'Este e-mail já está cadastrado. Tente fazer login.' 
-      });
-    }
+if (usuarioExistente.rows.length > 0) {
+  const usuario = usuarioExistente.rows[0];
 
-    // 2. Se o e-mail for novo, gera o código 2FA
+  // Cenário A: Se já estiver verificado, bloqueia
+  if (usuario.verificado) {
+    return res.status(400).json({ 
+      status: 'erro', 
+      mensagem: 'Este e-mail já está verificado. Por favor, faça login.' 
+    });
+  }
+
+  // Cenário B: Se a diferença calculada pelo banco for menor que 60 segundos
+  if (usuario.diferenca_segundos !== null && usuario.diferenca_segundos < 60) {
+    const segundosRestantes = 60 - usuario.diferenca_segundos;
+    return res.status(429).json({
+      status: 'erro',
+      mensagem: `Um código já foi enviado para este e-mail. Aguarde ${segundosRestantes}s para solicitar outro.`
+    });
+  }
+}
+
+    // 2. Se o e-mail for novo ou não tiver verificado, gera o código 2FA
     const codigo = Math.floor(100000 + Math.random() * 900000).toString();
 
     // 3. Insere o novo usuário no banco
-    const queryInsert = `
-      INSERT INTO usuarios (email, senha, codigo_2fa, verificado)
-      VALUES ($1, $2, $3, FALSE)
+    // 3. REGISTRA OU ATUALIZA SALVANDO O TIMESTAMP ATUAL (NOW())
+    const query = `
+      INSERT INTO usuarios (email, senha, codigo_2fa, verificado, ultimo_envio_2fa)
+      VALUES ($1, $2, $3, FALSE, NOW())
+      ON CONFLICT (email) 
+      DO UPDATE SET 
+        senha = $2, 
+        codigo_2fa = $3, 
+        verificado = FALSE, 
+        ultimo_envio_2fa = NOW();
     `;
-    await pool.query(queryInsert, [email, password, codigo]);
+
+    await pool.query(query, [email, password, codigo]);
 
     // 4. Envia o e-mail de verificação
     await transporter.sendMail({
-      from: '"Spotify Clone" <process.env.GMAIL_USER>',
+      from: `"Open sound" <${process.env.GMAIL_USER}>`,
       to: email,
       subject: 'Seu código de verificação 2FA',
       text: `Seu código de confirmação é: ${codigo}`
@@ -94,48 +118,81 @@ app.post('/api/validar-2fa', async (req, res) => {
   }
 });
 
+// ----------------------------------------------------
+// BOAS PRÁTICAS: LIMITE DE REQUISIÇÕES POR IP
+// Permitir no máximo 5 reenvios por hora por IP
+// ----------------------------------------------------
+const limitarReenvioIP = rateLimit({
+  windowMs: 60 * 60 * 1000, // Janela de 1 hora (em milissegundos)
+  max: 5, // Limite de 5 tentativas por IP dentro do intervalo
+  message: {
+    status: 'erro',
+    mensagem: 'Você excedeu o limite de 5 tentativas por hora. Tente novamente mais tarde.'
+  },
+  standardHeaders: true, // Retorna as informações do limite nos cabeçalhos HTTP
+  legacyHeaders: false
+});
+
 // Rota 3: Reenvia um novo código 2FA
-app.post('/api/reenviar-2fa', async (req, res) => {
+app.post('/api/reenviar-2fa', limitarReenvioIP, async (req, res) => {
   const { email } = req.body;
 
-  if (!email) {
-    return res.status(400).json({ status: 'erro', mensagem: 'e-mail não identificado. Recarregue a página e tente novamente.' });
-  }
-
   try {
-    // 1. Verifica se o e-mail realmente está cadastrado no banco
-    const usuario = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email]);
+    // 1. Busca o usuário e calcula os segundos passados
+    const resultado = await pool.query(
+      `SELECT *, EXTRACT(EPOCH FROM (NOW() - ultimo_envio_2fa))::INT AS diferenca_segundos 
+      FROM usuarios 
+      WHERE email = $1`,
+      [email]
+    );
 
-    if (usuario.rows.length === 0) {
-      return res.status(404).json({ status: 'erro', mensagem: 'E-mail não encontrado.' });
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ status: 'erro', mensagem: 'Usuário não encontrado.' });
     }
 
-    // 2. Gera um novo código de 6 dígitos
+    const usuario = resultado.rows[0];
+
+    if (usuario.verificado) {
+      return res.status(400).json({ status: 'erro', mensagem: 'Esta conta já foi verificada.' });
+    }
+
+    // 2. Validação dos 60 segundos
+    if (usuario.diferenca_segundos !== null && usuario.diferenca_segundos < 60) {
+      const segundosRestantes = 60 - usuario.diferenca_segundos;
+      return res.status(429).json({
+        status: 'erro',
+        mensagem: `Aguarde ${segundosRestantes} segundo(s) antes de solicitar outro código.`
+      });
+    }
+
+    // 3. Gera um novo código de 6 dígitos
     const novoCodigo = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // 3. Atualiza o código do usuário no PostgreSQL
+    // 4. Atualiza o código e o timestamp do envio no banco de dados
     await pool.query(
-      'UPDATE usuarios SET codigo_2fa = $1 WHERE email = $2',
+      'UPDATE usuarios SET codigo_2fa = $1, ultimo_envio_2fa = NOW() WHERE email = $2',
       [novoCodigo, email]
     );
 
-    // 4. Reenvia o e-mail com o novo código
+    // 5. Envia o e-mail
     await transporter.sendMail({
-      from: '"Spotify Clone" <seu.email@gmail.com>',
+      from: `"Open sound" <${process.env.GMAIL_USER}>`,
       to: email,
       subject: 'Seu novo código de verificação 2FA',
       text: `Seu novo código de confirmação é: ${novoCodigo}`
     });
 
-    res.status(200).json({ status: 'sucesso', mensagem: 'Novo código enviado para o seu e-mail!' });
+    return res.status(200).json({
+      status: 'sucesso',
+      mensagem: 'Novo código enviado com sucesso!'
+    });
 
   } catch (erro) {
     console.error('Erro ao reenviar código:', erro);
-    res.status(500).json({ status: 'erro', mensagem: 'Falha ao reenviar o código.' });
+    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
   }
 });
 
 app.listen(3000, () => {
   console.log('Servidor rodando na porta 3000 com PostgreSQL');
 });
-
