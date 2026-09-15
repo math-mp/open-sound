@@ -2,6 +2,7 @@ require('dotenv').config(); //puxa variaveis globais da env
 const express = require('express');
 const nodemailer = require('nodemailer');
 const cors = require('cors');
+const bcrypt = require('bcrypt');
 const pool = require('./database'); // Importa a conexão com o PostgreSQL
 const rateLimit = require('express-rate-limit');
 
@@ -84,6 +85,9 @@ if (usuarioExistente.rows.length > 0) {
     // 2. Se o e-mail for novo ou não tiver verificado, gera o código 2FA
     const codigo = Math.floor(100000 + Math.random() * 900000).toString();
 
+    // Hash da senha antes de salvar
+    const senhaHash = await bcrypt.hash(password, 10);
+
     // 3. Insere o novo usuário no banco
     // 3. REGISTRA OU ATUALIZA SALVANDO O TIMESTAMP ATUAL (NOW())
     const query = `
@@ -97,7 +101,7 @@ if (usuarioExistente.rows.length > 0) {
         ultimo_envio_2fa = NOW();
     `;
 
-    await pool.query(query, [email, password, codigo]);
+    await pool.query(query, [email, senhaHash, codigo]);
 
     // 4. Envia o e-mail de verificação
     await transporter.sendMail({

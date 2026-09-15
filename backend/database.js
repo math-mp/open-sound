@@ -24,6 +24,7 @@ const criarTabela = async () => {
       senha VARCHAR(255) NOT NULL,
       codigo_2fa VARCHAR(10),
       verificado BOOLEAN DEFAULT FALSE,
+      ultimo_envio_2fa TIMESTAMP,
       criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `;
@@ -37,5 +38,3 @@ const criarTabela = async () => {
 };
 
 criarTabela();
-
-module.exports = pool;
