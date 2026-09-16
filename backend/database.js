@@ -22,7 +22,6 @@ const criarTabela = async () => {
       id SERIAL PRIMARY KEY,
       email VARCHAR(255) UNIQUE NOT NULL,
       senha VARCHAR(255) NOT NULL,
-      codigo_2fa VARCHAR(10),
       verificado BOOLEAN DEFAULT FALSE,
       criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );

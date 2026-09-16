@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-br">
 
 <head>
     <meta charset="UTF-8">
@@ -31,6 +31,8 @@
         <div class="nav-right">
             <button  class="btn-navbar" id="btn-register">registre-se</button>
             <button  class="btn-navbar" id="btn-entrar">Entrar</button>
+            <!-- Some quando o usuário está logado -->
+            <button class="btn-navbar hidden" id="btn-sair">Sair</button>
             <button  class="btn-navbar" id="btn-tema">tema</button>
 
         </div>
@@ -85,11 +87,42 @@
         <!-- Etapa 2: Confirmação 2FA -->
         <div id="etapa-2fa" class="etapa hidden">
         <h2>Verificação de Segurança</h2>
-        <p>Digite o código enviado ao seu e-mail:</p>
-        <input type="text" placeholder="Código de 6 dígitos">
+        <p>Digite o código enviado para <span id="email-mascarado"></span>:</p>
+
+        <!-- CORREÇÃO: o home.js espera 6 inputs com a classe "input-otp"
+             (um por dígito), então trocamos o input único por essa grade. -->
+        <div class="grade-otp">
+            <input type="text" class="input-otp" maxlength="1" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code">
+            <input type="text" class="input-otp" maxlength="1" inputmode="numeric" pattern="[0-9]*">
+            <input type="text" class="input-otp" maxlength="1" inputmode="numeric" pattern="[0-9]*">
+            <input type="text" class="input-otp" maxlength="1" inputmode="numeric" pattern="[0-9]*">
+            <input type="text" class="input-otp" maxlength="1" inputmode="numeric" pattern="[0-9]*">
+            <input type="text" class="input-otp" maxlength="1" inputmode="numeric" pattern="[0-9]*">
+        </div>
+
         <button id="btn-confirmar-2fa">Confirmar Código</button>
         <button id="btn-reenviar-2fa" type="button" disabled>Reenviar código</button>
         <p id="mensagem-timer" class="texto-timer"></p><!--timer de reenvio-->
+        </div>
+    </div>
+    </div>
+
+    <!-- Modal/Popup de Login -->
+    <div id="modal-login" class="modal hidden">
+    <div class="conteudo-modal">
+        <button id="btn-fechar-login" class="btn-fechar">x</button>
+
+        <div id="etapa-login" class="etapa">
+        <h2>Entrar</h2>
+        <form id="form-login">
+            <input type="email" id="login-email" placeholder="Seu e-mail" required>
+            <input type="password" id="login-senha" placeholder="Sua senha" required>
+            <label class="campo-checkbox">
+                <input type="checkbox" id="login-lembrar">
+                Lembrar de mim por 30 dias
+            </label>
+            <button type="submit">Entrar</button>
+        </form>
         </div>
     </div>
     </div>
