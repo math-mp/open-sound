@@ -136,7 +136,7 @@ Para exercer qualquer um destes direitos, entre em contato por **privacidade@ope
 
 - **Criptografia em trânsito:** toda comunicação usa HTTPS (TLS);
 - **Autenticação segura:** senhas armazenadas com hash (bcrypt) - nunca em texto puro;
-- **Tokens JWT:** sessões autenticadas por token com expiração de 24h;
+- **Tokens JWT:** sessões autenticadas por token com expiração de 7 dias;
 - **Acesso restrito:** apenas membros autorizados da equipe acessam o banco;
 - **Backups regulares:** (o banco de dados) realiza backups automáticos.
 

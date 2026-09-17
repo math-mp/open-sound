@@ -4,6 +4,16 @@ margin: 0;
 padding: 0;
 }
 
+/* CORREÇÃO: barra de rolagem horizontal indesejada. A causa era o uso de
+   "100vw" em .main-ctt — essa unidade conta a largura da barra de rolagem
+   vertical do navegador, então ficava alguns pixels mais larga que a tela
+   de verdade. Trocado por "width: 100%" (relativo ao body, sem esse
+   problema) + overflow-x:hidden como segurança extra. */
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+}
+
 /*===navbar fixa===*/
 .fixed-bar {
   display: flex;
@@ -84,22 +94,21 @@ padding: 0;
     flex-direction: column;
     gap: 40px;
     place-items: center; 
-    width: 100vw;
-    height: 100vh;
-    padding-top: 60px;
+    width: 100%;
+    min-height: 100vh;   /* ANTES: height: 100vh (fixo) — veja o comentário abaixo */
+    padding-top: 90px;   /* ANTES: 60px — dava espaço menor que a navbar de verdade */
+    padding-bottom: 100px; /* espaço pra barra de player fixa não cobrir o último card */
     justify-content: center;
     align-items: center;
 
 }
-.top-msc{
-    display: flex;
-    background-color: #333;
-    width: 85vw;
-    height: 30vh;
-    justify-content: center;
-    align-items: center;
-    padding: 20px;
-}
+/* CORREÇÃO: com "height: 100vh" fixo (valor antigo), quando o conteúdo era
+   maior que a tela, o flexbox ESPREMIA .lista-musicas e .double-div pra
+   caber dentro dos 100vh — em vez de a página crescer e rolar. Isso fazia
+   os cards ficarem menores que o necessário e o conteúdo visualmente
+   vazar por baixo da div seguinte (o "botão coberto" que você viu).
+   Trocando pra "min-height: 100vh", o container pode crescer à vontade e
+   o scroll da página volta a funcionar normalmente. */
 .double-div{
     gap:30px;
     background-color: #333;
@@ -121,10 +130,6 @@ padding: 0;
     width: 40%;
     height: 40%;
     padding: 20px;
-}
-
-.textofofin{
-    color: blue;
 }
 
 /*===modal register css====*/
@@ -214,4 +219,217 @@ padding: 0;
 
 .regras-senha li.valido {
   color: #2ecc71; /* Verde quando atendido */
+}
+
+/*====checkbox "lembrar de mim" do login====*/
+.campo-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+/*====campo de arquivo do modal de upload====*/
+.campo-arquivo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+
+/*===preview ao vivo do upload (estilo SoundCloud)====*/
+.preview-upload {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: #f2f2f2;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.preview-upload-capa-wrapper {
+  width: 70px;
+  height: 70px;
+  background-color: #ccc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.preview-upload-capa {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.preview-upload-capa-vazio {
+  font-size: 0.7rem;
+  color: #666;
+  text-align: center;
+  padding: 4px;
+}
+
+.preview-upload-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0; /* permite o texto quebrar em vez de estourar o flex */
+  flex-grow: 1;
+}
+
+.preview-upload-titulo {
+  font-weight: 700;
+  font-size: 0.9rem;
+  /* ao contrário do card (.titulo-musica), aqui o texto NÃO é cortado —
+     é pra mostrar o título inteiro antes de enviar, por isso quebra linha. */
+  word-break: break-word;
+}
+
+.preview-upload-artista {
+  font-size: 0.8rem;
+  color: #555;
+}
+
+.preview-upload-audio {
+  font-size: 0.75rem;
+  color: #777;
+  word-break: break-word;
+}
+
+/*===================================================
+  CONTAINER UNIVERSAL DE MÚSICAS (grid dinâmico)
+  Recebe um .card-musica por música vinda de GET /api/musicas.
+====================================================*/
+.lista-musicas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 20px;
+  background-color: #333;
+  width: 85vw;
+  min-height: 30vh;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.mensagem-lista {
+  color: #fff;
+  grid-column: 1 / -1; /* ocupa a linha toda enquanto não tem cards */
+  text-align: center;
+}
+
+.card-musica {
+  display: flex;
+  flex-direction: column;
+  background-color: #444;
+  border-radius: 8px;
+  overflow: hidden;
+  color: #fff;
+}
+
+.capa-musica {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  background-color: #555; /* aparece atrás enquanto a imagem carrega, ou se não houver capa */
+}
+
+.info-musica {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-grow: 1;
+}
+
+.titulo-musica {
+  font-weight: 700;
+  font-size: 0.95rem;
+  /* corta título muito longo com "..." em vez de quebrar o layout do card */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artista-musica {
+  font-size: 0.8rem;
+  color: #ccc;
+}
+
+.btn-play {
+  margin: 10px;
+  margin-top: 0;
+  background-color: #1db954; /* verde estilo player, só pra diferenciar do resto dos botões brancos */
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  padding: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.btn-play:hover {
+  transform: scale(1.03);
+}
+
+/*===================================================
+  BARRA DE PLAYER FIXA (rodapé)
+  Só funcional — sem preocupação estética, como pedido.
+====================================================*/
+.player-barra {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  background-color: #222;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  z-index: 900; /* abaixo da navbar (1000), acima do conteúdo da página */
+}
+
+.player-capa {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  background-color: #555;
+  flex-shrink: 0;
+}
+
+.player-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 100px;
+  max-width: 160px;
+  flex-shrink: 0;
+}
+
+.player-titulo {
+  font-weight: 700;
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-artista {
+  font-size: 0.75rem;
+  color: #ccc;
+}
+
+.player-tempo {
+  font-size: 0.75rem;
+  min-width: 35px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.player-seek {
+  flex-grow: 1;
 }

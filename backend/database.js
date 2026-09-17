@@ -15,9 +15,9 @@ const pool = new Pool({
 
 module.exports = pool;
 
-// Criação da tabela de usuários se não existir
-const criarTabela = async () => {
-  const queryText = `
+// Criação das tabelas se não existirem
+const criarTabelas = async () => {
+  const queryUsuarios = `
     CREATE TABLE IF NOT EXISTS usuarios (
       id SERIAL PRIMARY KEY,
       email VARCHAR(255) UNIQUE NOT NULL,
@@ -27,14 +27,29 @@ const criarTabela = async () => {
     );
   `;
 
+  // NOVO: tabela de músicas. Guarda só metadados + URLs — o arquivo de
+  // áudio/capa em si fica no Supabase Storage, nunca no Postgres.
+  const queryMusicas = `
+    CREATE TABLE IF NOT EXISTS musicas (
+      id SERIAL PRIMARY KEY,
+      titulo VARCHAR(255) NOT NULL,
+      artista VARCHAR(255) NOT NULL,
+      url_audio TEXT NOT NULL,
+      url_capa TEXT,
+      usuario_id INTEGER REFERENCES usuarios(id),
+      criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
+
   try {
-    await pool.query(queryText);
-    console.log('Tabela "usuarios" verificada/criada com sucesso no PostgreSQL.');
+    await pool.query(queryUsuarios);
+    await pool.query(queryMusicas);
+    console.log('Tabelas "usuarios" e "musicas" verificadas/criadas com sucesso no PostgreSQL.');
   } catch (erro) {
-    console.error('Erro ao criar tabela no PostgreSQL:', erro);
+    console.error('Erro ao criar tabelas no PostgreSQL:', erro);
   }
 };
 
-criarTabela();
+criarTabelas();
 
 module.exports = pool;

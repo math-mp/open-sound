@@ -6,6 +6,8 @@ const pool = require('./database'); // Importa a conexão com o PostgreSQL
 const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+const multer = require('multer');
+const { supabase, SUPABASE_BUCKET, garantirBucket } = require('./storage');
 
 const app = express();
 app.use(cors());
@@ -86,7 +88,11 @@ app.post('/api/registro', limitarRegistroIP, async (req, res) => {
     // 1. Verifica se o e-mail JÁ existe no banco
     const usuarioExistente = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email]);
     if (usuarioExistente.rows.length > 0) {
-      return res.status(400).json({ status: 'erro', mensagem: 'Este e-mail já está cadastrado.' });
+      return res.status(400).json({
+        status: 'erro',
+        codigo: 'EMAIL_JA_CADASTRADO',
+        mensagem: 'Este e-mail já está cadastrado. Por favor, faça login.'
+      });
     }
 
     // 2. Gera o código de 6 dígitos
@@ -287,6 +293,7 @@ app.post('/api/reenviar-2fa', limitarReenvioIP, async (req, res) => {
 
 app.listen(process.env.PORT || 3000, () => {
   console.log(`Servidor rodando na porta ${process.env.PORT || 3000} com PostgreSQL`);
+  garantirBucket();
 });
 
 // Rate limit para o login: protege contra força bruta / credential stuffing.
@@ -313,12 +320,17 @@ app.post('/api/login', limitarLoginIP, async (req, res) => {
     const resultado = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email]);
     const usuario = resultado.rows[0];
 
-    // Mensagem genérica de propósito: não revela se o e-mail existe ou não,
-    // nem se foi a senha que errou — evita enumeração de contas.
-    const erroGenerico = { status: 'erro', mensagem: 'E-mail ou senha inválidos.' };
-
+    // ATENÇÃO (trade-off de segurança, feito a pedido): mensagens
+    // diferenciadas revelam se um e-mail está cadastrado ou não — o oposto
+    // da proteção contra enumeração de contas que existia antes aqui.
+    // O campo "codigo" é pro frontend decidir a ação (abrir modal de
+    // cadastro) sem depender do texto exato da mensagem.
     if (!usuario) {
-      return res.status(401).json(erroGenerico);
+      return res.status(404).json({
+        status: 'erro',
+        codigo: 'EMAIL_NAO_CADASTRADO',
+        mensagem: 'E-mail não cadastrado. Por favor, faça cadastro.'
+      });
     }
 
     if (!usuario.verificado) {
@@ -327,7 +339,7 @@ app.post('/api/login', limitarLoginIP, async (req, res) => {
 
     const senhaConfere = await bcrypt.compare(password, usuario.senha);
     if (!senhaConfere) {
-      return res.status(401).json(erroGenerico);
+      return res.status(401).json({ status: 'erro', mensagem: 'Senha incorreta.' });
     }
 
     // Gera o token de sessão. Guarda só o essencial (id, email) — nunca o hash da senha.
@@ -374,9 +386,127 @@ function verificarAutenticacao(req, res, next) {
   }
 }
 
-// EXEMPLO de uso — troque pela rota real de streaming de música quando ela existir:
-//
-// app.get('/api/musicas/:id/audio', verificarAutenticacao, async (req, res) => {
-//   // req.usuario.id e req.usuario.email já estão disponíveis aqui.
-//   // Só chega até este ponto quem tiver um tokenSessao válido no header.
-// });
+// ============================================================
+// UPLOAD E LISTAGEM DE MÚSICAS
+// ============================================================
+
+// Recebe os arquivos em memória (buffer) e repassa pro Supabase Storage —
+// não grava nada em disco local, então funciona igual em qualquer ambiente.
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 }, // 25MB por arquivo
+  fileFilter: (req, file, cb) => {
+    const tiposAudio = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg'];
+    const tiposImagem = ['image/jpeg', 'image/png', 'image/webp'];
+
+    if (file.fieldname === 'audio' && !tiposAudio.includes(file.mimetype)) {
+      return cb(new Error('Formato de áudio não suportado. Use MP3, WAV ou OGG.'));
+    }
+    if (file.fieldname === 'capa' && !tiposImagem.includes(file.mimetype)) {
+      return cb(new Error('Formato de imagem não suportado. Use JPEG, PNG ou WEBP.'));
+    }
+    cb(null, true);
+  }
+});
+
+const limitarUploadIP = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 20,
+  message: {
+    status: 'erro',
+    mensagem: 'Muitos uploads a partir deste IP. Tente novamente mais tarde.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Rota 5: Upload de música — exige login (verificarAutenticacao) e tem rate limit.
+app.post(
+  '/api/musicas',
+  verificarAutenticacao,
+  limitarUploadIP,
+  upload.fields([{ name: 'audio', maxCount: 1 }, { name: 'capa', maxCount: 1 }]),
+  async (req, res) => {
+    try {
+      const { titulo, artista } = req.body;
+      const arquivoAudio = req.files?.audio?.[0];
+      const arquivoCapa = req.files?.capa?.[0];
+
+      if (!titulo || !artista) {
+        return res.status(400).json({ status: 'erro', mensagem: 'Título e artista são obrigatórios.' });
+      }
+      if (!arquivoAudio) {
+        return res.status(400).json({ status: 'erro', mensagem: 'O arquivo de áudio é obrigatório.' });
+      }
+
+      // Prefixo único evita colisão de nomes se duas pessoas subirem
+      // arquivos com o mesmo nome original ao mesmo tempo.
+      const idUnico = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+      const caminhoAudio = `audio/${idUnico}-${arquivoAudio.originalname}`;
+
+      const { error: erroUploadAudio } = await supabase.storage
+        .from(SUPABASE_BUCKET)
+        .upload(caminhoAudio, arquivoAudio.buffer, { contentType: arquivoAudio.mimetype });
+
+      if (erroUploadAudio) {
+        console.error('Erro ao subir áudio pro Supabase Storage:', erroUploadAudio);
+        return res.status(500).json({ status: 'erro', mensagem: 'Falha ao enviar o arquivo de áudio.' });
+      }
+
+      const { data: dadosUrlAudio } = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(caminhoAudio);
+      const urlAudio = dadosUrlAudio.publicUrl;
+
+      // A capa é opcional — se falhar, não aborta o upload da música inteira.
+      let urlCapa = null;
+      if (arquivoCapa) {
+        const caminhoCapa = `capas/${idUnico}-${arquivoCapa.originalname}`;
+        const { error: erroUploadCapa } = await supabase.storage
+          .from(SUPABASE_BUCKET)
+          .upload(caminhoCapa, arquivoCapa.buffer, { contentType: arquivoCapa.mimetype });
+
+        if (erroUploadCapa) {
+          console.error('Erro ao subir capa pro Supabase Storage (música seguirá sem capa):', erroUploadCapa);
+        } else {
+          const { data: dadosUrlCapa } = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(caminhoCapa);
+          urlCapa = dadosUrlCapa.publicUrl;
+        }
+      }
+
+      const resultado = await pool.query(
+        `INSERT INTO musicas (titulo, artista, url_audio, url_capa, usuario_id)
+         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [titulo, artista, urlAudio, urlCapa, req.usuario.id]
+      );
+
+      return res.status(201).json({ status: 'sucesso', musica: resultado.rows[0] });
+
+    } catch (erro) {
+      console.error('Erro no upload de música:', erro);
+      return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+    }
+  }
+);
+
+// Rota 6: Lista músicas — pública (navegar/ver o catálogo não exige login,
+// só tocar exigirá). Mais recentes primeiro, sem filtros: ORDER BY
+// criado_em DESC já resolve o "mostrar recém-uploadadas" sem precisar de
+// nenhuma lógica de análise de dados.
+app.get('/api/musicas', async (req, res) => {
+  try {
+    const resultado = await pool.query('SELECT * FROM musicas ORDER BY criado_em DESC LIMIT 50');
+    return res.status(200).json({ status: 'sucesso', musicas: resultado.rows });
+  } catch (erro) {
+    console.error('Erro ao listar músicas:', erro);
+    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  }
+});
+
+// Tratador de erro global — pega erros do multer (arquivo grande demais,
+// tipo não suportado) e devolve JSON em vez da página de erro padrão do Express.
+app.use((erro, req, res, next) => {
+  if (erro instanceof multer.MulterError || erro.message?.includes('suportado')) {
+    return res.status(400).json({ status: 'erro', mensagem: erro.message });
+  }
+  console.error('Erro não tratado:', erro);
+  return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+});

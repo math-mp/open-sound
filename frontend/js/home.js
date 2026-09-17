@@ -31,6 +31,13 @@ const formLogin = document.getElementById('form-login');
 const btnEntrar = document.getElementById('btn-entrar');
 const btnSair = document.getElementById('btn-sair');
 
+// Elementos do Modal de Upload e do Container Universal de Músicas
+const modalUpload = document.getElementById('modal-upload');
+const btnFecharUpload = document.getElementById('btn-fechar-upload');
+const formUpload = document.getElementById('form-upload');
+const btnUpload = document.getElementById('btn-upload');
+const listaMusicas = document.getElementById('lista-musicas');
+
 // Regex de Validação
 const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const regexSenha = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@()!%*?&#])[A-Za-z\d@()!%*?&#]{8,}$/;
@@ -182,7 +189,19 @@ if (formRegistro) {
 
         iniciarTimer2FA();
       } else {
-        alert(dados.mensagem || 'Erro ao processar o registro.');
+        // Redireciona pro login quando o e-mail já existe, em vez de só
+        // mostrar o erro e deixar o usuário preso no formulário de cadastro.
+        if (dados.codigo === 'EMAIL_JA_CADASTRADO') {
+          alert(dados.mensagem);
+          if (modal) modal.classList.add('hidden');
+          if (modalLogin) {
+            modalLogin.classList.remove('hidden');
+            const campoLoginEmail = document.getElementById('login-email');
+            if (campoLoginEmail) campoLoginEmail.value = email;
+          }
+        } else {
+          alert(dados.mensagem || 'Erro ao processar o registro.');
+        }
       }
 
     } catch (erro) {
@@ -390,7 +409,21 @@ if (formLogin) {
         if (modalLogin) modalLogin.classList.add('hidden');
         formLogin.reset();
       } else {
-        alert(dados.mensagem || 'Não foi possível fazer login.');
+        // Redireciona pro cadastro quando o e-mail não existe, em vez de só
+        // mostrar o erro e deixar o usuário preso no formulário de login.
+        if (dados.codigo === 'EMAIL_NAO_CADASTRADO') {
+          alert(dados.mensagem);
+          if (modalLogin) modalLogin.classList.add('hidden');
+          if (modal) {
+            modal.classList.remove('hidden');
+            if (etapaRegistro) etapaRegistro.classList.remove('hidden');
+            if (etapa2fa) etapa2fa.classList.add('hidden');
+            const campoRegistroEmail = formRegistro ? formRegistro.querySelector('input[type="email"]') : null;
+            if (campoRegistroEmail) campoRegistroEmail.value = email;
+          }
+        } else {
+          alert(dados.mensagem || 'Não foi possível fazer login.');
+        }
       }
     } catch (erro) {
       console.error('Erro de conexão:', erro);
@@ -419,3 +452,374 @@ if (btnSair) {
 
 // Estado inicial da navbar ao carregar a página
 atualizarUIAutenticacao();
+
+// ============================================================
+// CONTAINER UNIVERSAL DE MÚSICAS (carregar + renderizar cards)
+// ============================================================
+
+// Elementos da barra de player fixa (parte inferior da página)
+const playerBarra = document.getElementById('player-barra');
+const playerCapa = document.getElementById('player-capa');
+const playerTitulo = document.getElementById('player-titulo');
+const playerArtista = document.getElementById('player-artista');
+const playerPlayPause = document.getElementById('player-play-pause');
+const playerTempoAtual = document.getElementById('player-tempo-atual');
+const playerTempoTotal = document.getElementById('player-tempo-total');
+const playerSeek = document.getElementById('player-seek');
+
+// UM ÚNICO elemento de áudio compartilhado por toda a página — em vez de
+// criar um "new Audio()" a cada clique (jeito antigo), reutilizamos sempre
+// o mesmo. Isso é o que permite ter uma barra fixa embaixo controlando
+// "a música que está tocando agora", em vez de cada card ser independente.
+const elementoAudio = new Audio();
+let botaoAudioAtual = null; // botão do card da música tocando agora
+let arrastandoSeek = false; // true enquanto o usuário está arrastando a barrinha de progresso
+
+function formatarTempo(segundosTotais) {
+  if (!isFinite(segundosTotais) || segundosTotais < 0) return '0:00';
+  const minutos = Math.floor(segundosTotais / 60);
+  const segundos = Math.floor(segundosTotais % 60).toString().padStart(2, '0');
+  return `${minutos}:${segundos}`;
+}
+
+// Troca a música atual e começa a tocar (ou pausa/retoma, se for a mesma).
+function tocarMusica(musica, botaoClicado) {
+  const clicouNaMesmaMusica = botaoAudioAtual === botaoClicado && elementoAudio.src;
+
+  if (clicouNaMesmaMusica) {
+    if (elementoAudio.paused) {
+      elementoAudio.play();
+    } else {
+      elementoAudio.pause();
+    }
+    return;
+  }
+
+  // Trocou de música: reseta o texto do botão do card anterior.
+  if (botaoAudioAtual) botaoAudioAtual.textContent = '▶ Tocar';
+  botaoAudioAtual = botaoClicado;
+
+  elementoAudio.src = musica.url_audio;
+  elementoAudio.play().catch((erro) => {
+    console.error('Erro ao tocar áudio:', erro);
+    alert('Não foi possível tocar esta música.');
+  });
+
+  if (playerCapa) playerCapa.src = musica.url_capa || '';
+  if (playerTitulo) playerTitulo.textContent = musica.titulo;
+  if (playerArtista) playerArtista.textContent = musica.artista;
+  if (playerBarra) playerBarra.classList.remove('hidden');
+}
+
+// Eventos do elemento de áudio compartilhado — mantêm o card e a barra
+// inferior sincronizados, não importa qual dos dois iniciou a ação.
+elementoAudio.addEventListener('play', () => {
+  if (botaoAudioAtual) botaoAudioAtual.textContent = '⏸ Pausar';
+  if (playerPlayPause) playerPlayPause.textContent = '⏸';
+});
+
+elementoAudio.addEventListener('pause', () => {
+  if (botaoAudioAtual) botaoAudioAtual.textContent = '▶ Tocar';
+  if (playerPlayPause) playerPlayPause.textContent = '▶';
+});
+
+elementoAudio.addEventListener('ended', () => {
+  if (botaoAudioAtual) botaoAudioAtual.textContent = '▶ Tocar';
+  botaoAudioAtual = null;
+});
+
+// Assim que os metadados carregam, já sabemos a duração total —
+// usada pra configurar o máximo da barrinha de progresso.
+elementoAudio.addEventListener('loadedmetadata', () => {
+  if (playerSeek) playerSeek.max = elementoAudio.duration;
+  if (playerTempoTotal) playerTempoTotal.textContent = formatarTempo(elementoAudio.duration);
+});
+
+// A cada avanço da música, atualiza a posição da barrinha e o tempo atual
+// — a menos que o usuário esteja arrastando ela manualmente agora.
+elementoAudio.addEventListener('timeupdate', () => {
+  if (!arrastandoSeek) {
+    if (playerSeek) playerSeek.value = elementoAudio.currentTime;
+    if (playerTempoAtual) playerTempoAtual.textContent = formatarTempo(elementoAudio.currentTime);
+  }
+});
+
+if (playerSeek) {
+  // Enquanto arrasta, só atualiza o texto do tempo (não pula a música ainda).
+  playerSeek.addEventListener('input', () => {
+    arrastandoSeek = true;
+    if (playerTempoAtual) playerTempoAtual.textContent = formatarTempo(playerSeek.value);
+  });
+
+  // Ao soltar, aí sim pula pra posição escolhida — isso é o "ajustar em que
+  // parte da música quero escutar" que você pediu.
+  playerSeek.addEventListener('change', () => {
+    elementoAudio.currentTime = playerSeek.value;
+    arrastandoSeek = false;
+  });
+}
+
+if (playerPlayPause) {
+  playerPlayPause.addEventListener('click', () => {
+    if (!elementoAudio.src) return;
+    if (elementoAudio.paused) {
+      elementoAudio.play();
+    } else {
+      elementoAudio.pause();
+    }
+  });
+}
+
+// Template do card — recebe um objeto de música (linha vinda de
+// GET /api/musicas) e devolve o elemento DOM pronto. Usa textContent (não
+// innerHTML) para título/artista porque esses valores vêm do que outros
+// usuários digitaram no upload — textContent evita que algo digitado ali
+// seja interpretado como HTML/script.
+function criarCardMusica(musica) {
+  const card = document.createElement('div');
+  card.className = 'card-musica';
+
+  const capa = document.createElement('img');
+  capa.className = 'capa-musica';
+  capa.src = musica.url_capa || '';
+  capa.alt = `Capa de ${musica.titulo}`;
+
+  const info = document.createElement('div');
+  info.className = 'info-musica';
+
+  const titulo = document.createElement('p');
+  titulo.className = 'titulo-musica';
+  titulo.textContent = musica.titulo;
+
+  const artista = document.createElement('p');
+  artista.className = 'artista-musica';
+  artista.textContent = musica.artista;
+
+  info.appendChild(titulo);
+  info.appendChild(artista);
+
+  const btnPlay = document.createElement('button');
+  btnPlay.className = 'btn-play';
+  btnPlay.textContent = '▶ Tocar';
+
+  btnPlay.addEventListener('click', () => {
+    // Gate: tocar exige login, mesmo que o card já esteja visível pra todo
+    // mundo (navegar/ver o catálogo é livre — a ação de tocar não é).
+    if (!estaLogado()) {
+      alert('Faça login para tocar as músicas.');
+      if (modalLogin) modalLogin.classList.remove('hidden');
+      return;
+    }
+
+    tocarMusica(musica, btnPlay);
+  });
+
+  card.appendChild(capa);
+  card.appendChild(info);
+  card.appendChild(btnPlay);
+
+  return card;
+}
+
+// Busca as músicas no backend e preenche o container universal.
+// GET /api/musicas é pública — não precisa de token pra listar/ver o catálogo.
+async function carregarMusicas() {
+  if (!listaMusicas) return;
+
+  try {
+    const resposta = await fetch('http://localhost:3000/api/musicas');
+    const dados = await resposta.json();
+
+    if (!resposta.ok) {
+      listaMusicas.innerHTML = '';
+      const mensagem = document.createElement('p');
+      mensagem.className = 'mensagem-lista';
+      mensagem.textContent = dados.mensagem || 'Não foi possível carregar as músicas.';
+      listaMusicas.appendChild(mensagem);
+      return;
+    }
+
+    listaMusicas.innerHTML = '';
+
+    if (!dados.musicas || dados.musicas.length === 0) {
+      const mensagem = document.createElement('p');
+      mensagem.className = 'mensagem-lista';
+      mensagem.textContent = 'Nenhuma música enviada ainda. Seja o primeiro a fazer upload!';
+      listaMusicas.appendChild(mensagem);
+      return;
+    }
+
+    dados.musicas.forEach((musica) => {
+      listaMusicas.appendChild(criarCardMusica(musica));
+    });
+
+  } catch (erro) {
+    console.error('Erro ao carregar músicas:', erro);
+    listaMusicas.innerHTML = '';
+    const mensagem = document.createElement('p');
+    mensagem.className = 'mensagem-lista';
+    mensagem.textContent = 'Erro de conexão ao carregar as músicas.';
+    listaMusicas.appendChild(mensagem);
+  }
+}
+
+carregarMusicas();
+
+// ============================================================
+// UPLOAD DE MÚSICA
+// ============================================================
+
+// Clique em "Upload": exige login. Se não estiver logado, abre o modal de
+// login em vez do de upload (mesmo padrão de gate usado no botão de play).
+if (btnUpload) {
+  btnUpload.addEventListener('click', () => {
+    if (!estaLogado()) {
+      alert('Faça login para enviar músicas.');
+      if (modalLogin) modalLogin.classList.remove('hidden');
+      return;
+    }
+    if (modalUpload) modalUpload.classList.remove('hidden');
+  });
+}
+
+if (btnFecharUpload && modalUpload) {
+  btnFecharUpload.addEventListener('click', () => {
+    modalUpload.classList.add('hidden');
+    if (formUpload) formUpload.reset();
+    resetarPreviewUpload();
+  });
+}
+
+// Elementos do formulário e da preview ao vivo
+const campoTitulo = document.getElementById('upload-titulo');
+const campoArtista = document.getElementById('upload-artista');
+const campoAudio = document.getElementById('upload-audio');
+const campoCapa = document.getElementById('upload-capa');
+
+const previewCapa = document.getElementById('preview-upload-capa');
+const previewCapaVazio = document.getElementById('preview-upload-capa-vazio');
+const previewTitulo = document.getElementById('preview-upload-titulo');
+const previewArtista = document.getElementById('preview-upload-artista');
+const previewAudio = document.getElementById('preview-upload-audio');
+
+let urlObjetoCapaAtual = null; // pra liberar da memória a preview anterior antes de criar outra
+
+function resetarPreviewUpload() {
+  if (urlObjetoCapaAtual) {
+    URL.revokeObjectURL(urlObjetoCapaAtual);
+    urlObjetoCapaAtual = null;
+  }
+  if (previewCapa) {
+    previewCapa.src = '';
+    previewCapa.classList.add('hidden');
+  }
+  if (previewCapaVazio) previewCapaVazio.classList.remove('hidden');
+  if (previewTitulo) previewTitulo.textContent = 'Título da música';
+  if (previewArtista) previewArtista.textContent = 'Nome do artista';
+  if (previewAudio) previewAudio.textContent = 'Nenhum áudio selecionado';
+}
+
+// Título e artista: atualiza a cada tecla digitada — mostrando o texto
+// INTEIRO (sem cortar), pra o usuário conferir antes de enviar.
+if (campoTitulo && previewTitulo) {
+  campoTitulo.addEventListener('input', () => {
+    previewTitulo.textContent = campoTitulo.value.trim() || 'Título da música';
+  });
+}
+
+if (campoArtista && previewArtista) {
+  campoArtista.addEventListener('input', () => {
+    previewArtista.textContent = campoArtista.value.trim() || 'Nome do artista';
+  });
+}
+
+// Áudio: só mostra o nome do arquivo escolhido (não dá pra tocar/pré-ouvir
+// sem subir pro storage primeiro, mas já confirma visualmente qual arquivo foi selecionado).
+if (campoAudio && previewAudio) {
+  campoAudio.addEventListener('change', () => {
+    const arquivo = campoAudio.files[0];
+    previewAudio.textContent = arquivo ? `🎵 ${arquivo.name}` : 'Nenhum áudio selecionado';
+  });
+}
+
+// Capa: gera uma URL local temporária (createObjectURL) pra mostrar a
+// imagem antes mesmo do upload acontecer — é só isso, nunca sai do navegador.
+if (campoCapa && previewCapa && previewCapaVazio) {
+  campoCapa.addEventListener('change', () => {
+    const arquivo = campoCapa.files[0];
+
+    if (urlObjetoCapaAtual) {
+      URL.revokeObjectURL(urlObjetoCapaAtual);
+      urlObjetoCapaAtual = null;
+    }
+
+    if (arquivo) {
+      urlObjetoCapaAtual = URL.createObjectURL(arquivo);
+      previewCapa.src = urlObjetoCapaAtual;
+      previewCapa.classList.remove('hidden');
+      previewCapaVazio.classList.add('hidden');
+    } else {
+      previewCapa.src = '';
+      previewCapa.classList.add('hidden');
+      previewCapaVazio.classList.remove('hidden');
+    }
+  });
+}
+
+if (formUpload) {
+  formUpload.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const titulo = campoTitulo ? campoTitulo.value.trim() : '';
+    const artista = campoArtista ? campoArtista.value.trim() : '';
+    const arquivoAudio = campoAudio && campoAudio.files[0] ? campoAudio.files[0] : null;
+    const arquivoCapa = campoCapa && campoCapa.files[0] ? campoCapa.files[0] : null;
+
+    if (!titulo || !artista || !arquivoAudio) {
+      alert('Preencha título, artista e selecione o arquivo de áudio.');
+      return;
+    }
+
+    const dadosFormulario = new FormData();
+    dadosFormulario.append('titulo', titulo);
+    dadosFormulario.append('artista', artista);
+    dadosFormulario.append('audio', arquivoAudio);
+    if (arquivoCapa) dadosFormulario.append('capa', arquivoCapa);
+
+    const btnSubmitUpload = formUpload.querySelector('button[type="submit"]');
+    if (btnSubmitUpload) {
+      btnSubmitUpload.disabled = true;
+      btnSubmitUpload.textContent = 'Enviando...';
+    }
+
+    try {
+      // Não define Content-Type manualmente aqui: o navegador precisa
+      // gerar o boundary do multipart/form-data sozinho. fetchComAutenticacao
+      // só injeta o header Authorization, sem mexer nos demais.
+      const resposta = await fetchComAutenticacao('http://localhost:3000/api/musicas', {
+        method: 'POST',
+        body: dadosFormulario
+      });
+
+      const dados = await resposta.json();
+
+      if (resposta.ok) {
+        alert('Música enviada com sucesso!');
+        if (modalUpload) modalUpload.classList.add('hidden');
+        formUpload.reset();
+        resetarPreviewUpload();
+        carregarMusicas(); // atualiza o container universal com o item novo
+      } else {
+        alert(dados.mensagem || 'Não foi possível enviar a música.');
+      }
+    } catch (erro) {
+      console.error('Erro de conexão:', erro);
+      alert('Erro de conexão com o servidor.');
+    } finally {
+      if (btnSubmitUpload) {
+        btnSubmitUpload.disabled = false;
+        btnSubmitUpload.textContent = 'Enviar';
+      }
+    }
+  });
+}
