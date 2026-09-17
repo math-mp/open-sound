@@ -7,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const multer = require('multer');
+const crypto = require('crypto');
 const { supabase, SUPABASE_BUCKET, garantirBucket } = require('./storage');
 
 const app = express();
@@ -15,13 +16,9 @@ app.use(express.json());
 
 // CORREÇÃO: sem fallback fraco hardcoded. Se a variável não existir,
 // o servidor para na inicialização em vez de rodar com um segredo previsível.
-// CORREÇÃO: segredo separado do usado no fluxo de 2FA. Manter os dois JWTs
-// (pendência de cadastro vs. sessão de login) com segredos diferentes evita
-// que um token de um fluxo seja reaproveitado indevidamente no outro.
-const JWT_SECRET_2FA = process.env.JWT_SECRET_2FA;
 const JWT_SECRET_SESSAO = process.env.JWT_SECRET_SESSAO;
-if (!JWT_SECRET_2FA || !JWT_SECRET_SESSAO) {
-  throw new Error('JWT_SECRET_2FA e JWT_SECRET_SESSAO precisam estar definidos no .env. Defina valores fortes antes de subir o servidor.');
+if (!JWT_SECRET_SESSAO) {
+  throw new Error('JWT_SECRET_SESSAO precisa estar definido no .env. Defina um valor forte antes de subir o servidor.');
 }
 
 const transporter = nodemailer.createTransport({
@@ -65,7 +62,8 @@ const limitarRegistroIP = rateLimit({
   legacyHeaders: false
 });
 
-// Rota 1: Cadastra o usuário e envia o JWT
+// Rota 1: Cadastra o usuário e envia o código 2FA por e-mail
+// Armazena a verificação no banco (verificacoes_2fa) em vez de JWT temporário
 app.post('/api/registro', limitarRegistroIP, async (req, res) => {
   const { email, password } = req.body;
 
@@ -95,27 +93,24 @@ app.post('/api/registro', limitarRegistroIP, async (req, res) => {
       });
     }
 
-    // 2. Gera o código de 6 dígitos
+    // 2.Gera o código de 6 dígitos
     const codigo = Math.floor(100000 + Math.random() * 900000).toString();
-
-    // 3. Criptografa a senha antes de colocar no token
+    // 3.Criptografa a senha
     const senhaHash = await bcrypt.hash(password, 10);
+    // 4.Gera hash do código 2FA (não salva o código puro no banco)
+    const codigoHash = await bcrypt.hash(codigo, 10);
+    // 5.Cria identificador único para a verificação
+    const idVerificacao = crypto.randomUUID();
+    // 6.Define expiração (10 minutos)
+    const expiraEm = new Date(Date.now() + 10 * 60 * 1000);
+    // 7. Salva no PostgreSQL
+    const queryInsertVerificacao = `
+      INSERT INTO verificacoes_2fa (id, email, senha_hash, codigo_hash, tentativas, expira_em, ultimo_envio_em)
+      VALUES ($1, $2, $3, $4, 0, $5, CURRENT_TIMESTAMP)
+    `;
+    await pool.query(queryInsertVerificacao, [idVerificacao, email, senhaHash, codigoHash, expiraEm]);
 
-    // 4. Cria o Token Temporário que expira em 10 minutos (600s)
-    // CORREÇÃO: adicionado campo "tentativas" para controlar tentativas erradas do código 2FA
-    const tokenPendencia = jwt.sign(
-      {
-        email,
-        senhaHash,
-        codigo,
-        tentativas: 0,
-        enviadoEm: Date.now()
-      },
-      JWT_SECRET_2FA,
-      { expiresIn: '10m' }
-    );
-
-    // 5. Envia o e-mail de forma protegida
+    // 8. Envia o e-mail com o código em texto puro (só para envio)
     try {
       await transporter.sendMail({
         from: `"Open sound" <${process.env.GMAIL_USER}>`,
@@ -125,14 +120,16 @@ app.post('/api/registro', limitarRegistroIP, async (req, res) => {
       });
     } catch (erroMail) {
       console.error('Erro ao enviar e-mail pelo Nodemailer:', erroMail);
+      //Se falhar o envio, remove a verificação criada
+      await pool.query('DELETE FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
       return res.status(500).json({ status: 'erro', mensagem: 'Falha ao enviar o e-mail com o código de verificação.' });
     }
 
-    // Retorna o token para o frontend
+    // 9. Retorna apenas o idVerificacao para o frontend (sem dados sensíveis)
     return res.status(200).json({
       status: 'sucesso',
       mensagem: 'Código enviado com sucesso!',
-      tokenPendencia
+      idVerificacao
     });
 
   } catch (erro) {
@@ -154,53 +151,59 @@ const limitarValidacaoIP = rateLimit({
   legacyHeaders: false
 });
 
-// Rota 2: Valida o token + código e faz o INSERT no banco
+// Rota 2: Valida o código 2FA usando o idVerificacao do banco
 app.post('/api/validar-2fa', limitarValidacaoIP, async (req, res) => {
-  const { codigo, tokenPendencia } = req.body;
+  const { codigo, idVerificacao } = req.body;
 
-  if (!codigo || !tokenPendencia) {
+  if (!codigo || !idVerificacao) {
     return res.status(400).json({ status: 'erro', mensagem: 'Dados incompletos.' });
   }
 
   try {
-    // 1. Decodifica e valida o token temporário
-    const payload = jwt.verify(tokenPendencia, JWT_SECRET_2FA);
+    // 1. Busca a verificação no banco
+    const resultado = await pool.query('SELECT * FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
+    const verificacao = resultado.rows[0];
 
-    // 2. CORREÇÃO: bloqueia após 5 tentativas erradas dentro do mesmo token,
-    // além do rate limit por IP acima.
-    if ((payload.tentativas || 0) >= 5) {
+    if (!verificacao) {
+      return res.status(400).json({ status: 'erro', mensagem: 'Verificação não encontrada ou expirada.' });
+    }
+
+    // 2. Verifica se a verificação expirou
+    if (new Date(verificacao.expira_em) < new Date()) {
+      await pool.query('DELETE FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
+      return res.status(400).json({ status: 'erro', mensagem: 'O tempo limite do código expirou. Solicite um novo cadastro.' });
+    }
+
+    // 3. Verifica se excedeu o máximo de tentativas (5)
+    if (verificacao.tentativas >= 5) {
+      await pool.query('DELETE FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
       return res.status(429).json({ status: 'erro', mensagem: 'Número máximo de tentativas excedido. Solicite um novo cadastro.' });
     }
 
-    // 3. Confere o código com tratamento de tipos (String)
-    if (String(payload.codigo) !== String(codigo).trim()) {
-      // Gera um novo token com o contador de tentativas incrementado
-      const tokenAtualizado = jwt.sign(
-        { ...payload, tentativas: (payload.tentativas || 0) + 1 },
-        JWT_SECRET_2FA,
-        { expiresIn: '10m' }
-      );
-      return res.status(400).json({
-        status: 'erro',
-        mensagem: 'Código 2FA incorreto.',
-        tokenPendencia: tokenAtualizado
-      });
+    // 4. Compara o código digitado com o hash armazenado
+    const codigoConfere = await bcrypt.compare(codigo.trim(), verificacao.codigo_hash);
+
+    if (!codigoConfere) {
+      // Incrementa tentativas
+      await pool.query('UPDATE verificacoes_2fa SET tentativas = tentativas + 1 WHERE id = $1', [idVerificacao]);
+      return res.status(400).json({ status: 'erro', mensagem: 'Código 2FA incorreto.' });
     }
 
-    // 4. Cria a conta no PostgreSQL
+    // 5. Código correto: cria o usuário no PostgreSQL
     const queryInsert = `
       INSERT INTO usuarios (email, senha, verificado)
       VALUES ($1, $2, TRUE)
     `;
-    await pool.query(queryInsert, [payload.email, payload.senhaHash]);
+    await pool.query(queryInsert, [verificacao.email, verificacao.senha_hash]);
+
+    // 6. Remove a verificação usada
+    await pool.query('DELETE FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
 
     return res.status(200).json({ status: 'sucesso', mensagem: 'Conta registrada e ativada com sucesso!' });
 
   } catch (erro) {
-    if (erro.name === 'TokenExpiredError') {
-      return res.status(400).json({ status: 'erro', mensagem: 'O tempo limite do código expirou. Solicite um novo cadastro.' });
-    }
-    return res.status(400).json({ status: 'erro', mensagem: 'Token de verificação inválido ou alterado.' });
+    console.error('Erro na validação 2FA:', erro);
+    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
   }
 });
 
@@ -216,31 +219,32 @@ const limitarReenvioIP = rateLimit({
   legacyHeaders: false
 });
 
-// Rota 3: Reenvia o código 2FA via JWT
+// Rota 3: Reenvia o código 2FA atualizando o registro no banco
 app.post('/api/reenviar-2fa', limitarReenvioIP, async (req, res) => {
-  const { tokenPendencia } = req.body;
+  const { idVerificacao } = req.body;
 
-  if (!tokenPendencia) {
+  if (!idVerificacao) {
     return res.status(400).json({ status: 'erro', mensagem: 'Sessão inválida ou expirada.' });
   }
 
   try {
-    let payload;
-    try {
-      // Tenta validar o token normalmente
-      payload = jwt.verify(tokenPendencia, JWT_SECRET_2FA);
-    } catch (err) {
-      if (err.name === 'TokenExpiredError') {
-        // Ignora a expiração para poder renovar a sessão no reenvio
-        payload = jwt.verify(tokenPendencia, JWT_SECRET_2FA, { ignoreExpiration: true });
-      } else {
-        throw err;
-      }
+    // 1. Busca a verificação no banco
+    const resultado = await pool.query('SELECT * FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
+    const verificacao = resultado.rows[0];
+
+    if (!verificacao) {
+      return res.status(400).json({ status: 'erro', mensagem: 'Sessão inválida ou expirada.' });
     }
 
-    // Validação dos 60 segundos
+    // 2. Verifica se a verificação expirou
+    if (new Date(verificacao.expira_em) < new Date()) {
+      await pool.query('DELETE FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
+      return res.status(400).json({ status: 'erro', mensagem: 'O tempo limite expirou. Solicite um novo cadastro.' });
+    }
+
+    // 3. Validação dos 60 segundos desde o último envio
     const agora = Date.now();
-    const tempoDecorrido = Math.floor((agora - payload.enviadoEm) / 1000);
+    const tempoDecorrido = Math.floor((agora - new Date(verificacao.ultimo_envio_em).getTime()) / 1000);
 
     if (tempoDecorrido < 60) {
       const segundosRestantes = 60 - tempoDecorrido;
@@ -250,27 +254,21 @@ app.post('/api/reenviar-2fa', limitarReenvioIP, async (req, res) => {
       });
     }
 
-    // Gera novo código e atualiza o timestamp (zera tentativas também)
-    const { email, senhaHash } = payload;
+    // 4. Gera novo código e hash
     const novoCodigo = Math.floor(100000 + Math.random() * 900000).toString();
+    const novoCodigoHash = await bcrypt.hash(novoCodigo, 10);
 
-    const novoTokenPendencia = jwt.sign(
-      {
-        email,
-        senhaHash,
-        codigo: novoCodigo,
-        tentativas: 0,
-        enviadoEm: Date.now()
-      },
-      JWT_SECRET_2FA,
-      { expiresIn: '10m' }
+    // 5. Atualiza o registro no banco (novo código, zera tentativas, atualiza último envio)
+    await pool.query(
+      'UPDATE verificacoes_2fa SET codigo_hash = $1, tentativas = 0, ultimo_envio_em = CURRENT_TIMESTAMP WHERE id = $2',
+      [novoCodigoHash, idVerificacao]
     );
 
-    // Envia o novo e-mail
+    // 6. Envia o novo e-mail
     try {
       await transporter.sendMail({
         from: `"Open sound" <${process.env.GMAIL_USER}>`,
-        to: email,
+        to: verificacao.email,
         subject: 'Seu novo código de verificação 2FA',
         text: `Seu novo código de confirmação é: ${novoCodigo}`
       });
@@ -281,8 +279,7 @@ app.post('/api/reenviar-2fa', limitarReenvioIP, async (req, res) => {
 
     return res.status(200).json({
       status: 'sucesso',
-      mensagem: 'Novo código enviado com sucesso!',
-      novoTokenPendencia
+      mensagem: 'Novo código enviado com sucesso!'
     });
 
   } catch (erro) {

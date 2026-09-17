@@ -45,7 +45,7 @@ const regexSenha = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@()!%*?&#])[A-Za-z\d@()
 let emailUsuarioAtual = '';
 let tempoRestante = 60;
 let intervaloTimer = null;
-let tokenPendenciaAtual = '';
+let idVerificacaoAtual = '';
 
 // === FUNÇÃO PARA MASCARAR E-MAIL ===
 // CORREÇÃO: os "${...}" tinham virado "\(...\)" (provável erro de escape ao colar).
@@ -178,7 +178,7 @@ if (formRegistro) {
 
       if (resposta.ok) {
         emailUsuarioAtual = email;
-        tokenPendenciaAtual = dados.tokenPendencia;
+        idVerificacaoAtual = dados.idVerificacao;
 
         if (spanEmailMascarado) spanEmailMascarado.textContent = mascararEmail(email);
         if (etapaRegistro) etapaRegistro.classList.add('hidden');
@@ -234,7 +234,7 @@ if (btnConfirmar2FA) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           codigo: codigoDigitado,
-          tokenPendencia: tokenPendenciaAtual
+          idVerificacao: idVerificacaoAtual
         })
       });
 
@@ -251,11 +251,6 @@ if (btnConfirmar2FA) {
         if (etapaRegistro) etapaRegistro.classList.remove('hidden');
         if (intervaloTimer) clearInterval(intervaloTimer);
       } else {
-        // CORREÇÃO: o servidor agora devolve um token atualizado (com o
-        // contador de tentativas) mesmo quando o código está errado.
-        if (dados.tokenPendencia) {
-          tokenPendenciaAtual = dados.tokenPendencia;
-        }
         alert(dados.mensagem || 'Código incorreto ou expirado.');
       }
     } catch (erro) {
@@ -297,14 +292,12 @@ if (btnReenviar2FA) {
       const resposta = await fetch('http://localhost:3000/api/reenviar-2fa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tokenPendencia: tokenPendenciaAtual })
+        body: JSON.stringify({ idVerificacao: idVerificacaoAtual })
       });
 
       const dados = await resposta.json();
 
       if (resposta.ok) {
-        tokenPendenciaAtual = dados.novoTokenPendencia;
-
         inputsOTP.forEach(inp => inp.value = '');
         setTimeout(() => inputsOTP[0]?.focus(), 100);
 

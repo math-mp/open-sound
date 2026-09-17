@@ -41,10 +41,26 @@ const criarTabelas = async () => {
     );
   `;
 
+  // Tabela para armazenar verificações 2FA temporárias (cadastro)
+  // Substitui o uso de JWT temporário para não expor dados sensíveis já que o math deixou eles no JWT 
+  const queryVerificacoes2FA = `
+    CREATE TABLE IF NOT EXISTS verificacoes_2fa (
+      id UUID PRIMARY KEY,
+      email VARCHAR(255) NOT NULL,
+      senha_hash VARCHAR(255) NOT NULL,
+      codigo_hash VARCHAR(255) NOT NULL,
+      tentativas INTEGER DEFAULT 0,
+      criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      expira_em TIMESTAMP NOT NULL,
+      ultimo_envio_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
+
   try {
     await pool.query(queryUsuarios);
     await pool.query(queryMusicas);
-    console.log('Tabelas "usuarios" e "musicas" verificadas/criadas com sucesso no PostgreSQL.');
+    await pool.query(queryVerificacoes2FA);
+    console.log('Tabelas "usuarios", "musicas" e "verificacoes_2fa" verificadas/criadas com sucesso no PostgreSQL.');
   } catch (erro) {
     console.error('Erro ao criar tabelas no PostgreSQL:', erro);
   }
