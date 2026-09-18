@@ -2,62 +2,73 @@
 box-sizing: border-box;
 margin: 0;
 padding: 0;
-}
-
-/* CORREÇÃO: barra de rolagem horizontal indesejada. A causa era o uso de
-   "100vw" em .main-ctt — essa unidade conta a largura da barra de rolagem
-   vertical do navegador, então ficava alguns pixels mais larga que a tela
-   de verdade. Trocado por "width: 100%" (relativo ao body, sem esse
-   problema) + overflow-x:hidden como segurança extra. */
-html, body {
-  overflow-x: hidden;
-  width: 100%;
+font-family: 'Baloo 2', 'Segoe UI', sans-serif; /* fonte arredondada/bold, condizente com o protótipo */
 }
 
 /*===navbar fixa===*/
+/* CORES: nenhum valor de cor é definido aqui de propósito.
+   Toda cor (fundo, texto, estados) vem do theme.css, que ainda não existe. */
 .fixed-bar {
   display: flex;
-  gap: 20px;
+  gap: 24px;
   align-items: center;
   position: fixed;   /* Fixa a barra na tela */
   top: 0;            /* Gruda no topo absoluto */
   left: 0;           /* Alinha na borda esquerda */
   width: 100%;       /* Ocupa toda a largura da página */
-  background: #333;  /* Cor de fundo da barra */
-  color: #fff;       /* Cor do texto */
-  padding: 15px 30px;     /* Espaçamento interno */
+  padding: 16px 32px;     /* Espaçamento interno */
   z-index: 1000;     /* Mantém a barra acima de outros elementos */
 }
 
 /* Os blocos da esquerda e da direita ganham o mesmo peso/espaço */
 .nav-left, .nav-right {
-  flex: 1; 
+  flex: 1;
   display: flex;
-  gap: 20px; /* Mantém o espaçamento que você já tinha entre os botões */
+  align-items: center;
+  gap: 16px; /* Mantém o espaçamento que você já tinha entre os botões */
 }
 
 .nav-right {
-  justify-content: flex-end; /* Joga o botão Entrar totalmente para a direita */
+  justify-content: flex-end; /* Joga os botões totalmente para a direita */
 }
 
-/* O bloco do centro fica isolado e centralizado */
+/* O bloco do centro fica isolado, centralizado e ganha mais espaço (barra de busca larga) */
 .nav-center {
+  flex: 2;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
+.nav-center form {
+  width: 100%;
+  max-width: 620px; /* limite pra não esticar demais em telas grandes */
+  display: flex;
+}
+
 /* Estilo extra opcional para deixar o input de pesquisa bonito e largo */
 .nav-center input[type="search"] {
-  width: 300px;
-  padding: 8px 15px;
-  border-radius: 20px;
+  width: 100%;
+  padding: 12px 20px;
+  border-radius: 14px;
   border: none;
   outline: none;
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+/* Classe usada diretamente no input (home.html usa class="search-input") */
+.search-input {
+  width: 100%;
+  padding: 12px 20px;
+  border-radius: 14px;
+  border: none;
+  outline: none;
+  font-size: 0.95rem;
+  font-family: inherit;
 }
 
 .btn-navbar{
-    background-color: rgb(85, 97, 93);
     border: none;
     border-radius: 10px;
     padding: 5px;
@@ -65,27 +76,38 @@ html, body {
 }
 
 .fixed-bar button {
-  background-color: #ffffff; /* Fundo branco para contraste */
-  color: #000000;            /* Texto preto */
-  font-size: 14px;
-  font-weight: 700;          /* Texto em negrito */
-  padding: 10px 20px;        /* Espaçamento interno (vertical e horizontal) */
+  font-size: 15px;
+  font-weight: 800;          /* Texto em negrito, mais próximo do protótipo */
+  padding: 12px 24px;        /* Espaçamento interno (vertical e horizontal) */
   border: none;              /* Remove a borda padrão feia do navegador */
-  border-radius: 10px;       /* Bordas totalmente arredondadas estilo cápsula */
+  border-radius: 16px;       /* Cantos bem arredondados, estilo do protótipo */
   cursor: pointer;           /* Transforma o cursor em mãozinha ao passar o mouse */
-  transition: transform 0.2s ease, background-color 0.2s ease; /* Suaviza as animações */
+  white-space: nowrap;       /* Evita quebra de linha em botões com texto maior */
+  transition: transform 0.15s ease, filter 0.15s ease; /* Suaviza as animações */
 }
 
-/* Efeito ao passar o mouse por cima (Hover) */
+/* Efeito ao passar o mouse por cima (Hover) — usa filter em vez de cor fixa */
 .fixed-bar button:hover {
-  background-color: #f6f6f6; /* Muda sutilmente a cor de fundo */
+  filter: brightness(0.96); /* Escurece sutilmente sem introduzir cor nova */
   transform: scale(1.04);    /* Dá um leve zoom no botão (efeito moderno) */
 }
 
 /* Efeito ao clicar no botão (Active) */
 .fixed-bar button:active {
-  transform: scale(1.0);     /* Volta ao tamanho normal no clique */
-  background-color: #b3b3b3; /* Escurece o fundo durante o clique */
+  transform: scale(0.98);     /* Leve encolhimento no clique, feedback tátil */
+  filter: brightness(0.9);
+}
+
+/* Botão de tema (ícone de lua): mesma base de .btn-navbar, mas formato circular */
+#btn-tema {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
 }
 
 /*===conteudo principal===*/
@@ -94,24 +116,142 @@ html, body {
     flex-direction: column;
     gap: 40px;
     place-items: center; 
-    width: 100%;
-    min-height: 100vh;   /* ANTES: height: 100vh (fixo) — veja o comentário abaixo */
-    padding-top: 90px;   /* ANTES: 60px — dava espaço menor que a navbar de verdade */
-    padding-bottom: 100px; /* espaço pra barra de player fixa não cobrir o último card */
+    width: 100vw;
+    height: 100vh;
+    padding-top: 60px;
     justify-content: center;
     align-items: center;
 
 }
-/* CORREÇÃO: com "height: 100vh" fixo (valor antigo), quando o conteúdo era
-   maior que a tela, o flexbox ESPREMIA .lista-musicas e .double-div pra
-   caber dentro dos 100vh — em vez de a página crescer e rolar. Isso fazia
-   os cards ficarem menores que o necessário e o conteúdo visualmente
-   vazar por baixo da div seguinte (o "botão coberto" que você viu).
-   Trocando pra "min-height: 100vh", o container pode crescer à vontade e
-   o scroll da página volta a funcionar normalmente. */
+.top-msc{
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+    width: 85vw;
+    min-height: 30vh;
+    justify-content: center;
+    padding: 24px 28px;
+}
+
+/* Título da seção */
+.msc-titulo {
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+/* Envolve o card de destaque + o carrossel lado a lado */
+.msc-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  width: 100%;
+}
+
+/* Card de destaque: capa + vinil + info + play */
+.msc-destaque {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-shrink: 0;
+}
+
+/* Container que segura a capa do álbum sobreposta ao vinil */
+.msc-capa {
+  position: relative;
+  width: 180px;
+  height: 140px;
+  flex-shrink: 0;
+}
+
+.msc-capa-img {
+  position: absolute;
+  left: 0;
+  top: 5px;
+  width: 130px;
+  height: 130px;
+  object-fit: cover;
+  border-radius: 8px;
+  z-index: 2;
+}
+
+.msc-vinil {
+  position: absolute;
+  right: 0;
+  top: 5px;
+  width: 130px;
+  height: 130px;
+  object-fit: cover;
+  border-radius: 50%;
+  z-index: 1;
+}
+
+/* Nome da música, artista e botão de play */
+.msc-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.msc-nome {
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.msc-artista {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+/* Botão de play: caixa interativa. Sem background, sem cor de contorno — entram no theme.css */
+.btn-play {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  outline-width: 2px;
+  outline-style: solid;
+  outline-offset: -2px;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.btn-play:hover {
+  transform: scale(1.06);
+  filter: brightness(1.15);
+}
+
+.btn-play:active {
+  transform: scale(0.96);
+}
+
+/* Carrossel de mini-capas: preenche o espaço restante, tipo tira de filme */
+.msc-carrossel {
+  display: flex;
+  flex: 1;
+  height: 140px;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.msc-carrossel-item {
+  flex: 1 1 0;
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  transition: transform 0.2s ease;
+}
+
+.msc-carrossel-item:hover {
+  transform: scale(1.04);
+}
 .double-div{
     gap:30px;
-    background-color: #333;
     display:flex;
     width: 85vw;
     height: 50vh;
@@ -119,17 +259,186 @@ html, body {
     align-items: center;
 }
 .artists{
-    background-color: aqua;
     width: 40%;
     height: 40%;
-    padding: 20px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
 
 }
 .genres{
-    background-color: rosybrown;
     width: 40%;
     height: 40%;
-    padding: 20px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+}
+
+.textofofin{
+    /* cor definida futuramente no theme.css */
+}
+
+/*===Artistas mais tocados do mês===*/
+
+.art-titulo, .gen-titulo {
+  font-size: 1.15rem;
+  font-weight: 800;
+  padding: 8px 18px;
+  position: relative;
+  width: fit-content;
+}
+
+/* "aba de pasta" decorativa acima do título — ganha cor no theme.css */
+.art-titulo::before, .gen-titulo::before {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: 12px;
+  width: 36px;
+  height: 12px;
+  border-radius: 4px 4px 0 0;
+}
+
+.art-lista {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.art-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.art-posicao {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: 800;
+  outline-width: 2px;
+  outline-style: solid;
+}
+
+.art-card {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  outline-width: 2px;
+  outline-style: solid;
+}
+
+.art-avatar {
+  width: 68px;
+  height: 68px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.art-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.art-nome {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.art-ouvintes {
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.art-reproducoes {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.art-reproducoes-num {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+/* Botão de favoritar: caixa interativa, sem cor */
+.btn-favoritar {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  align-self: flex-start;
+  transition: transform 0.15s ease;
+}
+
+.btn-favoritar:hover {
+  transform: scale(1.15);
+}
+
+.btn-favoritar:active {
+  transform: scale(0.9);
+}
+
+/*===Descubra novos gostos===*/
+
+.gen-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.gen-card {
+  position: relative;
+  min-height: 110px;
+  border-radius: 12px;
+  padding: 16px;
+  outline-width: 2px;
+  outline-style: solid;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.gen-card:hover {
+  transform: scale(1.03);
+}
+
+.gen-card:active {
+  transform: scale(0.98);
+}
+
+.gen-nome {
+  font-size: 1.05rem;
+  font-weight: 800;
+  position: relative;
+  z-index: 2;
+}
+
+.gen-img {
+  position: absolute;
+  bottom: -8px;
+  right: -8px;
+  width: 85px;
+  height: 85px;
+  object-fit: cover;
+  border-radius: 8px;
+  transform: rotate(8deg);
+  z-index: 1;
 }
 
 /*===modal register css====*/
@@ -139,14 +448,13 @@ html, body {
   display: none !important; 
 }
 
-/* Fundo escurecido do popup */
+/* Fundo escurecido do popup — a cor/opacidade do overlay entra no theme.css */
 .modal {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -157,7 +465,6 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  background: #fff;
   padding: 30px;
   border-radius: 8px;
   position: relative;
@@ -213,223 +520,10 @@ html, body {
 
 .regras-senha li {
   margin: 3px 0;
-  color: #ff4d4d; /* Vermelho padrão quando não atendido */
   transition: color 0.2s ease;
+  /* cor de "inválido" (ex-vermelho) entra no theme.css */
 }
 
 .regras-senha li.valido {
-  color: #2ecc71; /* Verde quando atendido */
-}
-
-/*====checkbox "lembrar de mim" do login====*/
-.campo-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.85rem;
-  cursor: pointer;
-}
-
-/*====campo de arquivo do modal de upload====*/
-.campo-arquivo {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 0.85rem;
-}
-
-/*===preview ao vivo do upload (estilo SoundCloud)====*/
-.preview-upload {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  background: #f2f2f2;
-  border-radius: 8px;
-  padding: 10px;
-}
-
-.preview-upload-capa-wrapper {
-  width: 70px;
-  height: 70px;
-  background-color: #ccc;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.preview-upload-capa {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.preview-upload-capa-vazio {
-  font-size: 0.7rem;
-  color: #666;
-  text-align: center;
-  padding: 4px;
-}
-
-.preview-upload-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0; /* permite o texto quebrar em vez de estourar o flex */
-  flex-grow: 1;
-}
-
-.preview-upload-titulo {
-  font-weight: 700;
-  font-size: 0.9rem;
-  /* ao contrário do card (.titulo-musica), aqui o texto NÃO é cortado —
-     é pra mostrar o título inteiro antes de enviar, por isso quebra linha. */
-  word-break: break-word;
-}
-
-.preview-upload-artista {
-  font-size: 0.8rem;
-  color: #555;
-}
-
-.preview-upload-audio {
-  font-size: 0.75rem;
-  color: #777;
-  word-break: break-word;
-}
-
-/*===================================================
-  CONTAINER UNIVERSAL DE MÚSICAS (grid dinâmico)
-  Recebe um .card-musica por música vinda de GET /api/musicas.
-====================================================*/
-.lista-musicas {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 20px;
-  background-color: #333;
-  width: 85vw;
-  min-height: 30vh;
-  padding: 20px;
-  border-radius: 8px;
-}
-
-.mensagem-lista {
-  color: #fff;
-  grid-column: 1 / -1; /* ocupa a linha toda enquanto não tem cards */
-  text-align: center;
-}
-
-.card-musica {
-  display: flex;
-  flex-direction: column;
-  background-color: #444;
-  border-radius: 8px;
-  overflow: hidden;
-  color: #fff;
-}
-
-.capa-musica {
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  object-fit: cover;
-  background-color: #555; /* aparece atrás enquanto a imagem carrega, ou se não houver capa */
-}
-
-.info-musica {
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex-grow: 1;
-}
-
-.titulo-musica {
-  font-weight: 700;
-  font-size: 0.95rem;
-  /* corta título muito longo com "..." em vez de quebrar o layout do card */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.artista-musica {
-  font-size: 0.8rem;
-  color: #ccc;
-}
-
-.btn-play {
-  margin: 10px;
-  margin-top: 0;
-  background-color: #1db954; /* verde estilo player, só pra diferenciar do resto dos botões brancos */
-  color: #fff;
-  border: none;
-  border-radius: 20px;
-  padding: 8px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: transform 0.2s ease, background-color 0.2s ease;
-}
-
-.btn-play:hover {
-  transform: scale(1.03);
-}
-
-/*===================================================
-  BARRA DE PLAYER FIXA (rodapé)
-  Só funcional — sem preocupação estética, como pedido.
-====================================================*/
-.player-barra {
-  position: fixed;
-  left: 0;
-  bottom: 0;
-  width: 100%;
-  background-color: #222;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 20px;
-  z-index: 900; /* abaixo da navbar (1000), acima do conteúdo da página */
-}
-
-.player-capa {
-  width: 50px;
-  height: 50px;
-  object-fit: cover;
-  background-color: #555;
-  flex-shrink: 0;
-}
-
-.player-info {
-  display: flex;
-  flex-direction: column;
-  min-width: 100px;
-  max-width: 160px;
-  flex-shrink: 0;
-}
-
-.player-titulo {
-  font-weight: 700;
-  font-size: 0.85rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.player-artista {
-  font-size: 0.75rem;
-  color: #ccc;
-}
-
-.player-tempo {
-  font-size: 0.75rem;
-  min-width: 35px;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.player-seek {
-  flex-grow: 1;
+  /* cor de "válido" (ex-verde) entra no theme.css */
 }

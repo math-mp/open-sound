@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
@@ -31,8 +31,6 @@
         <div class="nav-right">
             <button  class="btn-navbar" id="btn-register">registre-se</button>
             <button  class="btn-navbar" id="btn-entrar">Entrar</button>
-            <!-- Some quando o usuário está logado -->
-            <button class="btn-navbar hidden" id="btn-sair">Sair</button>
             <button  class="btn-navbar" id="btn-tema">tema</button>
 
         </div>
@@ -40,21 +38,97 @@
     <!--conteudo principal da pag-->
     <div class="main-ctt">
 
-        <!-- Container universal: recebe todas as músicas uploadadas via
-             GET /api/musicas e monta um card por música (mais recentes
-             primeiro). Substitui a div estática de "mais escutadas". -->
-        <div id="lista-musicas" class="lista-musicas">
-            <p class="mensagem-lista">Carregando músicas...</p>
+        <!--div dinamica musicas-->
+        <div class="top-msc">
+            <p class="textofofin">eu represento o conteudo dinamico das msc mais escutadas do mes </p>
+
+            <h2 class="msc-titulo">Músicas mais populares do mês:</h2>
+
+            <div class="msc-wrapper">
+                <!-- Card de destaque: música #1 do mês (dinâmico) -->
+                <div class="msc-destaque">
+                    <div class="msc-capa">
+                        <img src="" alt="Capa do álbum" class="msc-capa-img">
+                        <img src="" alt="" class="msc-vinil" aria-hidden="true">
+                    </div>
+                    <div class="msc-info">
+                        <h3 class="msc-nome">Amor de primavera</h3>
+                        <p class="msc-artista">oShaman</p>
+                        <button type="button" class="btn-play" aria-label="Tocar música">▶</button>
+                    </div>
+                </div>
+
+                <!-- Carrossel de capas das próximas músicas do mês (dinâmico) -->
+                <div class="msc-carrossel">
+                    <img src="" alt="Capa da música" class="msc-carrossel-item">
+                    <img src="" alt="Capa da música" class="msc-carrossel-item">
+                    <img src="" alt="Capa da música" class="msc-carrossel-item">
+                    <img src="" alt="Capa da música" class="msc-carrossel-item">
+                    <img src="" alt="Capa da música" class="msc-carrossel-item">
+                    <img src="" alt="Capa da música" class="msc-carrossel-item">
+                    <img src="" alt="Capa da música" class="msc-carrossel-item">
+                </div>
+            </div>
         </div>
 
         <div class="double-div">
             <!--div dinamica artistas-->
             <div class="artists">
             <p>eu represento o conteudo dinamico dos artista mais escutados do mes</p>
+
+            <h2 class="art-titulo">Artistas mais tocados do mês:</h2>
+
+            <ul class="art-lista">
+                <li class="art-item">
+                    <span class="art-posicao">1º</span>
+                    <div class="art-card">
+                        <img src="" alt="Foto do artista" class="art-avatar">
+                        <div class="art-info">
+                            <h3 class="art-nome">oShaman</h3>
+                            <p class="art-ouvintes">151.669 ouvintes mensais</p>
+                            <p class="art-reproducoes"><span class="art-reproducoes-num">600.959</span> Reproduções neste mês</p>
+                        </div>
+                        <button type="button" class="btn-favoritar" aria-label="Favoritar artista">♥</button>
+                    </div>
+                </li>
+                <li class="art-item">
+                    <span class="art-posicao">2º</span>
+                    <div class="art-card">
+                        <img src="" alt="Foto do artista" class="art-avatar">
+                        <div class="art-info">
+                            <h3 class="art-nome"></h3>
+                            <p class="art-ouvintes"></p>
+                            <p class="art-reproducoes"><span class="art-reproducoes-num"></span> Reproduções neste mês</p>
+                        </div>
+                        <button type="button" class="btn-favoritar" aria-label="Favoritar artista">♥</button>
+                    </div>
+                </li>
+            </ul>
             </div>
             <!--div dinamica generos-->
             <div class="genres">
             <p>eu represento o conteudo fixo dos generos</p>
+
+            <h2 class="gen-titulo">Descubra novos gostos:</h2>
+
+            <div class="gen-grid">
+                <div class="gen-card">
+                    <h3 class="gen-nome">Rádio</h3>
+                    <img src="" alt="" class="gen-img">
+                </div>
+                <div class="gen-card">
+                    <h3 class="gen-nome">Forró &amp; Brega</h3>
+                    <img src="" alt="" class="gen-img">
+                </div>
+                <div class="gen-card">
+                    <h3 class="gen-nome">MPB</h3>
+                    <img src="" alt="" class="gen-img">
+                </div>
+                <div class="gen-card">
+                    <h3 class="gen-nome">Rock</h3>
+                    <img src="" alt="" class="gen-img">
+                </div>
+            </div>
             </div>
         </div>
     </div>
@@ -89,99 +163,13 @@
         <!-- Etapa 2: Confirmação 2FA -->
         <div id="etapa-2fa" class="etapa hidden">
         <h2>Verificação de Segurança</h2>
-        <p>Digite o código enviado para <span id="email-mascarado"></span>:</p>
-
-        <!-- CORREÇÃO: o home.js espera 6 inputs com a classe "input-otp"
-             (um por dígito), então trocamos o input único por essa grade. -->
-        <div class="grade-otp">
-            <input type="text" class="input-otp" maxlength="1" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code">
-            <input type="text" class="input-otp" maxlength="1" inputmode="numeric" pattern="[0-9]*">
-            <input type="text" class="input-otp" maxlength="1" inputmode="numeric" pattern="[0-9]*">
-            <input type="text" class="input-otp" maxlength="1" inputmode="numeric" pattern="[0-9]*">
-            <input type="text" class="input-otp" maxlength="1" inputmode="numeric" pattern="[0-9]*">
-            <input type="text" class="input-otp" maxlength="1" inputmode="numeric" pattern="[0-9]*">
-        </div>
-
+        <p>Digite o código enviado ao seu e-mail:</p>
+        <input type="text" placeholder="Código de 6 dígitos">
         <button id="btn-confirmar-2fa">Confirmar Código</button>
         <button id="btn-reenviar-2fa" type="button" disabled>Reenviar código</button>
         <p id="mensagem-timer" class="texto-timer"></p><!--timer de reenvio-->
         </div>
     </div>
-    </div>
-
-    <!-- Modal/Popup de Login -->
-    <div id="modal-login" class="modal hidden">
-    <div class="conteudo-modal">
-        <button id="btn-fechar-login" class="btn-fechar">x</button>
-
-        <div id="etapa-login" class="etapa">
-        <h2>Entrar</h2>
-        <form id="form-login">
-            <input type="email" id="login-email" placeholder="Seu e-mail" required>
-            <input type="password" id="login-senha" placeholder="Sua senha" required>
-            <label class="campo-checkbox">
-                <input type="checkbox" id="login-lembrar">
-                Lembrar de mim por 30 dias
-            </label>
-            <button type="submit">Entrar</button>
-        </form>
-        </div>
-    </div>
-    </div>
-
-    <!-- Modal/Popup de Upload -->
-    <div id="modal-upload" class="modal hidden">
-    <div class="conteudo-modal">
-        <button id="btn-fechar-upload" class="btn-fechar">x</button>
-
-        <div id="etapa-upload" class="etapa">
-        <h2>Enviar Música</h2>
-        <form id="form-upload">
-            <input type="text" id="upload-titulo" placeholder="Título da música" required>
-            <input type="text" id="upload-artista" placeholder="Nome do artista" required>
-
-            <label class="campo-arquivo">
-                Arquivo de áudio (MP3, WAV ou OGG)
-                <input type="file" id="upload-audio" accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg" required>
-            </label>
-
-            <label class="campo-arquivo">
-                Capa do álbum (opcional)
-                <input type="file" id="upload-capa" accept="image/jpeg,image/png,image/webp">
-            </label>
-
-            <!-- Preview ao vivo, estilo SoundCloud: atualiza conforme o
-                 usuário digita/seleciona, antes mesmo de enviar. -->
-            <div class="preview-upload">
-                <div class="preview-upload-capa-wrapper">
-                    <img id="preview-upload-capa" class="preview-upload-capa hidden" alt="Preview da capa">
-                    <span id="preview-upload-capa-vazio" class="preview-upload-capa-vazio">Sem capa</span>
-                </div>
-                <div class="preview-upload-info">
-                    <p id="preview-upload-titulo" class="preview-upload-titulo">Título da música</p>
-                    <p id="preview-upload-artista" class="preview-upload-artista">Nome do artista</p>
-                    <p id="preview-upload-audio" class="preview-upload-audio">Nenhum áudio selecionado</p>
-                </div>
-            </div>
-
-            <button type="submit">Enviar</button>
-        </form>
-        </div>
-    </div>
-    </div>
-
-    <!-- Barra de player fixa no rodapé — só funcional, sem estilo bonito.
-         Fica escondida até a primeira música ser tocada. -->
-    <div id="player-barra" class="player-barra hidden">
-        <img id="player-capa" class="player-capa" alt="Capa da música atual">
-        <div class="player-info">
-            <p id="player-titulo" class="player-titulo"></p>
-            <p id="player-artista" class="player-artista"></p>
-        </div>
-        <button id="player-play-pause" type="button">▶</button>
-        <span id="player-tempo-atual" class="player-tempo">0:00</span>
-        <input type="range" id="player-seek" class="player-seek" min="0" max="100" value="0" step="1">
-        <span id="player-tempo-total" class="player-tempo">0:00</span>
     </div>
 
 </body>
