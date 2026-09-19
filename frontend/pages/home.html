@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>openSound</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/root.css">
+    <link rel="stylesheet" href="../css/theme.css">
+    <link rel="stylesheet" href="../css/home.css">
+    <script src="../js/home.js" defer></script>
+</head>
+
+<body>
+    <!--navbar superior-->
+    <nav class="fixed-bar">
+
+        <!-- parte esquerda navbar-->
+        <div class="nav-left">
+            <button class="btn-navbar" id="btn-biblioteca">Minha Biblioteca</button>
+            <button class="btn-navbar" id="btn-inicio">inicio</button>
+            <button class="btn-navbar" id="btn-upload">Upload</button>
+        </div>
+
+        <!-- parte central navbar-->
+        <div class="nav-center">
+            <form action="/buscar" method="get">
+            <input class="search-input" type="search" name="q" placeholder="procure musicas e artistas..." required>
+            </form>
+        </div>
+
+        <!-- parte direita navbar-->
+        <div class="nav-right">
+            <button  class="btn-navbar" id="btn-register">registre-se</button>
+            <button  class="btn-navbar" id="btn-entrar">Entrar</button>
+            <!-- NOVO ID: necessário para o JavaScript controlar o logout (aparece só quando logado) -->
+            <button  class="btn-navbar hidden" id="btn-sair">Sair</button>
+            <button  class="btn-navbar" id="btn-tema">🌙</button>
+
+        </div>
+    </nav> 
+    <!--conteudo principal da pag-->
+    <div class="main-ctt">
+
+        <!--div dinamica musicas-->
+        <div class="top-msc">
+            <p class="textofofin">eu represento o conteudo dinamico das msc mais escutadas do mes </p>
+
+            <h2 class="msc-titulo">Músicas mais populares do mês:</h2>
+
+            <!-- NOVO ID: necessário para o JS controlar a navegação do carrossel -->
+            <div class="msc-carrossel-controle">
+                <button type="button" id="msc-seta-esq" class="msc-seta" aria-label="Música anterior">‹</button>
+                <!-- NOVO ID: necessário para o JS renderizar o destaque + carrossel (mock por enquanto, depois vem de GET /api/home) -->
+                <div id="msc-wrapper" class="msc-wrapper"></div>
+                <button type="button" id="msc-seta-dir" class="msc-seta" aria-label="Próxima música">›</button>
+            </div>
+        </div>
+
+        <div class="double-div">
+            <!--div dinamica artistas-->
+            <div class="artists">
+            <p>eu represento o conteudo dinamico dos artista mais escutados do mes</p>
+
+            <h2 class="art-titulo">Artistas mais tocados do mês:</h2>
+
+            <!-- NOVO ID: necessário para o JS renderizar o ranking (mock por enquanto, depois vem de GET /api/home) -->
+            <ul id="art-lista" class="art-lista"></ul>
+            </div>
+            <!--div dinamica generos-->
+            <div class="genres">
+            <p>eu represento o conteudo fixo dos generos</p>
+
+            <h2 class="gen-titulo">Descubra novos gostos:</h2>
+
+            <!-- NOVO ID: necessário para o JS renderizar os gêneros (mock por enquanto, depois vem de GET /api/home) -->
+            <div id="gen-grid" class="gen-grid"></div>
+            </div>
+        </div>
+
+        <!-- Catálogo geral de músicas (dinâmico, vem da API/back-end) -->
+        <div class="catalogo-wrapper">
+            <h2 class="cat-titulo">Todas as músicas</h2>
+            <!-- NOVO ID: necessário para o JavaScript renderizar o catálogo (carregarMusicas/criarCardMusica) -->
+            <div id="lista-musicas" class="lista-musicas"></div>
+        </div>
+    </div>
+
+    <!-- Barra de player fixa na parte inferior -->
+    <!-- NOVO ID: barra global do player, controlada pelo home.js (tocarMusica/eventos do <audio>) -->
+    <div id="player-barra" class="player-barra hidden">
+        <div class="player-info">
+            <img id="player-capa" class="player-capa" src="" alt="Capa da música atual">
+            <div class="player-textos">
+                <p id="player-titulo" class="player-titulo">—</p>
+                <p id="player-artista" class="player-artista">—</p>
+            </div>
+        </div>
+        <div class="player-controles">
+            <button type="button" id="player-play-pause" class="player-play-pause" aria-label="Tocar ou pausar">▶</button>
+            <span id="player-tempo-atual" class="player-tempo">0:00</span>
+            <input type="range" id="player-seek" class="player-seek" min="0" value="0" aria-label="Progresso da música">
+            <span id="player-tempo-total" class="player-tempo">0:00</span>
+        </div>
+    </div>
+
+    <!-- Modal/Popup -->
+    <div id="modal-registro" class="modal hidden">
+    <div class="conteudo-modal">
+        <button id="btn-fechar" class="btn-fechar">x</button>
+
+        <!-- Etapa 1: Formulário de Registro -->
+        <div id="etapa-registro" class="etapa">
+        <h2>Criar Conta</h2>
+        <form id="form-registro">
+            <input type="email" placeholder="Seu e-mail" required>
+
+            <div class="campo-senha">
+                <input type="password" id="input-senha" placeholder="Sua senha" required>
+                <button type="button" id="btn-toggle-senha" class="btn-olho" aria-label="Mostrar ou ocultar senha">
+                👁️
+                </button>                
+            </div>
+            <ul id="regras-senha" class="regras-senha">
+            <li id="regra-tam">❌ Mínimo de 8 caracteres</li>
+            <li id="regra-mai">❌ Ao menos 1 letra maiúscula</li>
+            <li id="regra-min">❌ Ao menos 1 letra minúscula</li>
+            <li id="regra-num">❌ Ao menos 1 número</li>
+            <li id="regra-esp">❌ Ao menos 1 caractere especial (@$!%*?&#)</li>
+            </ul>
+            <button type="submit">Enviar</button>
+        </form>
+        </div>
+        <!-- Etapa 2: Confirmação 2FA -->
+        <div id="etapa-2fa" class="etapa hidden">
+        <h2>Verificação de Segurança</h2>
+        <!-- NOVO ID: necessário para o JavaScript exibir o e-mail mascarado (ex: jo***a@email.com) -->
+        <p>Digite o código enviado para <span id="email-mascarado" class="email-mascarado"></span></p>
+        <!-- As 6 caixas usam a classe .input-otp (já esperada pelo home.js via querySelectorAll) -->
+        <div class="otp-grid">
+            <input type="text" class="input-otp" inputmode="numeric" maxlength="1" autocomplete="one-time-code">
+            <input type="text" class="input-otp" inputmode="numeric" maxlength="1">
+            <input type="text" class="input-otp" inputmode="numeric" maxlength="1">
+            <input type="text" class="input-otp" inputmode="numeric" maxlength="1">
+            <input type="text" class="input-otp" inputmode="numeric" maxlength="1">
+            <input type="text" class="input-otp" inputmode="numeric" maxlength="1">
+        </div>
+        <button id="btn-confirmar-2fa">Confirmar Código</button>
+        <button id="btn-reenviar-2fa" type="button" disabled>Reenviar código</button>
+        <p id="mensagem-timer" class="texto-timer"></p><!--timer de reenvio-->
+        </div>
+    </div>
+    </div>
+
+    <!-- Modal de Login -->
+    <!-- NOVO ID: necessário para o JavaScript controlar login/logout e sessão -->
+    <div id="modal-login" class="modal hidden">
+        <div class="conteudo-modal">
+            <button id="btn-fechar-login" class="btn-fechar">x</button>
+            <div class="etapa">
+                <h2>Entrar</h2>
+                <form id="form-login">
+                    <input type="email" id="login-email" placeholder="Seu e-mail" required>
+                    <div class="campo-senha">
+                        <input type="password" id="login-senha" placeholder="Sua senha" required>
+                    </div>
+                    <label class="checkbox-lembrar">
+                        <input type="checkbox" id="login-lembrar">
+                        Lembrar de mim
+                    </label>
+                    <button type="submit">Entrar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Upload de música -->
+    <!-- NOVO ID: necessário para o JavaScript enviar músicas (FormData) para a API -->
+    <div id="modal-upload" class="modal hidden">
+        <div class="conteudo-modal conteudo-modal-upload">
+            <button id="btn-fechar-upload" class="btn-fechar">x</button>
+            <div class="etapa">
+                <h2>Enviar música</h2>
+                <form id="form-upload">
+                    <div class="upload-preview">
+                        <div class="preview-capa-wrapper">
+                            <img id="preview-upload-capa" class="preview-capa hidden" alt="Prévia da capa">
+                            <div id="preview-upload-capa-vazio" class="preview-capa-vazio">🎵</div>
+                        </div>
+                        <div class="preview-info">
+                            <p id="preview-upload-titulo" class="preview-titulo">Título da música</p>
+                            <p id="preview-upload-artista" class="preview-artista">Nome do artista</p>
+                            <p id="preview-upload-audio" class="preview-audio">Nenhum áudio selecionado</p>
+                        </div>
+                    </div>
+
+                    <input type="text" id="upload-titulo" placeholder="Título da música" required>
+                    <input type="text" id="upload-artista" placeholder="Nome do artista" required>
+
+                    <label class="campo-arquivo">
+                        🎵 Escolher arquivo de áudio
+                        <input type="file" id="upload-audio" accept="audio/*" hidden required>
+                    </label>
+
+                    <label class="campo-arquivo">
+                        🖼️ Escolher capa (opcional)
+                        <input type="file" id="upload-capa" accept="image/*" hidden>
+                    </label>
+
+                    <button type="submit">Enviar música</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

@@ -115,11 +115,10 @@ font-family: 'Baloo 2', 'Segoe UI', sans-serif; /* fonte arredondada/bold, condi
     display: flex;
     flex-direction: column;
     gap: 40px;
-    place-items: center; 
     width: 100vw;
-    height: 100vh;
-    padding-top: 60px;
-    justify-content: center;
+    min-height: 100vh;
+    padding-top: 100px;   /* espaço pra navbar fixa não cobrir o conteúdo */
+    padding-bottom: 110px; /* espaço pra barra de player fixa não cobrir o conteúdo */
     align-items: center;
 
 }
@@ -140,12 +139,46 @@ font-family: 'Baloo 2', 'Segoe UI', sans-serif; /* fonte arredondada/bold, condi
   font-weight: 800;
 }
 
-/* Envolve o card de destaque + o carrossel lado a lado */
+/* Envolve as setas de navegação + o conteúdo do carrossel */
+.msc-carrossel-controle {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+/* Setas de navegação do carrossel */
+.msc-seta {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  font-size: 1.3rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.msc-seta:hover {
+  transform: scale(1.08);
+  filter: brightness(1.05);
+}
+
+.msc-seta:active {
+  transform: scale(0.94);
+}
+
+/* Área central do carrossel: mini-capas já vistas + destaque + próximas */
 .msc-wrapper {
   display: flex;
   align-items: center;
   gap: 32px;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
 }
 
 /* Card de destaque: capa + vinil + info + play */
@@ -230,6 +263,30 @@ font-family: 'Baloo 2', 'Segoe UI', sans-serif; /* fonte arredondada/bold, condi
   transform: scale(0.96);
 }
 
+/* Mini-capas do lado esquerdo: músicas que já passaram pelo destaque */
+.msc-anteriores {
+  display: flex;
+  gap: 8px;
+  height: 70px;
+  flex-shrink: 0;
+}
+
+.msc-mini {
+  width: 70px;
+  height: 70px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.msc-mini:hover {
+  opacity: 0.9;
+  transform: scale(1.05);
+}
+
 /* Carrossel de mini-capas: preenche o espaço restante, tipo tira de filme */
 .msc-carrossel {
   display: flex;
@@ -244,6 +301,7 @@ font-family: 'Baloo 2', 'Segoe UI', sans-serif; /* fonte arredondada/bold, condi
   height: 100%;
   width: 100%;
   object-fit: cover;
+  cursor: pointer;
   transition: transform 0.2s ease;
 }
 
@@ -254,28 +312,24 @@ font-family: 'Baloo 2', 'Segoe UI', sans-serif; /* fonte arredondada/bold, condi
     gap:30px;
     display:flex;
     width: 85vw;
-    height: 50vh;
-    justify-content: center;
-    align-items: center;
+    align-items: flex-start;
 }
 .artists{
-    width: 40%;
-    height: 40%;
-    padding: 24px;
+    flex: 1;
+    min-width: 0;
+    padding: 24px 28px;
     display: flex;
     flex-direction: column;
     gap: 16px;
-    overflow-y: auto;
 
 }
 .genres{
-    width: 40%;
-    height: 40%;
-    padding: 24px;
+    flex: 1;
+    min-width: 0;
+    padding: 24px 28px;
     display: flex;
     flex-direction: column;
     gap: 16px;
-    overflow-y: auto;
 }
 
 .textofofin{
@@ -526,4 +580,268 @@ font-family: 'Baloo 2', 'Segoe UI', sans-serif; /* fonte arredondada/bold, condi
 
 .regras-senha li.valido {
   /* cor de "válido" (ex-verde) entra no theme.css */
+}
+
+/*====login/checkbox lembrar-me====*/
+.checkbox-lembrar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+/*====upload de música: preview ao vivo====*/
+.conteudo-modal-upload {
+  width: 340px;
+}
+
+.upload-preview {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.preview-capa-wrapper {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--raio-medio);
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-capa {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.preview-capa-vazio {
+  font-size: 1.4rem;
+}
+
+.preview-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
+}
+
+.preview-titulo,
+.preview-artista {
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preview-audio {
+  font-size: 0.72rem;
+}
+
+/* Botão "arquivo" estilizado (o <input type="file"> real fica escondido) */
+.campo-arquivo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--raio-medio);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  transition: filter 0.15s ease;
+}
+
+.campo-arquivo:hover {
+  filter: brightness(0.97);
+}
+
+/*====grade OTP (código 2FA)====*/
+.otp-grid {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.input-otp {
+  width: 40px;
+  height: 50px;
+  text-align: center;
+  font-size: 1.25rem;
+  font-weight: 800;
+  border-radius: var(--raio-pequeno);
+  border: none;
+  outline: none;
+}
+
+.email-mascarado {
+  font-weight: 700;
+}
+
+/*====catálogo geral de músicas====*/
+.catalogo-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 85vw;
+  padding: 24px 28px;
+}
+
+.lista-musicas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 20px;
+}
+
+.card-musica {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--raio-medio);
+  transition: transform 0.15s ease;
+}
+
+.card-musica:hover {
+  transform: translateY(-3px);
+}
+
+.capa-musica {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: var(--raio-pequeno);
+}
+
+.info-musica {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.titulo-musica {
+  font-size: 0.9rem;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.artista-musica {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.card-musica .btn-play {
+  align-self: flex-start;
+  width: auto;
+  height: auto;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  outline: none;
+}
+
+.mensagem-lista {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 20px;
+  font-size: 0.9rem;
+}
+
+/*====barra de player fixa====*/
+.player-barra {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 10px 28px;
+  z-index: 1000;
+}
+
+.player-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 180px;
+  flex: 1;
+}
+
+.player-capa {
+  width: 46px;
+  height: 46px;
+  border-radius: var(--raio-pequeno);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.player-textos {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.player-titulo,
+.player-artista {
+  font-size: 0.82rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-titulo {
+  font-weight: 800;
+}
+
+.player-artista {
+  font-weight: 500;
+}
+
+.player-controles {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 2;
+  max-width: 480px;
+}
+
+.player-play-pause {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease;
+}
+
+.player-play-pause:hover {
+  transform: scale(1.06);
+}
+
+.player-tempo {
+  font-size: 0.72rem;
+  min-width: 32px;
+  text-align: center;
+}
+
+.player-seek {
+  flex: 1;
+  cursor: pointer;
 }

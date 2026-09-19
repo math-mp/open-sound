@@ -1,3 +1,296 @@
+// ============================================================
+// TEMA CLARO / ESCURO
+// ============================================================
+// Ativa/desativa [data-theme="light"] na <html>, que é o seletor
+// usado pelo theme.css para trocar as variáveis de cor.
+const btnTema = document.getElementById('btn-tema');
+const CHAVE_TEMA = 'temaOpenSound';
+
+function aplicarTema(tema) {
+  if (tema === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+  if (btnTema) btnTema.textContent = tema === 'light' ? '🌙' : '☀️';
+}
+
+aplicarTema(localStorage.getItem(CHAVE_TEMA) || 'dark');
+
+if (btnTema) {
+  btnTema.addEventListener('click', () => {
+    const temaAtual = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    const novoTema = temaAtual === 'light' ? 'dark' : 'light';
+    localStorage.setItem(CHAVE_TEMA, novoTema);
+    aplicarTema(novoTema);
+  });
+}
+
+// ============================================================
+// HOME: MÚSICAS POPULARES / ARTISTAS / GÊNEROS
+// ============================================================
+// =====================================================
+// MOCK
+// DADOS TEMPORÁRIOS PARA DESENVOLVIMENTO
+// SUBSTITUIR PELA API (GET /api/home) QUANDO O BACK-END ESTIVER PRONTO
+// =====================================================
+const homeMock = {
+  musicasPopulares: [
+    { id: 1, titulo: 'Amor de Primavera', artista: 'oShaman', capa: '', vinil: '' },
+    { id: 2, titulo: 'Música 2', artista: 'Artista 2', capa: '' },
+    { id: 3, titulo: 'Música 3', artista: 'Artista 3', capa: '' },
+    { id: 4, titulo: 'Música 4', artista: 'Artista 4', capa: '' },
+    { id: 5, titulo: 'Música 5', artista: 'Artista 5', capa: '' },
+    { id: 6, titulo: 'Música 6', artista: 'Artista 6', capa: '' },
+    { id: 7, titulo: 'Música 7', artista: 'Artista 7', capa: '' }
+  ],
+  artistasPopulares: [
+    { id: 10, nome: 'oShaman', avatar: '', ouvintesMensais: 151669, reproducoesMes: 600959 },
+    { id: 11, nome: 'Artista 2', avatar: '', ouvintesMensais: 98234, reproducoesMes: 320441 }
+  ],
+  generos: [
+    { id: 1, nome: 'Rádio', imagem: '' },
+    { id: 2, nome: 'Forró & Brega', imagem: '' },
+    { id: 3, nome: 'MPB', imagem: '' },
+    { id: 4, nome: 'Rock', imagem: '' }
+  ]
+};
+// FIM DO MOCK
+// =====================================================
+
+// Índice da música atualmente em destaque no carrossel (a que está "aberta").
+// Começa em 0 (primeira música do mock/API).
+let indiceMscAtual = 0;
+
+// Monta o card de destaque (música atualmente em foco no carrossel). Recebe
+// um objeto de música no mesmo formato que GET /api/home vai devolver.
+function criarDestaqueMusica(musica) {
+  const div = document.createElement('div');
+  div.className = 'msc-destaque';
+
+  const capaWrap = document.createElement('div');
+  capaWrap.className = 'msc-capa';
+
+  const imgCapa = document.createElement('img');
+  imgCapa.className = 'msc-capa-img';
+  imgCapa.src = musica.capa || '';
+  imgCapa.alt = 'Capa do álbum';
+
+  const imgVinil = document.createElement('img');
+  imgVinil.className = 'msc-vinil';
+  imgVinil.src = musica.vinil || '';
+  imgVinil.alt = '';
+  imgVinil.setAttribute('aria-hidden', 'true');
+
+  capaWrap.appendChild(imgCapa);
+  capaWrap.appendChild(imgVinil);
+
+  const info = document.createElement('div');
+  info.className = 'msc-info';
+
+  const nome = document.createElement('h3');
+  nome.className = 'msc-nome';
+  nome.textContent = musica.titulo;
+
+  const artista = document.createElement('p');
+  artista.className = 'msc-artista';
+  artista.textContent = musica.artista;
+
+  const btnPlay = document.createElement('button');
+  btnPlay.type = 'button';
+  btnPlay.className = 'btn-play';
+  btnPlay.setAttribute('aria-label', 'Tocar música');
+  btnPlay.textContent = '▶';
+
+  info.appendChild(nome);
+  info.appendChild(artista);
+  info.appendChild(btnPlay);
+
+  div.appendChild(capaWrap);
+  div.appendChild(info);
+
+  return div;
+}
+
+// Monta uma mini-capa clicável (usada tanto pras músicas já vistas à
+// esquerda quanto pras próximas à direita). Clicar nela chama focarMusica
+// com a posição real dela dentro da lista completa.
+function criarMiniCapa(musica, indiceReal, classeExtra) {
+  const img = document.createElement('img');
+  img.className = classeExtra;
+  img.src = musica.capa || '';
+  img.alt = `Capa da música ${musica.titulo || ''}`.trim();
+  img.addEventListener('click', () => focarMusica(indiceReal));
+  return img;
+}
+
+// Renderiza o destaque + as mini-capas (já vistas à esquerda, próximas à
+// direita) dentro de #msc-wrapper, com base em indiceMscAtual.
+// "lista" é o array "musicasPopulares" (mock ou vindo da API futuramente).
+function renderMusicasPopulares(lista) {
+  const wrapper = document.getElementById('msc-wrapper');
+  if (!wrapper || !Array.isArray(lista) || lista.length === 0) return;
+
+  if (indiceMscAtual < 0) indiceMscAtual = 0;
+  if (indiceMscAtual > lista.length - 1) indiceMscAtual = lista.length - 1;
+
+  wrapper.innerHTML = '';
+
+  // Músicas antes do índice atual = "já vistas", viram mini-capa à esquerda
+  const anteriores = document.createElement('div');
+  anteriores.className = 'msc-anteriores';
+  lista.slice(0, indiceMscAtual).forEach((musica, i) => {
+    anteriores.appendChild(criarMiniCapa(musica, i, 'msc-mini'));
+  });
+  wrapper.appendChild(anteriores);
+
+  // Música do índice atual = destaque (capa + vinil + título + artista + play)
+  wrapper.appendChild(criarDestaqueMusica(lista[indiceMscAtual]));
+
+  // Músicas depois do índice atual = "próximas", continuam na tira do carrossel
+  const carrossel = document.createElement('div');
+  carrossel.className = 'msc-carrossel';
+  lista.slice(indiceMscAtual + 1).forEach((musica, i) => {
+    const indiceReal = indiceMscAtual + 1 + i;
+    carrossel.appendChild(criarMiniCapa(musica, indiceReal, 'msc-carrossel-item'));
+  });
+  wrapper.appendChild(carrossel);
+}
+
+// Troca a música em foco do carrossel e renderiza de novo.
+function focarMusica(novoIndice) {
+  indiceMscAtual = novoIndice;
+  renderMusicasPopulares(homeMock.musicasPopulares);
+}
+
+// Setas de navegação: avançam/voltam uma música por vez.
+const btnMscSetaEsq = document.getElementById('msc-seta-esq');
+const btnMscSetaDir = document.getElementById('msc-seta-dir');
+
+if (btnMscSetaEsq) {
+  btnMscSetaEsq.addEventListener('click', () => {
+    if (indiceMscAtual > 0) focarMusica(indiceMscAtual - 1);
+  });
+}
+
+if (btnMscSetaDir) {
+  btnMscSetaDir.addEventListener('click', () => {
+    if (indiceMscAtual < homeMock.musicasPopulares.length - 1) focarMusica(indiceMscAtual + 1);
+  });
+}
+
+// Monta um <li> do ranking de artistas mais tocados.
+function criarItemArtista(artista, posicao) {
+  const li = document.createElement('li');
+  li.className = 'art-item';
+
+  const posicaoSpan = document.createElement('span');
+  posicaoSpan.className = 'art-posicao';
+  posicaoSpan.textContent = `${posicao}º`;
+
+  const card = document.createElement('div');
+  card.className = 'art-card';
+
+  const avatar = document.createElement('img');
+  avatar.className = 'art-avatar';
+  avatar.src = artista.avatar || '';
+  avatar.alt = `Foto de ${artista.nome}`;
+
+  const info = document.createElement('div');
+  info.className = 'art-info';
+
+  const nome = document.createElement('h3');
+  nome.className = 'art-nome';
+  nome.textContent = artista.nome;
+
+  const ouvintes = document.createElement('p');
+  ouvintes.className = 'art-ouvintes';
+  ouvintes.textContent = `${(artista.ouvintesMensais || 0).toLocaleString('pt-BR')} ouvintes mensais`;
+
+  const reproducoes = document.createElement('p');
+  reproducoes.className = 'art-reproducoes';
+  const reproducoesNum = document.createElement('span');
+  reproducoesNum.className = 'art-reproducoes-num';
+  reproducoesNum.textContent = (artista.reproducoesMes || 0).toLocaleString('pt-BR');
+  reproducoes.appendChild(reproducoesNum);
+  reproducoes.appendChild(document.createTextNode(' Reproduções neste mês'));
+
+  info.appendChild(nome);
+  info.appendChild(ouvintes);
+  info.appendChild(reproducoes);
+
+  const btnFavoritar = document.createElement('button');
+  btnFavoritar.type = 'button';
+  btnFavoritar.className = 'btn-favoritar';
+  btnFavoritar.setAttribute('aria-label', `Favoritar ${artista.nome}`);
+  btnFavoritar.textContent = '♥';
+
+  card.appendChild(avatar);
+  card.appendChild(info);
+  card.appendChild(btnFavoritar);
+
+  li.appendChild(posicaoSpan);
+  li.appendChild(card);
+
+  return li;
+}
+
+// Renderiza o ranking inteiro dentro de #art-lista.
+function renderArtistasPopulares(lista) {
+  const listaEl = document.getElementById('art-lista');
+  if (!listaEl || !Array.isArray(lista)) return;
+
+  listaEl.innerHTML = '';
+  lista.forEach((artista, indice) => {
+    listaEl.appendChild(criarItemArtista(artista, indice + 1));
+  });
+}
+
+// Monta um card de gênero.
+function criarCardGenero(genero) {
+  const div = document.createElement('div');
+  div.className = 'gen-card';
+
+  const nome = document.createElement('h3');
+  nome.className = 'gen-nome';
+  nome.textContent = genero.nome;
+
+  const img = document.createElement('img');
+  img.className = 'gen-img';
+  img.src = genero.imagem || '';
+  img.alt = '';
+
+  div.appendChild(nome);
+  div.appendChild(img);
+
+  return div;
+}
+
+// Renderiza a grade de gêneros dentro de #gen-grid.
+function renderGeneros(lista) {
+  const grid = document.getElementById('gen-grid');
+  if (!grid || !Array.isArray(lista)) return;
+
+  grid.innerHTML = '';
+  lista.forEach((genero) => {
+    grid.appendChild(criarCardGenero(genero));
+  });
+}
+
+// Por enquanto usa o MOCK acima. Quando GET /api/home existir no back-end,
+// é só trocar estas 3 linhas por um fetch, ex:
+//
+// fetch('http://localhost:3000/api/home')
+//   .then((r) => r.json())
+//   .then((dados) => {
+//     renderMusicasPopulares(dados.musicasPopulares);
+//     renderArtistasPopulares(dados.artistasPopulares);
+//     renderGeneros(dados.generos);
+//   });
+renderMusicasPopulares(homeMock.musicasPopulares);
+renderArtistasPopulares(homeMock.artistasPopulares);
+renderGeneros(homeMock.generos);
+
 // === ELEMENTOS DO DOM ===
 const modal = document.getElementById('modal-registro');
 const btnFechar = document.getElementById('btn-fechar');
