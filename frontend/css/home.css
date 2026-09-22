@@ -230,6 +230,17 @@ html, body {
   cursor: pointer;
 }
 
+/*====textos do modal de cadastro de artista e do modal de upload====*/
+.texto-artista-info {
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.upload-artista-atual {
+  font-size: 0.85rem;
+  color: #555;
+}
+
 /*====campo de arquivo do modal de upload====*/
 .campo-arquivo {
   display: flex;

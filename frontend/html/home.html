@@ -129,6 +129,23 @@
     </div>
     </div>
 
+    <!-- Modal/Popup de Cadastro de Artista — aparece antes do primeiro
+         upload, uma única vez por conta (eh_artista vira TRUE depois). -->
+    <div id="modal-artista" class="modal hidden">
+    <div class="conteudo-modal">
+        <button id="btn-fechar-artista" class="btn-fechar">x</button>
+
+        <div class="etapa">
+        <h2>Vire um Artista</h2>
+        <p class="texto-artista-info">Antes de enviar sua primeira música, escolha o nome de artista que vai aparecer nela. Esse nome será usado em todos os uploads futuros da sua conta.</p>
+        <form id="form-artista">
+            <input type="text" id="artista-nome" placeholder="Seu nome de artista" required>
+            <button type="submit">Confirmar</button>
+        </form>
+        </div>
+    </div>
+    </div>
+
     <!-- Modal/Popup de Upload -->
     <div id="modal-upload" class="modal hidden">
     <div class="conteudo-modal">
@@ -136,9 +153,9 @@
 
         <div id="etapa-upload" class="etapa">
         <h2>Enviar Música</h2>
+        <p class="upload-artista-atual">Enviando como: <strong id="upload-artista-nome"></strong></p>
         <form id="form-upload">
             <input type="text" id="upload-titulo" placeholder="Título da música" required>
-            <input type="text" id="upload-artista" placeholder="Nome do artista" required>
 
             <label class="campo-arquivo">
                 Arquivo de áudio (MP3, WAV ou OGG)

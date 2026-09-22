@@ -23,6 +23,8 @@ const criarTabelas = async () => {
       email VARCHAR(255) UNIQUE NOT NULL,
       senha VARCHAR(255) NOT NULL,
       verificado BOOLEAN DEFAULT FALSE,
+      eh_artista BOOLEAN DEFAULT FALSE,
+      nome_artista VARCHAR(255),
       criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `;
@@ -67,5 +69,3 @@ const criarTabelas = async () => {
 };
 
 criarTabelas();
-
-module.exports = pool;
