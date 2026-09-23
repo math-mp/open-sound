@@ -1,0 +1,572 @@
+/* =========================================================
+   OPENSOUND - THEME
+   Sistema visual do projeto
+   ========================================================= */
+
+
+/* =========================================================
+   TEMA ESCURO - PADRÃO
+   ========================================================= */
+
+:root {
+
+    /* -----------------------------------------------------
+       FUNDOS
+       ----------------------------------------------------- */
+
+    --cor-fundo: #1d1a27;
+    --cor-fundo-secundario: #242031;
+
+    --cor-superficie: #2d2838;
+    --cor-superficie-hover: #373143;
+    --cor-superficie-clara: #40394c;
+
+
+    /* -----------------------------------------------------
+       TEXTOS
+       ----------------------------------------------------- */
+
+    --cor-texto: #fff8f3;
+    --cor-texto-secundario: #d8cfd8;
+    --cor-texto-fraco: #9f96a3;
+
+
+    /* -----------------------------------------------------
+       PALETA PASTEL DO OPENSOUND
+
+       Estas são as cores de destaque da identidade visual.
+       Não significa que todas serão usadas ao mesmo tempo.
+       ----------------------------------------------------- */
+
+    --pastel-amarelo: #fbf8cc;
+    --pastel-pessego: #fde4cf;
+    --pastel-rosa: #ffcfd2;
+    --pastel-rosa-lilas: #f1c0e8;
+    --pastel-lilas: #cfbaf0;
+    --pastel-azul: #a3c4f3;
+    --pastel-azul-claro: #90dbf4;
+    --pastel-ciano: #8eeff5;
+    --pastel-verde-agua: #98f5e1;
+    --pastel-verde: #b9fbc0;
+
+
+    /* -----------------------------------------------------
+       CORES SEMÂNTICAS
+
+       São as cores que os componentes devem usar.
+       Assim o layout não precisa saber o HEX.
+       ----------------------------------------------------- */
+
+    --cor-primaria: #f1c0e8;
+    --cor-primaria-hover: #cfbaf0;
+
+    --cor-secundaria: #a3c4f3;
+    --cor-destaque: #fde4cf;
+
+    --cor-sucesso: #b9fbc0;
+    --cor-erro: #ffcfd2;
+    --cor-aviso: #fbf8cc;
+    --cor-info: #90dbf4;
+
+
+    /* -----------------------------------------------------
+       ABAS / ETIQUETAS
+
+       Cores pensadas especialmente para as "abas fofinhas".
+       ----------------------------------------------------- */
+
+    --aba-musicas: #ffcfd2;
+    --aba-artistas: #cfbaf0;
+    --aba-generos: #a3c4f3;
+    --aba-biblioteca: #98f5e1;
+    --aba-perfil: #fde4cf;
+    --aba-config: #fbf8cc;
+
+
+    /* -----------------------------------------------------
+       TEXTO SOBRE PASTEL
+
+       As cores pastel são as mesmas nos dois temas, então o texto
+       que fica em cima delas (abas, cards de gênero, etc.) também
+       usa sempre este tom, pra manter contraste/legibilidade.
+       ----------------------------------------------------- */
+
+    --texto-sobre-pastel: #3a3350;
+
+
+    /* -----------------------------------------------------
+       CARDS
+       ----------------------------------------------------- */
+
+    --card-fundo: #342e40;
+    --card-fundo-hover: #3d364b;
+
+    --card-texto: #fff8f3;
+
+    --card-borda: rgba(255, 255, 255, 0.10);
+    --card-borda-hover: rgba(255, 255, 255, 0.18);
+
+
+    /* -----------------------------------------------------
+       BORDAS
+       ----------------------------------------------------- */
+
+    --cor-borda: rgba(255, 255, 255, 0.10);
+    --cor-borda-forte: rgba(255, 255, 255, 0.18);
+
+
+    /* -----------------------------------------------------
+    PAINÉIS COM ESTÉTICA DE ABA
+    ----------------------------------------------------- */
+
+    --painel-fundo: var(--cor-superficie);
+
+    --painel-borda: rgba(255, 255, 255, 0.06);
+
+    --painel-faixa-musicas: var(--aba-musicas);
+    --painel-faixa-artistas: var(--aba-artistas);
+    --painel-faixa-generos: var(--aba-generos);
+
+    --painel-sombra: var(--sombra-suave);
+
+    --painel-texto-aba: var(--texto-sobre-pastel);
+
+
+    /* -----------------------------------------------------
+       SOMBRAS
+       ----------------------------------------------------- */
+
+    --sombra-suave:
+        0 4px 12px rgba(0, 0, 0, 0.12);
+
+    --sombra-media:
+        0 8px 20px rgba(0, 0, 0, 0.18);
+
+    --sombra-forte:
+        0 12px 30px rgba(0, 0, 0, 0.25);
+
+
+    /* -----------------------------------------------------
+       MODAIS / OVERLAY
+       ----------------------------------------------------- */
+
+    --cor-overlay: rgba(10, 8, 18, 0.68);
+
+
+    /* -----------------------------------------------------
+       PLAYER
+       ----------------------------------------------------- */
+
+    --player-fundo: #292434;
+    --player-borda: rgba(255, 255, 255, 0.12);
+
+
+    /* -----------------------------------------------------
+       INPUTS
+       ----------------------------------------------------- */
+
+    --input-fundo: #353041;
+    --input-fundo-hover: #3d374a;
+    --input-texto: #fff8f3;
+    --input-placeholder: #a79eaa;
+    --input-borda: rgba(255, 255, 255, 0.10);
+    --input-borda-foco: #f1c0e8;
+}
+
+
+/* =========================================================
+   TEMA CLARO
+   Ativado com:
+
+   <html data-theme="light">
+   ========================================================= */
+
+[data-theme="light"] {
+
+    /* -----------------------------------------------------
+       FUNDOS
+       ----------------------------------------------------- */
+
+    --cor-fundo: #faf5f8;
+    --cor-fundo-secundario: #f1eaf0;
+
+    --cor-superficie: #ffffff;
+    --cor-superficie-hover: #f7eef5;
+    --cor-superficie-clara: #eee5ee;
+
+
+    /* -----------------------------------------------------
+       TEXTOS
+       ----------------------------------------------------- */
+
+    --cor-texto: #302a34;
+    --cor-texto-secundario: #655b68;
+    --cor-texto-fraco: #958996;
+
+
+    /* -----------------------------------------------------
+       CORES SEMÂNTICAS
+       ----------------------------------------------------- */
+
+    --cor-primaria: #c989b9;
+    --cor-primaria-hover: #b979a9;
+
+    --cor-secundaria: #7196c9;
+    --cor-destaque: #d9a98f;
+
+    --cor-sucesso: #70af7d;
+    --cor-erro: #c9787d;
+    --cor-aviso: #b5a45a;
+    --cor-info: #6b9db7;
+
+
+    /* -----------------------------------------------------
+       ABAS / ETIQUETAS
+       ----------------------------------------------------- */
+
+    --aba-musicas: #ffcfd2;
+    --aba-artistas: #cfbaf0;
+    --aba-generos: #a3c4f3;
+    --aba-biblioteca: #98f5e1;
+    --aba-perfil: #fde4cf;
+    --aba-config: #fbf8cc;
+
+
+    /* -----------------------------------------------------
+       CARDS
+       ----------------------------------------------------- */
+
+    --card-fundo: #ffffff;
+    --card-fundo-hover: #f7eef5;
+
+    --card-texto: #302a34;
+
+    --card-borda: rgba(48, 42, 52, 0.10);
+    --card-borda-hover: rgba(48, 42, 52, 0.18);
+
+
+    /* -----------------------------------------------------
+       BORDAS
+       ----------------------------------------------------- */
+
+    --cor-borda: rgba(48, 42, 52, 0.10);
+    --cor-borda-forte: rgba(48, 42, 52, 0.18);
+
+    /* -----------------------------------------------------
+    PAINÉIS - TEMA CLARO
+    ----------------------------------------------------- */
+
+    --painel-fundo: var(--cor-superficie);
+
+    --painel-borda: rgba(48, 42, 52, 0.08);
+
+    --painel-sombra: var(--sombra-suave);
+
+    --painel-texto-aba: var(--texto-sobre-pastel);
+
+
+    /* -----------------------------------------------------
+       SOMBRAS
+       ----------------------------------------------------- */
+
+    --sombra-suave:
+        0 4px 12px rgba(80, 60, 80, 0.08);
+
+    --sombra-media:
+        0 8px 20px rgba(80, 60, 80, 0.12);
+
+    --sombra-forte:
+        0 12px 30px rgba(80, 60, 80, 0.16);
+
+
+    /* -----------------------------------------------------
+       MODAIS / OVERLAY
+       ----------------------------------------------------- */
+
+    --cor-overlay: rgba(30, 20, 30, 0.42);
+
+
+    /* -----------------------------------------------------
+       PLAYER
+       ----------------------------------------------------- */
+
+    --player-fundo: #ffffff;
+    --player-borda: rgba(48, 42, 52, 0.12);
+
+
+    /* -----------------------------------------------------
+       INPUTS
+       ----------------------------------------------------- */
+
+    --input-fundo: #ffffff;
+    --input-fundo-hover: #f7eef5;
+    --input-texto: #302a34;
+    --input-placeholder: #958996;
+    --input-borda: rgba(48, 42, 52, 0.10);
+    --input-borda-foco: #c989b9;
+}
+
+
+/* =========================================================
+   COMPONENTES
+
+   Regras de cor aplicadas diretamente aos seletores do
+   home.html/home.css, usando as variáveis semânticas acima.
+   Como usam var(), funcionam automaticamente nos dois temas.
+   ========================================================= */
+
+/* -----------------------------------------------------
+   NAVBAR
+   ----------------------------------------------------- */
+
+.fixed-bar {
+    background: var(--cor-superficie);
+    box-shadow: var(--sombra-suave);
+}
+
+.fixed-bar button {
+    background: var(--cor-superficie-clara);
+    color: var(--cor-texto);
+
+    border: 1px solid var(--cor-borda);
+
+    box-shadow: var(--sombra-suave);
+}
+
+#btn-entrar,
+#btn-register {
+    background: var(--cor-primaria);
+    color: var(--texto-sobre-pastel);
+}
+
+#btn-sair {
+    background: var(--cor-erro);
+    color: #fff8f3;
+}
+
+.nav-center input[type="search"] {
+    background: var(--input-fundo);
+    color: var(--input-texto);
+}
+
+.nav-center input[type="search"]::placeholder {
+    color: var(--input-placeholder);
+}
+
+/* -----------------------------------------------------
+   TÍTULOS DE SEÇÃO EM FORMATO DE "ABA"
+   Cada seção usa a cor da sua variável --aba-*, já existente.
+   ----------------------------------------------------- */
+
+.secao-titulo {
+    color: var(--texto-sobre-pastel);
+}
+
+.secao-titulo.aba-musicas {
+    background: var(--aba-musicas);
+}
+
+.secao-titulo.aba-artistas {
+    background: var(--aba-artistas);
+}
+
+.secao-titulo.aba-generos {
+    background: var(--aba-generos);
+}
+
+/* -----------------------------------------------------
+   SEÇÕES DA HOME (catálogo, artistas, gêneros)
+   ----------------------------------------------------- */
+
+.artists,
+.genres {
+    background: var(--cor-superficie);
+}
+
+/* -----------------------------------------------------
+   MODAIS (registro, login, cadastro de artista, upload)
+   ----------------------------------------------------- */
+
+.modal {
+    background: var(--cor-overlay);
+}
+
+.conteudo-modal {
+    background: var(--cor-superficie);
+    color: var(--cor-texto);
+    box-shadow: var(--sombra-forte);
+}
+
+.conteudo-modal h2 {
+    color: var(--cor-texto);
+}
+
+.conteudo-modal input[type="email"],
+.conteudo-modal input[type="password"],
+.conteudo-modal input[type="text"] {
+    background: var(--input-fundo);
+    color: var(--input-texto);
+    border: 1px solid var(--input-borda);
+}
+
+.conteudo-modal input:focus {
+    outline: none;
+    border-color: var(--input-borda-foco);
+}
+
+.conteudo-modal input::placeholder {
+    color: var(--input-placeholder);
+}
+
+.conteudo-modal button[type="submit"] {
+    background: var(--cor-primaria);
+    color: #fff8f3;
+}
+
+.conteudo-modal button[type="submit"]:hover {
+    background: var(--cor-primaria-hover);
+}
+
+.btn-fechar {
+    color: var(--cor-texto-fraco);
+}
+
+.campo-checkbox {
+    color: var(--cor-texto-secundario);
+}
+
+.regras-senha li {
+    color: var(--cor-erro);
+}
+
+.regras-senha li.valido {
+    color: var(--cor-sucesso);
+}
+
+.texto-timer {
+    color: var(--cor-texto-fraco);
+}
+
+#email-mascarado {
+    color: var(--cor-primaria);
+    font-weight: 700;
+}
+
+.texto-artista-info {
+    color: var(--cor-texto-secundario);
+}
+
+.upload-artista-atual {
+    color: var(--cor-texto-secundario);
+}
+
+.upload-artista-atual strong {
+    color: var(--cor-texto);
+}
+
+/* -----------------------------------------------------
+   GRADE OTP (2FA)
+   ----------------------------------------------------- */
+
+.input-otp {
+    background: var(--input-fundo);
+    color: var(--input-texto);
+    border: 2px solid var(--input-borda);
+}
+
+.input-otp:focus {
+    border-color: var(--input-borda-foco);
+}
+
+/* -----------------------------------------------------
+   UPLOAD: campo de arquivo + preview ao vivo
+   ----------------------------------------------------- */
+
+.campo-arquivo {
+    color: var(--cor-texto-secundario);
+}
+
+.preview-upload {
+    background: var(--input-fundo);
+}
+
+.preview-upload-capa-wrapper,
+.preview-upload-capa-vazio {
+    background: var(--cor-superficie-clara);
+    color: var(--cor-texto-fraco);
+}
+
+.preview-upload-titulo {
+    color: var(--cor-texto);
+}
+
+.preview-upload-artista,
+.preview-upload-audio {
+    color: var(--cor-texto-secundario);
+}
+
+/* -----------------------------------------------------
+   CATÁLOGO DE MÚSICAS
+   ----------------------------------------------------- */
+
+.lista-musicas {
+    background: var(--cor-superficie);
+}
+
+.card-musica {
+    background: var(--card-fundo);
+    box-shadow: var(--sombra-suave);
+}
+
+.card-musica:hover {
+    background: var(--card-fundo-hover);
+}
+
+.titulo-musica {
+    color: var(--card-texto);
+}
+
+.artista-musica {
+    color: var(--cor-texto-secundario);
+}
+
+.mensagem-lista {
+    color: var(--cor-texto-fraco);
+}
+
+.btn-play {
+    background: var(--cor-primaria);
+    color: #fff8f3;
+}
+
+/* -----------------------------------------------------
+   PLAYER
+   ----------------------------------------------------- */
+
+.player-barra {
+    background: var(--player-fundo);
+    border-top: 1px solid var(--player-borda);
+    box-shadow: var(--sombra-media);
+    color: var(--cor-texto);
+}
+
+.player-titulo {
+    color: var(--cor-texto);
+}
+
+.player-artista {
+    color: var(--cor-texto-secundario);
+}
+
+#player-play-pause {
+    background: var(--cor-primaria);
+    color: #fff8f3;
+}
+
+.player-tempo {
+    color: var(--cor-texto-fraco);
+}
+
+.player-seek {
+    accent-color: var(--cor-primaria);
+}

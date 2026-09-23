@@ -4,7 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>spotify</title>
+    <title>openSound</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/root.css">
+    <link rel="stylesheet" href="../css/theme.css">
     <link rel="stylesheet" href="../css/home.css">
     <script src="../js/home.js" defer></script>
 </head>
@@ -43,18 +47,22 @@
         <!-- Container universal: recebe todas as músicas uploadadas via
              GET /api/musicas e monta um card por música (mais recentes
              primeiro). Substitui a div estática de "mais escutadas". -->
-        <div id="lista-musicas" class="lista-musicas">
-            <p class="mensagem-lista">Carregando músicas...</p>
+        <div class="secao-musicas">
+            <!-- NOVO ID: nenhum — é só um <h2> decorativo, o JS não usa isso -->
+            <h2 class="secao-titulo aba-musicas">Todas as músicas</h2>
+            <div id="lista-musicas" class="lista-musicas">
+                <p class="mensagem-lista">Carregando músicas...</p>
+            </div>
         </div>
 
         <div class="double-div">
             <!--div dinamica artistas-->
             <div class="artists">
-            <p>eu represento o conteudo dinamico dos artista mais escutados do mes</p>
+            <h2 class="secao-titulo aba-artistas">Artistas mais tocados do mês</h2>
             </div>
             <!--div dinamica generos-->
             <div class="genres">
-            <p>eu represento o conteudo fixo dos generos</p>
+            <h2 class="secao-titulo aba-generos">Descubra novos gostos</h2>
             </div>
         </div>
     </div>

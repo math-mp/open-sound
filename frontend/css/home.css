@@ -4,11 +4,10 @@ margin: 0;
 padding: 0;
 }
 
-/* CORREÇÃO: barra de rolagem horizontal indesejada. A causa era o uso de
-   "100vw" em .main-ctt — essa unidade conta a largura da barra de rolagem
-   vertical do navegador, então ficava alguns pixels mais larga que a tela
-   de verdade. Trocado por "width: 100%" (relativo ao body, sem esse
-   problema) + overflow-x:hidden como segurança extra. */
+/* CORREÇÃO (mantida): barra de rolagem horizontal indesejada. A causa era
+   o uso de "100vw" em .main-ctt — essa unidade conta a largura da barra
+   de rolagem vertical do navegador, então ficava alguns pixels mais larga
+   que a tela de verdade. Usamos "width: 100%" + overflow-x:hidden. */
 html, body {
   overflow-x: hidden;
   width: 100%;
@@ -23,21 +22,20 @@ html, body {
   top: 0;            /* Gruda no topo absoluto */
   left: 0;           /* Alinha na borda esquerda */
   width: 100%;       /* Ocupa toda a largura da página */
-  background: #333;  /* Cor de fundo da barra */
-  color: #fff;       /* Cor do texto */
   padding: 15px 30px;     /* Espaçamento interno */
   z-index: 1000;     /* Mantém a barra acima de outros elementos */
 }
 
 /* Os blocos da esquerda e da direita ganham o mesmo peso/espaço */
 .nav-left, .nav-right {
-  flex: 1; 
+  flex: 1;
   display: flex;
-  gap: 20px; /* Mantém o espaçamento que você já tinha entre os botões */
+  align-items: center;
+  gap: 16px;
 }
 
 .nav-right {
-  justify-content: flex-end; /* Joga o botão Entrar totalmente para a direita */
+  justify-content: flex-end; /* Joga os botões totalmente para a direita */
 }
 
 /* O bloco do centro fica isolado e centralizado */
@@ -50,93 +48,312 @@ html, body {
 /* Estilo extra opcional para deixar o input de pesquisa bonito e largo */
 .nav-center input[type="search"] {
   width: 300px;
-  padding: 8px 15px;
-  border-radius: 20px;
+  padding: 10px 18px;
+  border-radius: var(--raio-medio);
   border: none;
   outline: none;
+  font-family: inherit;
 }
 
 .btn-navbar{
-    background-color: rgb(85, 97, 93);
     border: none;
-    border-radius: 10px;
+    border-radius: var(--raio-medio);
     padding: 5px;
-
 }
 
 .fixed-bar button {
-  background-color: #ffffff; /* Fundo branco para contraste */
-  color: #000000;            /* Texto preto */
   font-size: 14px;
-  font-weight: 700;          /* Texto em negrito */
-  padding: 10px 20px;        /* Espaçamento interno (vertical e horizontal) */
-  border: none;              /* Remove a borda padrão feia do navegador */
-  border-radius: 10px;       /* Bordas totalmente arredondadas estilo cápsula */
-  cursor: pointer;           /* Transforma o cursor em mãozinha ao passar o mouse */
-  transition: transform 0.2s ease, background-color 0.2s ease; /* Suaviza as animações */
+  font-weight: 700;
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--raio-medio);
+  cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease;
 }
 
-/* Efeito ao passar o mouse por cima (Hover) */
 .fixed-bar button:hover {
-  background-color: #f6f6f6; /* Muda sutilmente a cor de fundo */
-  transform: scale(1.04);    /* Dá um leve zoom no botão (efeito moderno) */
+  filter: brightness(0.96);
+  transform: scale(1.04);
 }
 
-/* Efeito ao clicar no botão (Active) */
 .fixed-bar button:active {
-  transform: scale(1.0);     /* Volta ao tamanho normal no clique */
-  background-color: #b3b3b3; /* Escurece o fundo durante o clique */
+  transform: scale(0.98);
+  filter: brightness(0.9);
 }
 
 /*===conteudo principal===*/
-.main-ctt{
+.main-ctt {
     display: flex;
     flex-direction: column;
-    gap: 40px;
-    place-items: center; 
+
+    gap: 70px;
+
     width: 100%;
-    min-height: 100vh;   /* ANTES: height: 100vh (fixo) — veja o comentário abaixo */
-    padding-top: 90px;   /* ANTES: 60px — dava espaço menor que a navbar de verdade */
-    padding-bottom: 100px; /* espaço pra barra de player fixa não cobrir o último card */
-    justify-content: center;
+    min-height: 100vh;
+
+    padding-top: 120px;
+    padding-bottom: 100px;
+
+    align-items: center;
+}
+
+/* =========================================================
+   PAINÉIS COM ESTÉTICA DE "ABA"
+   
+   Cada seção funciona como uma pasta/cartão:
+   - painel escuro
+   - aba pastel no topo
+   - faixa pastel na base
+   ========================================================= */
+
+/* =========================================================
+   PAINÉIS / ABAS DO OPENSOUND
+   ========================================================= */
+
+
+/* =========================================================
+   ABA DE TÍTULO
+   ========================================================= */
+
+.secao-titulo {
+    position: absolute;
+
+    top: -36px;
+    left: 0;
+
+    z-index: 10;
+
+    display: flex;
     align-items: center;
 
+    min-height: 36px;
+
+    padding: 8px 22px;
+
+    border-radius: 12px 12px 0 0;
+
+    font-size: 1.05rem;
+    font-weight: 800;
+
+    color: var(--texto-sobre-pastel);
+
+    white-space: nowrap;
+
+    box-shadow: none;
 }
-/* CORREÇÃO: com "height: 100vh" fixo (valor antigo), quando o conteúdo era
-   maior que a tela, o flexbox ESPREMIA .lista-musicas e .double-div pra
-   caber dentro dos 100vh — em vez de a página crescer e rolar. Isso fazia
-   os cards ficarem menores que o necessário e o conteúdo visualmente
-   vazar por baixo da div seguinte (o "botão coberto" que você viu).
-   Trocando pra "min-height: 100vh", o container pode crescer à vontade e
-   o scroll da página volta a funcionar normalmente. */
-.double-div{
-    gap:30px;
-    background-color: #333;
-    display:flex;
+
+/*
+ * Não precisamos de uma segunda lingueta.
+ * A própria aba já possui o formato desejado.
+ */
+.secao-titulo::before {
+    display: none;
+}
+
+
+/* =========================================================
+   PAINÉIS
+   ========================================================= */
+
+.secao-musicas,
+.artists,
+.genres {
+    position: relative;
+
+    background: var(--painel-fundo);
+
+    border: 1px solid var(--painel-borda);
+
+    border-radius: 18px;
+
+    box-shadow: var(--painel-sombra);
+
+    /*
+     * Mantém os pseudo-elementos do painel controlados
+     * dentro da própria composição.
+     */
+    isolation: isolate;
+}
+
+
+/* =========================================================
+   BARRA SUPERIOR
+   ========================================================= */
+
+/*
+ * Esta barra deve parecer parte do próprio bloco.
+ */
+.secao-musicas::before,
+.artists::before,
+.genres::before {
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+    left: 0;
+    right: 0;
+
+    height: 20px;
+
+    /*
+     * Canto superior esquerdo = reto
+     * Canto superior direito = arredondado
+     * Canto inferior direito = reto
+     * Canto inferior esquerdo = reto
+     */
+    border-radius: 0 10px 0 0;
+
+    box-shadow: none;
+
+    z-index: 2;
+
+    pointer-events: none;
+}
+
+
+/* =========================================================
+   BARRA INFERIOR
+   ========================================================= */
+
+/*
+ * Funciona como uma base do painel.
+ *
+ * A esquerda é completamente reta, enquanto
+ * o lado direito recebe o arredondamento.
+ */
+.secao-musicas::after,
+.artists::after,
+.genres::after {
+    content: "";
+
+    position: absolute;
+
+    left: 0;
+    right: 0;
+    bottom: 0;
+
+    height: 20px;
+
+    /*
+     * Parte superior inteira = reta
+     * Canto inferior esquerdo = arredondado
+     * Canto inferior direito = arredondado
+     */
+    border-radius: 0 0 10px 10px;
+
+    box-shadow: none;
+
+    z-index: 2;
+
+    pointer-events: none;
+}
+
+
+/* =========================================================
+   CORES DAS BARRAS
+   ========================================================= */
+
+/* Músicas */
+
+.secao-musicas::before,
+.secao-musicas::after {
+    background: var(--painel-faixa-musicas);
+}
+
+
+/* Artistas */
+
+.artists::before,
+.artists::after {
+    background: var(--painel-faixa-artistas);
+}
+
+
+/* Gêneros */
+
+.genres::before,
+.genres::after {
+    background: var(--painel-faixa-generos);
+}
+
+
+/* =========================================================
+   CORES DAS ABAS
+   ========================================================= */
+
+.secao-titulo.aba-musicas {
+    background: var(--aba-musicas);
+}
+
+.secao-titulo.aba-artistas {
+    background: var(--aba-artistas);
+}
+
+.secao-titulo.aba-generos {
+    background: var(--aba-generos);
+}
+
+
+/* =========================================================
+   PAINEL DE TODAS AS MÚSICAS
+   ========================================================= */
+
+.secao-musicas {
     width: 85vw;
-    height: 50vh;
-    justify-content: center;
-    align-items: center;
-}
-.artists{
-    background-color: aqua;
-    width: 40%;
-    height: 40%;
-    padding: 20px;
 
+    /*
+     * Espaço para a barra superior e para os cards.
+     */
+    padding: 46px 20px 34px;
 }
-.genres{
-    background-color: rosybrown;
-    width: 40%;
-    height: 40%;
-    padding: 20px;
+
+
+/* =========================================================
+   PAINÉIS INFERIORES
+   ========================================================= */
+
+.double-div {
+    display: flex;
+
+    gap: 32px;
+
+    width: 85vw;
+
+    align-items: stretch;
+}
+
+
+/* =========================================================
+   ARTISTAS
+   ========================================================= */
+
+.artists {
+    flex: 1;
+
+    min-width: 0;
+
+    padding: 46px 18px 34px;
+}
+
+
+/* =========================================================
+   GÊNEROS
+   ========================================================= */
+
+.genres {
+    flex: 1;
+
+    min-width: 0;
+
+    padding: 46px 18px 34px;
 }
 
 /*===modal register css====*/
 
 /*faz o popup ficar invisivel*/
 .hidden{
-  display: none !important; 
+  display: none !important;
 }
 
 /* Fundo escurecido do popup */
@@ -146,7 +363,6 @@ html, body {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -156,24 +372,51 @@ html, body {
 .conteudo-modal {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  background: #fff;
+  gap: 18px;
   padding: 30px;
-  border-radius: 8px;
+  border-radius: var(--raio-grande);
   position: relative;
-  width: 300px;
+  width: 320px;
+}
+
+.conteudo-modal h2 {
+  font-size: 1.2rem;
+}
+
+.conteudo-modal input[type="email"],
+.conteudo-modal input[type="password"],
+.conteudo-modal input[type="text"],
+.conteudo-modal input[type="file"] {
+  padding: 10px 14px;
+  border-radius: var(--raio-pequeno);
+  border: none;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.conteudo-modal button[type="submit"] {
+  padding: 12px;
+  border-radius: var(--raio-medio);
+  border: none;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
 }
 
 .btn-fechar {
   position: absolute;
   top: 10px;
-  right: 10px;
+  right: 14px;
   cursor: pointer;
+  font-size: 1.1rem;
+  background: none;
+  border: none;
 }
 
 .etapa{
   display: flex;
   flex-direction: column;
+  gap: 14px;
 }
 
 /*====conteudo campo senha modal register====*/
@@ -206,19 +449,35 @@ html, body {
 .regras-senha {
   list-style: none;
   padding: 0;
-  margin: 8px 0;
-  font-size: 0.85rem;
+  margin: 0;
+  font-size: 0.82rem;
   text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
 .regras-senha li {
-  margin: 3px 0;
-  color: #ff4d4d; /* Vermelho padrão quando não atendido */
   transition: color 0.2s ease;
 }
 
-.regras-senha li.valido {
-  color: #2ecc71; /* Verde quando atendido */
+/*====grade OTP (2FA)====*/
+.grade-otp {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.input-otp {
+  width: 38px;
+  height: 48px;
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: 800;
+  border-radius: var(--raio-pequeno);
+  border: none;
+  outline: none;
+  font-family: inherit;
 }
 
 /*====checkbox "lembrar de mim" do login====*/
@@ -233,12 +492,11 @@ html, body {
 /*====textos do modal de cadastro de artista e do modal de upload====*/
 .texto-artista-info {
   font-size: 0.85rem;
-  color: #555;
+  line-height: 1.4;
 }
 
 .upload-artista-atual {
   font-size: 0.85rem;
-  color: #555;
 }
 
 /*====campo de arquivo do modal de upload====*/
@@ -247,27 +505,33 @@ html, body {
   flex-direction: column;
   gap: 6px;
   font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.campo-arquivo input[type="file"] {
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 400;
+  cursor: pointer;
 }
 
 /*===preview ao vivo do upload (estilo SoundCloud)====*/
 .preview-upload {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: flex-start;
-  background: #f2f2f2;
-  border-radius: 8px;
-  padding: 10px;
+  border-radius: var(--raio-medio);
+  padding: 12px;
 }
 
 .preview-upload-capa-wrapper {
-  width: 70px;
-  height: 70px;
-  background-color: #ccc;
+  width: 64px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  border-radius: 4px;
+  border-radius: var(--raio-pequeno);
   overflow: hidden;
 }
 
@@ -279,7 +543,6 @@ html, body {
 
 .preview-upload-capa-vazio {
   font-size: 0.7rem;
-  color: #666;
   text-align: center;
   padding: 4px;
 }
@@ -288,26 +551,22 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-width: 0; /* permite o texto quebrar em vez de estourar o flex */
+  min-width: 0;
   flex-grow: 1;
 }
 
 .preview-upload-titulo {
   font-weight: 700;
   font-size: 0.9rem;
-  /* ao contrário do card (.titulo-musica), aqui o texto NÃO é cortado —
-     é pra mostrar o título inteiro antes de enviar, por isso quebra linha. */
   word-break: break-word;
 }
 
 .preview-upload-artista {
   font-size: 0.8rem;
-  color: #555;
 }
 
 .preview-upload-audio {
   font-size: 0.75rem;
-  color: #777;
   word-break: break-word;
 }
 
@@ -316,36 +575,60 @@ html, body {
   Recebe um .card-musica por música vinda de GET /api/musicas.
 ====================================================*/
 .lista-musicas {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 20px;
-  background-color: #333;
-  width: 85vw;
-  min-height: 30vh;
-  padding: 20px;
-  border-radius: 8px;
+    display: grid;
+
+    grid-template-columns: repeat(
+        auto-fill,
+        minmax(170px, 1fr)
+    );
+
+    gap: 20px;
+
+    width: 100%;
+
+    min-height: 30vh;
+
+    padding: 8px 0 0;
 }
 
 .mensagem-lista {
-  color: #fff;
   grid-column: 1 / -1; /* ocupa a linha toda enquanto não tem cards */
   text-align: center;
+  padding: 20px;
 }
 
 .card-musica {
-  display: flex;
-  flex-direction: column;
-  background-color: #444;
-  border-radius: 8px;
-  overflow: hidden;
-  color: #fff;
+    display: flex;
+    flex-direction: column;
+
+    overflow: hidden;
+
+    border-radius: var(--raio-medio);
+
+    background: var(--card-fundo);
+
+    border: 1px solid var(--card-borda);
+
+    box-shadow: var(--sombra-suave);
+
+    transition:
+        transform var(--transicao-rapida),
+        background var(--transicao-rapida),
+        box-shadow var(--transicao-rapida);
+}
+
+.card-musica:hover {
+    transform: translateY(-4px);
+
+    background: var(--card-fundo-hover);
+
+    box-shadow: var(--sombra-media);
 }
 
 .capa-musica {
   width: 100%;
   aspect-ratio: 1 / 1;
   object-fit: cover;
-  background-color: #555; /* aparece atrás enquanto a imagem carrega, ou se não houver capa */
 }
 
 .info-musica {
@@ -358,58 +641,60 @@ html, body {
 
 .titulo-musica {
   font-weight: 700;
-  font-size: 0.95rem;
-  /* corta título muito longo com "..." em vez de quebrar o layout do card */
+  font-size: 0.92rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .artista-musica {
-  font-size: 0.8rem;
-  color: #ccc;
+  font-size: 0.78rem;
 }
 
 .btn-play {
-  margin: 10px;
-  margin-top: 0;
-  background-color: #1db954; /* verde estilo player, só pra diferenciar do resto dos botões brancos */
-  color: #fff;
-  border: none;
-  border-radius: 20px;
-  padding: 8px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: transform 0.2s ease, background-color 0.2s ease;
+    margin: 10px;
+
+    border: none;
+    border-radius: 999px;
+
+    padding: 8px;
+
+    background: var(--cor-primaria);
+    color: var(--texto-sobre-pastel);
+
+    font-size: 0.85rem;
+    font-weight: 800;
+
+    transition:
+        transform var(--transicao-rapida),
+        filter var(--transicao-rapida);
 }
 
 .btn-play:hover {
-  transform: scale(1.03);
+    transform: scale(1.03);
+    filter: brightness(1.05);
 }
 
 /*===================================================
   BARRA DE PLAYER FIXA (rodapé)
-  Só funcional — sem preocupação estética, como pedido.
 ====================================================*/
 .player-barra {
   position: fixed;
   left: 0;
   bottom: 0;
   width: 100%;
-  background-color: #222;
-  color: #fff;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 20px;
+  gap: 14px;
+  padding: 10px 24px;
   z-index: 900; /* abaixo da navbar (1000), acima do conteúdo da página */
 }
 
 .player-capa {
-  width: 50px;
-  height: 50px;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--raio-pequeno);
   object-fit: cover;
-  background-color: #555;
   flex-shrink: 0;
 }
 
@@ -431,7 +716,16 @@ html, body {
 
 .player-artista {
   font-size: 0.75rem;
-  color: #ccc;
+}
+
+#player-play-pause {
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  flex-shrink: 0;
 }
 
 .player-tempo {

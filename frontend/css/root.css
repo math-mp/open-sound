@@ -1,0 +1,96 @@
+/* =========================================================
+   OPENSOUND - ROOT
+   Configurações globais do projeto
+   ========================================================= */
+
+:root {
+    /* =========================
+       TIPOGRAFIA
+       ========================= */
+
+    --fonte-principal: 'Baloo 2', 'Segoe UI', sans-serif;
+
+
+    /* =========================
+       ESPAÇAMENTOS
+       ========================= */
+
+    --espaco-1: 4px;
+    --espaco-2: 8px;
+    --espaco-3: 12px;
+    --espaco-4: 16px;
+    --espaco-5: 24px;
+    --espaco-6: 32px;
+    --espaco-7: 48px;
+
+
+    /* =========================
+       BORDAS / FORMAS
+       ========================= */
+
+    --raio-pequeno: 8px;
+    --raio-medio: 14px;
+    --raio-grande: 20px;
+    --raio-circular: 50%;
+
+
+    /* =========================
+       TRANSIÇÕES
+       ========================= */
+
+    --transicao-rapida: 0.15s ease;
+    --transicao-padrao: 0.2s ease;
+    --transicao-lenta: 0.3s ease;
+}
+
+
+/* =========================================================
+   RESET GLOBAL
+   ========================================================= */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+
+/* =========================================================
+   HTML / BODY
+   ========================================================= */
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: var(--fonte-principal);
+    background: var(--cor-fundo);
+    color: var(--cor-texto);
+}
+
+
+/* =========================================================
+   ELEMENTOS DE FORMULÁRIO
+   ========================================================= */
+
+button,
+input,
+textarea,
+select {
+    font-family: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+
+/* =========================================================
+   IMAGENS
+   ========================================================= */
+
+img {
+    max-width: 100%;
+    display: block;
+}
