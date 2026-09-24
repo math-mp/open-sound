@@ -635,3 +635,16 @@
 .mensagem-cooldown {
     color: var(--cor-erro);
 }
+
+/* -----------------------------------------------------
+   MINHAS MÚSICAS (botão de excluir + aba)
+   ----------------------------------------------------- */
+
+.secao-titulo.aba-biblioteca {
+    background: var(--aba-biblioteca);
+}
+
+.btn-excluir-musica {
+    background: var(--cor-erro);
+    color: #fff8f3;
+}

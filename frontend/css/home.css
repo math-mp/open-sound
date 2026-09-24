@@ -676,6 +676,57 @@ html, body {
 }
 
 /*===================================================
+  BOTÃO DE EXCLUIR (Minhas Músicas)
+====================================================*/
+.btn-excluir-musica {
+    margin: 0 10px 10px;
+
+    border: none;
+    border-radius: 999px;
+
+    padding: 8px;
+
+    font-size: 0.85rem;
+    font-weight: 800;
+
+    transition:
+        transform var(--transicao-rapida),
+        filter var(--transicao-rapida);
+}
+
+.btn-excluir-musica:hover:not(:disabled) {
+    transform: scale(1.03);
+    filter: brightness(1.05);
+}
+
+.btn-excluir-musica:disabled {
+    cursor: not-allowed;
+    transform: none !important;
+    filter: grayscale(0.6) brightness(0.8) !important;
+}
+
+.card-musica .mensagem-cooldown {
+    padding: 0 10px 10px;
+    text-align: left;
+}
+
+/*===================================================
+  PÁGINA "MINHAS MÚSICAS"
+====================================================*/
+.main-ctt-biblioteca {
+    display: flex;
+    flex-direction: column;
+
+    width: 100%;
+    min-height: 100vh;
+
+    padding-top: 120px;
+    padding-bottom: 60px;
+
+    align-items: center;
+}
+
+/*===================================================
   BARRA DE PLAYER FIXA (rodapé)
 ====================================================*/
 .player-barra {
