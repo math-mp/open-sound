@@ -1,3 +1,29 @@
+// ============================================================
+// TEMA CLARO / ESCURO (salvo no localStorage por enquanto)
+// ============================================================
+const btnTema = document.getElementById('btn-tema');
+const CHAVE_TEMA = 'temaOpenSound';
+
+function aplicarTema(tema) {
+  if (tema === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+  if (btnTema) btnTema.textContent = tema === 'light' ? '🌙' : '☀️';
+}
+
+aplicarTema(localStorage.getItem(CHAVE_TEMA) || 'dark');
+
+if (btnTema) {
+  btnTema.addEventListener('click', () => {
+    const temaAtual = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    const novoTema = temaAtual === 'light' ? 'dark' : 'light';
+    localStorage.setItem(CHAVE_TEMA, novoTema);
+    aplicarTema(novoTema);
+  });
+}
+
 // === ELEMENTOS DO DOM ===
 const modal = document.getElementById('modal-registro');
 const btnFechar = document.getElementById('btn-fechar');
@@ -556,48 +582,126 @@ if (playerPlayPause) {
   });
 }
 
-function criarCardMusica(musica) {
-  const card = document.createElement('div');
-  card.className = 'card-musica';
+// ============================================================
+// CARROSSEL "TODAS AS MÚSICAS"
+// ============================================================
+// Por enquanto a API devolve TODAS as músicas. Quando o back-end tiver
+// o endpoint de "mais tocadas do mês", só o que entra em "musicasAtuais"
+// muda — a renderização (destaque + mini-capas navegáveis) continua igual.
+let musicasAtuais = [];
+let indiceMscAtual = 0;
+
+// Monta o card de destaque (música atualmente em foco no carrossel).
+function criarDestaqueMusica(musica) {
+  const div = document.createElement('div');
+  div.className = 'msc-destaque';
 
   const capa = document.createElement('img');
-  capa.className = 'capa-musica';
+  capa.className = 'msc-capa-img';
   capa.src = musica.url_capa || '';
   capa.alt = `Capa de ${musica.titulo}`;
 
   const info = document.createElement('div');
-  info.className = 'info-musica';
+  info.className = 'msc-info';
 
-  const titulo = document.createElement('p');
-  titulo.className = 'titulo-musica';
-  titulo.textContent = musica.titulo;
+  const nome = document.createElement('p');
+  nome.className = 'msc-nome';
+  nome.textContent = musica.titulo;
 
   const artista = document.createElement('p');
-  artista.className = 'artista-musica';
+  artista.className = 'msc-artista';
   artista.textContent = musica.artista;
 
-  info.appendChild(titulo);
-  info.appendChild(artista);
-
   const btnPlay = document.createElement('button');
+  btnPlay.type = 'button';
   btnPlay.className = 'btn-play';
   btnPlay.textContent = '▶ Tocar';
 
+  // Mesmo comportamento do botão de play do card antigo: exige login e
+  // usa a mesma função tocarMusica() que já toca o áudio de verdade.
   btnPlay.addEventListener('click', () => {
     if (!estaLogado()) {
       alert('Faça login para tocar as músicas.');
       if (modalLogin) modalLogin.classList.remove('hidden');
       return;
     }
-
     tocarMusica(musica, btnPlay);
   });
 
-  card.appendChild(capa);
-  card.appendChild(info);
-  card.appendChild(btnPlay);
+  info.appendChild(nome);
+  info.appendChild(artista);
+  info.appendChild(btnPlay);
 
-  return card;
+  div.appendChild(capa);
+  div.appendChild(info);
+
+  return div;
+}
+
+// Monta uma mini-capa clicável (já vistas à esquerda / próximas à
+// direita). Clicar nela só troca o foco do carrossel — não toca a música.
+function criarMiniCapa(musica, indiceReal, classeExtra) {
+  const img = document.createElement('img');
+  img.className = classeExtra;
+  img.src = musica.url_capa || '';
+  img.alt = `Capa de ${musica.titulo || ''}`.trim();
+  img.addEventListener('click', () => focarMusica(indiceReal));
+  return img;
+}
+
+// Renderiza o destaque + as mini-capas dentro de #lista-musicas, com base
+// em indiceMscAtual.
+function renderCarrosselMusicas(lista) {
+  if (!listaMusicas || !Array.isArray(lista) || lista.length === 0) return;
+
+  if (indiceMscAtual < 0) indiceMscAtual = 0;
+  if (indiceMscAtual > lista.length - 1) indiceMscAtual = lista.length - 1;
+
+  listaMusicas.innerHTML = '';
+
+  const anteriores = document.createElement('div');
+  anteriores.className = 'msc-anteriores';
+  lista.slice(0, indiceMscAtual).forEach((musica, i) => {
+    anteriores.appendChild(criarMiniCapa(musica, i, 'msc-mini'));
+  });
+  listaMusicas.appendChild(anteriores);
+
+  listaMusicas.appendChild(criarDestaqueMusica(lista[indiceMscAtual]));
+
+  const proximas = document.createElement('div');
+  proximas.className = 'msc-carrossel';
+  lista.slice(indiceMscAtual + 1).forEach((musica, i) => {
+    const indiceReal = indiceMscAtual + 1 + i;
+    proximas.appendChild(criarMiniCapa(musica, indiceReal, 'msc-carrossel-item'));
+  });
+  listaMusicas.appendChild(proximas);
+}
+
+// Troca a música em foco do carrossel e renderiza de novo.
+function focarMusica(novoIndice) {
+  indiceMscAtual = novoIndice;
+  renderCarrosselMusicas(musicasAtuais);
+}
+
+// Setas de navegação: avançam/voltam uma música por vez, dando a volta
+// (loop infinito) ao chegar numa ponta da lista.
+const btnMscSetaEsq = document.getElementById('msc-seta-esq');
+const btnMscSetaDir = document.getElementById('msc-seta-dir');
+
+if (btnMscSetaEsq) {
+  btnMscSetaEsq.addEventListener('click', () => {
+    if (!musicasAtuais.length) return;
+    const novoIndice = indiceMscAtual > 0 ? indiceMscAtual - 1 : musicasAtuais.length - 1;
+    focarMusica(novoIndice);
+  });
+}
+
+if (btnMscSetaDir) {
+  btnMscSetaDir.addEventListener('click', () => {
+    if (!musicasAtuais.length) return;
+    const novoIndice = indiceMscAtual < musicasAtuais.length - 1 ? indiceMscAtual + 1 : 0;
+    focarMusica(novoIndice);
+  });
 }
 
 async function carregarMusicas() {
@@ -616,9 +720,8 @@ async function carregarMusicas() {
       return;
     }
 
-    listaMusicas.innerHTML = '';
-
     if (!dados.musicas || dados.musicas.length === 0) {
+      listaMusicas.innerHTML = '';
       const mensagem = document.createElement('p');
       mensagem.className = 'mensagem-lista';
       mensagem.textContent = 'Nenhuma música enviada ainda. Seja o primeiro a fazer upload!';
@@ -626,9 +729,9 @@ async function carregarMusicas() {
       return;
     }
 
-    dados.musicas.forEach((musica) => {
-      listaMusicas.appendChild(criarCardMusica(musica));
-    });
+    musicasAtuais = dados.musicas;
+    indiceMscAtual = 0;
+    renderCarrosselMusicas(musicasAtuais);
 
   } catch (erro) {
     console.error('Erro ao carregar músicas:', erro);

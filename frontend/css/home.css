@@ -68,7 +68,7 @@ html, body {
   border: none;
   border-radius: var(--raio-medio);
   cursor: pointer;
-  transition: transform 0.2s ease, filter 0.2s ease;
+  transition: transform 0.2s ease, filter 0.2s ease, background-color 0.3s ease, color 0.3s ease;
 }
 
 .fixed-bar button:hover {
@@ -79,6 +79,36 @@ html, body {
 .fixed-bar button:active {
   transform: scale(0.98);
   filter: brightness(0.9);
+}
+
+/* Transição suave ao trocar de tema (claro/escuro) — evita a mudança
+   brusca de cor quando o botão de tema é clicado. Elementos que já têm
+   uma transição própria (botões com hover, etc.) foram estendidos nas
+   suas regras específicas, em vez de repetidos aqui. */
+body,
+.fixed-bar,
+.secao-titulo,
+.secao-musicas,
+.secao-musicas::before,
+.secao-musicas::after,
+.artists,
+.artists::before,
+.artists::after,
+.genres,
+.genres::before,
+.genres::after,
+.lista-musicas,
+.conteudo-modal,
+.conteudo-modal input,
+.player-barra,
+.dropdown-hamburguer,
+.item-dropdown,
+.secao-config,
+.secao-config input,
+.msc-nome,
+.msc-artista,
+.modal {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 /*===conteudo principal===*/
@@ -571,93 +601,196 @@ html, body {
 }
 
 /*===================================================
-  CONTAINER UNIVERSAL DE MÚSICAS (grid dinâmico)
-  Recebe um .card-musica por música vinda de GET /api/musicas.
+  CARROSSEL "TODAS AS MÚSICAS" (destaque + mini-capas)
+  Fica dentro do painel .secao-musicas, que já cuida da
+  aba/faixas — aqui é só o conteúdo interno.
 ====================================================*/
+
+/* Animações disparadas toda vez que o carrossel troca de música (os
+   elementos são recriados do zero a cada renderização). */
+@keyframes mscEntradaInfo {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes mscEntradaCapa {
+  from {
+    transform: translateX(24px) scale(0.94);
+  }
+  to {
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes mscMoverEsquerda {
+  from {
+    transform: translateX(-26px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes mscMoverDireita {
+  from {
+    transform: translateX(26px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.carrossel-controle {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.msc-seta {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  font-size: 1.3rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--transicao-rapida), filter var(--transicao-rapida), background-color 0.3s ease, color 0.3s ease;
+}
+
+.msc-seta:hover {
+  transform: scale(1.08);
+}
+
+.msc-seta:active {
+  transform: scale(0.94);
+}
+
 .lista-musicas {
-    display: grid;
+    display: flex;
+    align-items: center;
+    gap: 24px;
 
-    grid-template-columns: repeat(
-        auto-fill,
-        minmax(170px, 1fr)
-    );
-
-    gap: 20px;
-
-    width: 100%;
-
-    min-height: 30vh;
+    flex: 1;
+    min-width: 0;
+    min-height: 230px;
 
     padding: 8px 0 0;
 }
 
 .mensagem-lista {
-  grid-column: 1 / -1; /* ocupa a linha toda enquanto não tem cards */
+  flex: 1;
   text-align: center;
   padding: 20px;
 }
 
-.card-musica {
-    display: flex;
-    flex-direction: column;
-
-    overflow: hidden;
-
-    border-radius: var(--raio-medio);
-
-    background: var(--card-fundo);
-
-    border: 1px solid var(--card-borda);
-
-    box-shadow: var(--sombra-suave);
-
-    transition:
-        transform var(--transicao-rapida),
-        background var(--transicao-rapida),
-        box-shadow var(--transicao-rapida);
+/* Mini-capas já vistas (esquerda) */
+.msc-anteriores {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
-.card-musica:hover {
-    transform: translateY(-4px);
-
-    background: var(--card-fundo-hover);
-
-    box-shadow: var(--sombra-media);
-}
-
-.capa-musica {
-  width: 100%;
-  aspect-ratio: 1 / 1;
+.msc-mini {
+  width: 74px;
+  height: 74px;
   object-fit: cover;
+  border-radius: var(--raio-pequeno);
+  flex-shrink: 0;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity var(--transicao-rapida), transform var(--transicao-rapida);
+  animation: mscMoverEsquerda 0.3s ease;
 }
 
-.info-musica {
-  padding: 10px;
+.msc-mini:hover {
+  opacity: 0.9;
+  transform: scale(1.05);
+}
+
+/* Card de destaque: capa + título + artista + play */
+.msc-destaque {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-shrink: 0;
+}
+
+.msc-capa-img {
+  width: 190px;
+  height: 190px;
+  object-fit: cover;
+  border-radius: var(--raio-medio);
+  flex-shrink: 0;
+  box-shadow: var(--sombra-suave);
+  animation: mscEntradaCapa 0.35s ease;
+}
+
+.msc-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  flex-grow: 1;
+  align-items: flex-start;
+  gap: 3px;
+  animation: mscEntradaInfo 0.35s ease;
 }
 
-.titulo-musica {
-  font-weight: 700;
-  font-size: 0.92rem;
+.msc-nome {
+  font-size: 1.7rem;
+  font-weight: 800;
+}
+
+.msc-artista {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.msc-info .btn-play {
+  margin: 0;
+}
+
+/* Próximas mini-capas (direita): preenche o espaço restante */
+.msc-carrossel {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.artista-musica {
-  font-size: 0.78rem;
+.msc-carrossel-item {
+  width: 74px;
+  height: 74px;
+  object-fit: cover;
+  border-radius: var(--raio-pequeno);
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: transform var(--transicao-rapida);
+  animation: mscMoverDireita 0.3s ease;
 }
 
+.msc-carrossel-item:hover {
+  transform: scale(1.06);
+}
+
+/*===================================================
+  BOTÃO DE TOCAR (usado no destaque do carrossel)
+====================================================*/
 .btn-play {
-    margin: 10px;
-
     border: none;
     border-radius: 999px;
 
-    padding: 8px;
+    padding: 8px 16px;
 
     background: var(--cor-primaria);
     color: var(--texto-sobre-pastel);
@@ -809,7 +942,7 @@ html, body {
   border: none;
   font-weight: 700;
   cursor: pointer;
-  transition: transform 0.2s ease, filter 0.2s ease;
+  transition: transform 0.2s ease, filter 0.2s ease, background-color 0.3s ease, color 0.3s ease;
 }
 
 .secao-config button:hover {

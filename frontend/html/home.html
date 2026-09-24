@@ -58,8 +58,13 @@
         <div class="secao-musicas">
             <!-- NOVO ID: nenhum — é só um <h2> decorativo, o JS não usa isso -->
             <h2 class="secao-titulo aba-musicas">Todas as músicas</h2>
-            <div id="lista-musicas" class="lista-musicas">
-                <p class="mensagem-lista">Carregando músicas...</p>
+            <!-- NOVO ID: necessário pro JS navegar o carrossel -->
+            <div class="carrossel-controle">
+                <button type="button" id="msc-seta-esq" class="msc-seta" aria-label="Música anterior">‹</button>
+                <div id="lista-musicas" class="lista-musicas">
+                    <p class="mensagem-lista">Carregando músicas...</p>
+                </div>
+                <button type="button" id="msc-seta-dir" class="msc-seta" aria-label="Próxima música">›</button>
             </div>
         </div>
 

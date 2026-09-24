@@ -513,20 +513,20 @@
     background: var(--cor-superficie);
 }
 
-.card-musica {
+.msc-seta {
     background: var(--card-fundo);
-    box-shadow: var(--sombra-suave);
+    color: var(--cor-texto);
 }
 
-.card-musica:hover {
+.msc-seta:hover {
     background: var(--card-fundo-hover);
 }
 
-.titulo-musica {
-    color: var(--card-texto);
+.msc-nome {
+    color: var(--cor-texto);
 }
 
-.artista-musica {
+.msc-artista {
     color: var(--cor-texto-secundario);
 }
 
