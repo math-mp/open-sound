@@ -56,9 +56,10 @@ html, body {
 }
 
 .btn-navbar{
-    border: none;
+    border: 5px;
     border-radius: var(--raio-medio);
     padding: 5px;
+    background-color: #242031;
 }
 
 .fixed-bar button {
