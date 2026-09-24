@@ -734,6 +734,83 @@ app.get('/api/musicas', async (req, res) => {
   }
 });
 
+// ============================================================
+// "MINHAS MÚSICAS" — listar e excluir (com cooldown de 24h)
+// ============================================================
+
+const COOLDOWN_EXCLUSAO_MUSICA_MS = 24 * 60 * 60 * 1000; // 24 horas
+
+// Rota 12: lista só as músicas do usuário logado — usada na página
+// "Minhas Músicas" do menu hamburguer.
+app.get('/api/musicas/minhas', verificarAutenticacao, async (req, res) => {
+  try {
+    const resultado = await pool.query(
+      'SELECT * FROM musicas WHERE usuario_id = $1 ORDER BY criado_em DESC',
+      [req.usuario.id]
+    );
+    return res.status(200).json({ status: 'sucesso', musicas: resultado.rows });
+  } catch (erro) {
+    console.error('Erro ao listar músicas do usuário:', erro);
+    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  }
+});
+
+// Rota 13: exclui uma música — só o dono pode, e só depois de 24h do
+// momento em que foi postada (usa musicas.criado_em, sem coluna nova).
+app.delete('/api/musicas/:id', verificarAutenticacao, async (req, res) => {
+  const idMusica = parseInt(req.params.id, 10);
+
+  if (!Number.isInteger(idMusica)) {
+    return res.status(400).json({ status: 'erro', mensagem: 'ID de música inválido.' });
+  }
+
+  try {
+    const resultado = await pool.query('SELECT * FROM musicas WHERE id = $1', [idMusica]);
+    const musica = resultado.rows[0];
+
+    if (!musica) {
+      return res.status(404).json({ status: 'erro', mensagem: 'Música não encontrada.' });
+    }
+
+    if (musica.usuario_id !== req.usuario.id) {
+      return res.status(403).json({ status: 'erro', mensagem: 'Você só pode excluir suas próprias músicas.' });
+    }
+
+    const tempoDesdePostagem = Date.now() - new Date(musica.criado_em).getTime();
+    if (tempoDesdePostagem < COOLDOWN_EXCLUSAO_MUSICA_MS) {
+      const restanteMs = COOLDOWN_EXCLUSAO_MUSICA_MS - tempoDesdePostagem;
+      return res.status(429).json({
+        status: 'erro',
+        codigo: 'COOLDOWN_EXCLUSAO_ATIVO',
+        mensagem: 'Aguarde 24h após a postagem para poder excluir esta música.',
+        restanteMs
+      });
+    }
+
+    // Limpeza do Storage é melhor-esforço — mesmo padrão da exclusão de conta.
+    const caminhosParaApagar = [];
+    const caminhoAudio = extrairCaminhoStorage(musica.url_audio);
+    const caminhoCapa = extrairCaminhoStorage(musica.url_capa);
+    if (caminhoAudio) caminhosParaApagar.push(caminhoAudio);
+    if (caminhoCapa) caminhosParaApagar.push(caminhoCapa);
+
+    if (caminhosParaApagar.length > 0) {
+      const { error: erroStorage } = await supabase.storage.from(SUPABASE_BUCKET).remove(caminhosParaApagar);
+      if (erroStorage) {
+        console.error('Erro ao apagar arquivos do Storage (exclusão da música segue mesmo assim):', erroStorage);
+      }
+    }
+
+    await pool.query('DELETE FROM musicas WHERE id = $1', [idMusica]);
+
+    return res.status(200).json({ status: 'sucesso', mensagem: 'Música excluída com sucesso.' });
+
+  } catch (erro) {
+    console.error('Erro ao excluir música:', erro);
+    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  }
+});
+
 app.use((erro, req, res, next) => {
   if (erro instanceof multer.MulterError || erro.message?.includes('suportado')) {
     return res.status(400).json({ status: 'erro', mensagem: erro.message });
