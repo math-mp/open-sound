@@ -570,3 +570,68 @@
 .player-seek {
     accent-color: var(--cor-primaria);
 }
+
+/* -----------------------------------------------------
+   MENU HAMBURGUER
+   ----------------------------------------------------- */
+
+.dropdown-hamburguer {
+    background: var(--cor-superficie);
+    box-shadow: var(--sombra-forte);
+}
+
+.item-dropdown {
+    color: var(--cor-texto);
+}
+
+.item-dropdown:hover {
+    background: var(--cor-superficie-hover);
+}
+
+/* -----------------------------------------------------
+   PÁGINA DE CONFIGURAÇÕES
+   ----------------------------------------------------- */
+
+.titulo-navbar-config {
+    color: var(--cor-texto);
+}
+
+.secao-config {
+    background: var(--painel-fundo);
+    color: var(--cor-texto);
+    border: 1px solid var(--painel-borda);
+}
+
+.secao-config input[type="text"],
+.secao-config input[type="password"] {
+    background: var(--input-fundo);
+    color: var(--input-texto);
+    border: 1px solid var(--input-borda);
+}
+
+.secao-config input:focus {
+    outline: none;
+    border-color: var(--input-borda-foco);
+}
+
+.secao-config input::placeholder {
+    color: var(--input-placeholder);
+}
+
+.secao-config button {
+    background: var(--cor-primaria);
+    color: var(--texto-sobre-pastel);
+}
+
+.secao-perigo {
+    border: 2px solid var(--cor-erro);
+}
+
+.btn-perigo {
+    background: var(--cor-erro) !important;
+    color: #fff8f3 !important;
+}
+
+.mensagem-cooldown {
+    color: var(--cor-erro);
+}

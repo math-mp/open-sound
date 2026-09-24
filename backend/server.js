@@ -53,10 +53,10 @@ const limitarRegistroIP = rateLimit({
 });
 
 app.post('/api/registro', limitarRegistroIP, async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, nomeUsuario } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({ status: 'erro', mensagem: 'E-mail e senha são obrigatórios.' });
+  if (!email || !password || !nomeUsuario || !nomeUsuario.trim()) {
+    return res.status(400).json({ status: 'erro', mensagem: 'E-mail, senha e nome de usuário são obrigatórios.' });
   }
 
   if (!validarEmail(email)) {
@@ -87,10 +87,10 @@ app.post('/api/registro', limitarRegistroIP, async (req, res) => {
     const expiraEm = new Date(Date.now() + 10 * 60 * 1000);
 
     const queryInsertVerificacao = `
-      INSERT INTO verificacoes_2fa (id, email, senha_hash, codigo_hash, tentativas, expira_em, ultimo_envio_em)
-      VALUES ($1, $2, $3, $4, 0, $5, CURRENT_TIMESTAMP)
+      INSERT INTO verificacoes_2fa (id, email, senha_hash, nome_usuario, codigo_hash, tentativas, expira_em, ultimo_envio_em)
+      VALUES ($1, $2, $3, $4, $5, 0, $6, CURRENT_TIMESTAMP)
     `;
-    await pool.query(queryInsertVerificacao, [idVerificacao, email, senhaHash, codigoHash, expiraEm]);
+    await pool.query(queryInsertVerificacao, [idVerificacao, email, senhaHash, nomeUsuario.trim(), codigoHash, expiraEm]);
 
     try {
       await transporter.sendMail({
@@ -161,10 +161,10 @@ app.post('/api/validar-2fa', limitarValidacaoIP, async (req, res) => {
     }
 
     const queryInsert = `
-      INSERT INTO usuarios (email, senha, verificado)
-      VALUES ($1, $2, TRUE)
+      INSERT INTO usuarios (email, senha, nome_usuario, verificado)
+      VALUES ($1, $2, $3, TRUE)
     `;
-    await pool.query(queryInsert, [verificacao.email, verificacao.senha_hash]);
+    await pool.query(queryInsert, [verificacao.email, verificacao.senha_hash, verificacao.nome_usuario]);
 
     await pool.query('DELETE FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
 
@@ -339,7 +339,7 @@ function verificarAutenticacao(req, res, next) {
 app.get('/api/usuarios/eu', verificarAutenticacao, async (req, res) => {
   try {
     const resultado = await pool.query(
-      'SELECT id, email, eh_artista, nome_artista FROM usuarios WHERE id = $1',
+      'SELECT id, email, nome_usuario, eh_artista, nome_artista, senha_redefinida_em FROM usuarios WHERE id = $1',
       [req.usuario.id]
     );
     const usuario = resultado.rows[0];
@@ -376,6 +376,240 @@ app.post('/api/usuarios/artista', verificarAutenticacao, async (req, res) => {
   } catch (erro) {
     console.error('Erro ao salvar nome de artista:', erro);
     return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  }
+});
+
+// ============================================================
+// REDEFINIÇÃO DE SENHA (via 2FA) — cooldown de 24h entre redefinições
+// ============================================================
+
+const COOLDOWN_REDEFINICAO_MS = 24 * 60 * 60 * 1000; // 24 horas
+
+const limitarRedefinicaoIP = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: {
+    status: 'erro',
+    mensagem: 'Muitas tentativas a partir deste IP. Tente novamente mais tarde.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Rota 9: solicita a redefinição — valida a nova senha, confere o cooldown
+// de 24h no servidor (nunca confiar só na checagem do frontend), gera o
+// código e envia por e-mail. Mesmo padrão de verificacoes_2fa, só que
+// vinculado a um usuario_id já existente em vez de um cadastro novo.
+app.post('/api/usuarios/redefinir-senha/solicitar', verificarAutenticacao, limitarRedefinicaoIP, async (req, res) => {
+  const { novaSenha } = req.body;
+
+  if (!novaSenha || !validarSenhaForte(novaSenha)) {
+    return res.status(400).json({
+      status: 'erro',
+      mensagem: 'A nova senha deve ter no mínimo 8 caracteres, incluindo pelo menos uma letra maiúscula, uma minúscula, um número e um caractere especial (@$!%*?&#).'
+    });
+  }
+
+  try {
+    const resultadoUsuario = await pool.query(
+      'SELECT email, senha_redefinida_em FROM usuarios WHERE id = $1',
+      [req.usuario.id]
+    );
+    const usuarioLogado = resultadoUsuario.rows[0];
+
+    if (!usuarioLogado) {
+      return res.status(404).json({ status: 'erro', mensagem: 'Usuário não encontrado.' });
+    }
+
+    if (usuarioLogado.senha_redefinida_em) {
+      const tempoDesdeUltimoReset = Date.now() - new Date(usuarioLogado.senha_redefinida_em).getTime();
+      if (tempoDesdeUltimoReset < COOLDOWN_REDEFINICAO_MS) {
+        const restanteMs = COOLDOWN_REDEFINICAO_MS - tempoDesdeUltimoReset;
+        return res.status(429).json({
+          status: 'erro',
+          codigo: 'COOLDOWN_REDEFINICAO_ATIVO',
+          mensagem: 'Você já redefiniu sua senha recentemente. Aguarde o cooldown de 24h.',
+          restanteMs
+        });
+      }
+    }
+
+    const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+    const novaSenhaHash = await bcrypt.hash(novaSenha, 10);
+    const codigoHash = await bcrypt.hash(codigo, 10);
+    const idRedefinicao = crypto.randomUUID();
+    const expiraEm = new Date(Date.now() + 10 * 60 * 1000);
+
+    await pool.query(
+      `INSERT INTO redefinicoes_senha (id, usuario_id, nova_senha_hash, codigo_hash, tentativas, expira_em, ultimo_envio_em)
+       VALUES ($1, $2, $3, $4, 0, $5, CURRENT_TIMESTAMP)`,
+      [idRedefinicao, req.usuario.id, novaSenhaHash, codigoHash, expiraEm]
+    );
+
+    try {
+      await transporter.sendMail({
+        from: `"Open sound" <${process.env.GMAIL_USER}>`,
+        to: usuarioLogado.email,
+        subject: 'Código para redefinir sua senha',
+        text: `Seu código de confirmação para redefinir a senha é: ${codigo}`
+      });
+    } catch (erroMail) {
+      console.error('Erro ao enviar e-mail de redefinição de senha:', erroMail);
+      await pool.query('DELETE FROM redefinicoes_senha WHERE id = $1', [idRedefinicao]);
+      return res.status(500).json({ status: 'erro', mensagem: 'Falha ao enviar o e-mail com o código de verificação.' });
+    }
+
+    return res.status(200).json({ status: 'sucesso', mensagem: 'Código enviado com sucesso!', idRedefinicao });
+
+  } catch (erro) {
+    console.error('Erro ao solicitar redefinição de senha:', erro);
+    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  }
+});
+
+// Rota 10: confirma o código e efetiva a troca de senha.
+app.post('/api/usuarios/redefinir-senha/confirmar', verificarAutenticacao, limitarRedefinicaoIP, async (req, res) => {
+  const { codigo, idRedefinicao } = req.body;
+
+  if (!codigo || !idRedefinicao) {
+    return res.status(400).json({ status: 'erro', mensagem: 'Dados incompletos.' });
+  }
+
+  try {
+    const resultado = await pool.query('SELECT * FROM redefinicoes_senha WHERE id = $1', [idRedefinicao]);
+    const redefinicao = resultado.rows[0];
+
+    if (!redefinicao) {
+      return res.status(400).json({ status: 'erro', mensagem: 'Verificação não encontrada ou expirada.' });
+    }
+
+    // Garante que a verificação pertence ao mesmo usuário logado — impede
+    // usar o idRedefinicao de outra pessoa mesmo que alguém consiga adivinhar o UUID.
+    if (redefinicao.usuario_id !== req.usuario.id) {
+      return res.status(403).json({ status: 'erro', mensagem: 'Verificação não pertence a este usuário.' });
+    }
+
+    if (new Date(redefinicao.expira_em) < new Date()) {
+      await pool.query('DELETE FROM redefinicoes_senha WHERE id = $1', [idRedefinicao]);
+      return res.status(400).json({ status: 'erro', mensagem: 'O tempo limite do código expirou. Solicite novamente.' });
+    }
+
+    if (redefinicao.tentativas >= 5) {
+      await pool.query('DELETE FROM redefinicoes_senha WHERE id = $1', [idRedefinicao]);
+      return res.status(429).json({ status: 'erro', mensagem: 'Número máximo de tentativas excedido. Solicite novamente.' });
+    }
+
+    const codigoConfere = await bcrypt.compare(codigo.trim(), redefinicao.codigo_hash);
+
+    if (!codigoConfere) {
+      await pool.query('UPDATE redefinicoes_senha SET tentativas = tentativas + 1 WHERE id = $1', [idRedefinicao]);
+      return res.status(400).json({ status: 'erro', mensagem: 'Código incorreto.' });
+    }
+
+    await pool.query(
+      'UPDATE usuarios SET senha = $1, senha_redefinida_em = CURRENT_TIMESTAMP WHERE id = $2',
+      [redefinicao.nova_senha_hash, req.usuario.id]
+    );
+    await pool.query('DELETE FROM redefinicoes_senha WHERE id = $1', [idRedefinicao]);
+
+    return res.status(200).json({ status: 'sucesso', mensagem: 'Senha redefinida com sucesso!' });
+
+  } catch (erro) {
+    console.error('Erro ao confirmar redefinição de senha:', erro);
+    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  }
+});
+
+// ============================================================
+// EXCLUSÃO DE CONTA (com frase de segurança)
+// ============================================================
+
+// Extrai o caminho relativo dentro do bucket a partir de uma URL pública do
+// Supabase Storage, pra poder apagar o arquivo de verdade (não só o registro
+// no banco). Retorna null se a URL não bater com o padrão esperado.
+function extrairCaminhoStorage(urlPublica) {
+  if (!urlPublica) return null;
+  const marcador = `/storage/v1/object/public/${SUPABASE_BUCKET}/`;
+  const indice = urlPublica.indexOf(marcador);
+  if (indice === -1) return null;
+  return urlPublica.slice(indice + marcador.length);
+}
+
+// Rota 11: deleta a conta e todas as músicas dela — irreversível.
+// Exige a frase de segurança exata: "eu desejo deletar <nome de usuário>"
+// (ou o e-mail, pra contas antigas sem nome de usuário cadastrado).
+app.delete('/api/usuarios/eu', verificarAutenticacao, async (req, res) => {
+  const { fraseConfirmacao } = req.body;
+
+  if (!fraseConfirmacao) {
+    return res.status(400).json({ status: 'erro', mensagem: 'Frase de confirmação é obrigatória.' });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    const resultadoUsuario = await client.query(
+      'SELECT email, nome_usuario FROM usuarios WHERE id = $1',
+      [req.usuario.id]
+    );
+    const usuarioLogado = resultadoUsuario.rows[0];
+
+    if (!usuarioLogado) {
+      client.release();
+      return res.status(404).json({ status: 'erro', mensagem: 'Usuário não encontrado.' });
+    }
+
+    const identificador = usuarioLogado.nome_usuario || usuarioLogado.email;
+    const fraseEsperada = `eu desejo deletar ${identificador}`;
+
+    if (fraseConfirmacao.trim().toLowerCase() !== fraseEsperada.toLowerCase()) {
+      client.release();
+      return res.status(400).json({
+        status: 'erro',
+        mensagem: `Frase de confirmação incorreta. Digite exatamente: "eu desejo deletar ${identificador}"`
+      });
+    }
+
+    // Busca as URLs das músicas ANTES de apagar, pra poder limpar o Storage.
+    const resultadoMusicas = await client.query(
+      'SELECT url_audio, url_capa FROM musicas WHERE usuario_id = $1',
+      [req.usuario.id]
+    );
+
+    // Limpeza do Storage é melhor-esforço: se falhar, não impede a exclusão
+    // da conta (evita deixar o usuário "preso" por causa de um arquivo órfão).
+    const caminhosParaApagar = [];
+    resultadoMusicas.rows.forEach((musica) => {
+      const caminhoAudio = extrairCaminhoStorage(musica.url_audio);
+      const caminhoCapa = extrairCaminhoStorage(musica.url_capa);
+      if (caminhoAudio) caminhosParaApagar.push(caminhoAudio);
+      if (caminhoCapa) caminhosParaApagar.push(caminhoCapa);
+    });
+
+    if (caminhosParaApagar.length > 0) {
+      const { error: erroStorage } = await supabase.storage.from(SUPABASE_BUCKET).remove(caminhosParaApagar);
+      if (erroStorage) {
+        console.error('Erro ao apagar arquivos do Storage (exclusão da conta segue mesmo assim):', erroStorage);
+      }
+    }
+
+    // Transação: apaga músicas + verificações pendentes + a conta em si,
+    // tudo ou nada. Deletar as músicas primeiro satisfaz a foreign key
+    // antes de deletar o usuário, sem precisar mexer na constraint.
+    await client.query('BEGIN');
+    await client.query('DELETE FROM musicas WHERE usuario_id = $1', [req.usuario.id]);
+    await client.query('DELETE FROM redefinicoes_senha WHERE usuario_id = $1', [req.usuario.id]);
+    await client.query('DELETE FROM usuarios WHERE id = $1', [req.usuario.id]);
+    await client.query('COMMIT');
+
+    return res.status(200).json({ status: 'sucesso', mensagem: 'Conta e músicas excluídas com sucesso.' });
+
+  } catch (erro) {
+    await client.query('ROLLBACK');
+    console.error('Erro ao excluir conta:', erro);
+    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  } finally {
+    client.release();
   }
 });
 

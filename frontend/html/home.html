@@ -19,6 +19,14 @@
 
         <!-- parte esquerda navbar-->
         <div class="nav-left">
+            <!-- Menu hamburguer: hoje só tem Configurações, mas é aqui que
+                 Biblioteca/Perfil vão entrar mais pra frente. -->
+            <div class="menu-hamburguer">
+                <button class="btn-navbar" id="btn-hamburguer" aria-label="Abrir menu">☰</button>
+                <div id="dropdown-hamburguer" class="dropdown-hamburguer hidden">
+                    <a href="config.html" id="link-config" class="item-dropdown">⚙️ Configurações</a>
+                </div>
+            </div>
             <button class="btn-navbar" id="btn-biblioteca">Minha Biblioteca</button>
             <button class="btn-navbar" id="btn-inicio">inicio</button>
             <button class="btn-navbar" id="btn-upload">Upload</button>
@@ -76,6 +84,7 @@
         <div id="etapa-registro" class="etapa">
         <h2>Criar Conta</h2>
         <form id="form-registro">
+            <input type="text" id="registro-nome-usuario" placeholder="Nome de usuário" required>
             <input type="email" placeholder="Seu e-mail" required>
 
             <div class="campo-senha">

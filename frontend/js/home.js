@@ -94,6 +94,24 @@ inputsOTP.forEach((input, index) => {
   });
 });
 
+// === MENU HAMBURGUER ===
+const btnHamburguer = document.getElementById('btn-hamburguer');
+const dropdownHamburguer = document.getElementById('dropdown-hamburguer');
+
+if (btnHamburguer && dropdownHamburguer) {
+  btnHamburguer.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dropdownHamburguer.classList.toggle('hidden');
+  });
+
+  // Fecha o dropdown se o usuário clicar em qualquer outro lugar da página.
+  document.addEventListener('click', (e) => {
+    if (!dropdownHamburguer.classList.contains('hidden') && !dropdownHamburguer.contains(e.target)) {
+      dropdownHamburguer.classList.add('hidden');
+    }
+  });
+}
+
 // === CONTROLE DO MODAL ===
 if (btnRegister && modal) {
   btnRegister.addEventListener('click', () => modal.classList.remove('hidden'));
@@ -147,11 +165,18 @@ if (formRegistro) {
 
     if (btnSubmitRegistro && btnSubmitRegistro.disabled) return;
 
+    const campoNomeUsuario = document.getElementById('registro-nome-usuario');
     const campoEmail = formRegistro.querySelector('input[type="email"]');
     const campoSenha = document.getElementById('input-senha');
 
+    const nomeUsuario = campoNomeUsuario ? campoNomeUsuario.value.trim() : '';
     const email = campoEmail ? campoEmail.value.trim() : '';
     const password = campoSenha ? campoSenha.value.trim() : '';
+
+    if (!nomeUsuario) {
+      alert('Digite um nome de usuário.');
+      return;
+    }
 
     if (!regexEmail.test(email)) {
       alert('Insira um formato de e-mail válido (exemplo: usuario@email.com).');
@@ -172,7 +197,7 @@ if (formRegistro) {
       const resposta = await fetch('http://localhost:3000/api/registro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password, nomeUsuario })
       });
 
       const dados = await resposta.json();

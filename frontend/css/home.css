@@ -738,3 +738,98 @@ html, body {
 .player-seek {
   flex-grow: 1;
 }
+
+/*====menu hamburguer (config, e futuramente biblioteca/perfil)====*/
+.menu-hamburguer {
+  position: relative;
+}
+
+.dropdown-hamburguer {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  border-radius: var(--raio-medio);
+  min-width: 180px;
+  overflow: hidden;
+  z-index: 1001; /* acima da navbar (1000) */
+}
+
+.item-dropdown {
+  display: block;
+  padding: 10px 16px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/*===================================================
+  PÁGINA DE CONFIGURAÇÕES
+====================================================*/
+.titulo-navbar-config {
+  font-weight: 700;
+}
+
+.main-ctt-config {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 120px 20px 60px;
+}
+
+.secao-config {
+  border-radius: var(--raio-grande);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--sombra-suave);
+}
+
+.secao-config form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.secao-config input[type="text"],
+.secao-config input[type="password"] {
+  padding: 10px 14px;
+  border-radius: var(--raio-pequeno);
+  border: none;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.secao-config button {
+  padding: 10px 20px;
+  border-radius: var(--raio-medio);
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.secao-config button:hover {
+  filter: brightness(0.96);
+  transform: scale(1.02);
+}
+
+.btn-perigo {
+  align-self: flex-start;
+}
+
+.mensagem-cooldown {
+  font-size: 0.85rem;
+}
+
+/* Botão de redefinir senha durante o cooldown de 24h — escurecido e
+   sem clique, como pedido. */
+.botao-desabilitado,
+.secao-config button:disabled {
+  cursor: not-allowed !important;
+  transform: none !important;
+  filter: grayscale(0.6) brightness(0.75) !important;
+}

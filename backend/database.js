@@ -22,9 +22,11 @@ const criarTabelas = async () => {
       id SERIAL PRIMARY KEY,
       email VARCHAR(255) UNIQUE NOT NULL,
       senha VARCHAR(255) NOT NULL,
+      nome_usuario VARCHAR(255),
       verificado BOOLEAN DEFAULT FALSE,
       eh_artista BOOLEAN DEFAULT FALSE,
       nome_artista VARCHAR(255),
+      senha_redefinida_em TIMESTAMP,
       criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `;
@@ -50,6 +52,23 @@ const criarTabelas = async () => {
       id UUID PRIMARY KEY,
       email VARCHAR(255) NOT NULL,
       senha_hash VARCHAR(255) NOT NULL,
+      nome_usuario VARCHAR(255),
+      codigo_hash VARCHAR(255) NOT NULL,
+      tentativas INTEGER DEFAULT 0,
+      criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      expira_em TIMESTAMP NOT NULL,
+      ultimo_envio_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
+
+  // NOVO: verificações temporárias de REDEFINIÇÃO de senha — mesmo padrão
+  // da verificacoes_2fa (código hasheado, expira em 10min), mas vinculada
+  // a um usuário já existente (usuario_id) em vez de um cadastro novo.
+  const queryRedefinicoesSenha = `
+    CREATE TABLE IF NOT EXISTS redefinicoes_senha (
+      id UUID PRIMARY KEY,
+      usuario_id INTEGER REFERENCES usuarios(id),
+      nova_senha_hash VARCHAR(255) NOT NULL,
       codigo_hash VARCHAR(255) NOT NULL,
       tentativas INTEGER DEFAULT 0,
       criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -62,7 +81,8 @@ const criarTabelas = async () => {
     await pool.query(queryUsuarios);
     await pool.query(queryMusicas);
     await pool.query(queryVerificacoes2FA);
-    console.log('Tabelas "usuarios", "musicas" e "verificacoes_2fa" verificadas/criadas com sucesso no PostgreSQL.');
+    await pool.query(queryRedefinicoesSenha);
+    console.log('Tabelas "usuarios", "musicas", "verificacoes_2fa" e "redefinicoes_senha" verificadas/criadas com sucesso no PostgreSQL.');
   } catch (erro) {
     console.error('Erro ao criar tabelas no PostgreSQL:', erro);
   }
