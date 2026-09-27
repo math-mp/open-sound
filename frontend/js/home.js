@@ -63,6 +63,7 @@ const btnFecharUpload = document.getElementById('btn-fechar-upload');
 const formUpload = document.getElementById('form-upload');
 const btnUpload = document.getElementById('btn-upload');
 const listaMusicas = document.getElementById('lista-musicas');
+const listaArtistas = document.getElementById('lista-artistas');
 
 // Elementos do Modal de Cadastro de Artista
 const modalArtista = document.getElementById('modal-artista');
@@ -505,13 +506,67 @@ function formatarTempo(segundosTotais) {
   return `${minutos}:${segundos}`;
 }
 
+// ============================================================
+// CONTAGEM DE REPRODUÇÕES
+// ============================================================
+
+// Música cujo src está carregado no elementoAudio, e se JÁ contamos uma
+// reprodução dessa execução. São o par que evita contagem duplicada:
+//
+//   - tocarMusica() marca a música nova e zera o flag ANTES de dar play
+//     → o 'play' que vem logo depois é o único contabilizado;
+//   - pausar e continuar não passa por tocarMusica(), o evento 'play' dispara
+//     de novo, mas o flag continua true → não conta uma segunda vez;
+//   - quando a música acaba, o 'ended' zera o flag, então ouvir a música
+//     inteira de novo conta como uma reprodução nova (é outra execução).
+let musicaNoPlayer = null;
+let reproducaoJaContada = false;
+
+// Envia o play pro backend. É chamada só pelo evento 'play', ou seja,
+// quando o áudio já está tocando — nunca no clique e nunca se o play
+// falhar. Falha aqui NÃO pode interromper a música: só loga no console.
+//
+// === LOGS DE DIAGNÓSTICO (temporários) ===
+// Todo o caminho da contagem é impresso no console do navegador com o
+// prefixo [PLAY]. Para ver: abrir a home, F12 -> aba Console, clicar em
+// "Tocar". Para sumir com os logs depois, é só apagar as linhas que
+// começam com console.log('[PLAY].
+async function registrarReproducao(musica) {
+  if (!musica || !musica.id) return;
+
+  console.log(`[PLAY] -> POST /api/musicas/${musica.id}/reproduzir  "${musica.titulo}" (logado: ${estaLogado()})`);
+
+  try {
+    const resposta = await fetchComAutenticacao(`http://localhost:3000/api/musicas/${musica.id}/reproduzir`, {
+      method: 'POST'
+    });
+    const dados = await resposta.json().catch(() => null);
+    console.log(`[PLAY] <- resposta ${resposta.status}`, dados ? `novo total no banco: ${dados.musica?.reproducoes}` : '');
+  } catch (erro) {
+    console.error('Erro ao registrar reprodução:', erro);
+    console.log('[PLAY] !! o play NAO foi salvo no banco, mas a música continua tocando');
+  }
+}
+
+function formatarReproducoes(quantidade) {
+  const numero = Number(quantidade);
+  if (!Number.isFinite(numero)) return '0 reproduções';
+  return `${numero} ${numero === 1 ? 'reprodução' : 'reproduções'}`;
+}
+
 function tocarMusica(musica, botaoClicado) {
   const clicouNaMesmaMusica = botaoAudioAtual === botaoClicado && elementoAudio.src;
 
+  console.log(`[PLAY] clique em "${musica.titulo}" | mesma execução? ${clicouNaMesmaMusica} | tocando agora? ${!elementoAudio.paused}`);
+
+  // Pausar/continuar a MESMA execução: sai antes de qualquer coisa, então o
+  // 'play' do "continuar" não é contado de novo (o flag continua ligado).
   if (clicouNaMesmaMusica) {
     if (elementoAudio.paused) {
+      console.log('[PLAY] retomando a mesma música (NÃO conta +1)');
       elementoAudio.play();
     } else {
+      console.log('[PLAY] pausando (NÃO conta +1)');
       elementoAudio.pause();
     }
     return;
@@ -520,8 +575,17 @@ function tocarMusica(musica, botaoClicado) {
   if (botaoAudioAtual) botaoAudioAtual.textContent = '▶ Tocar';
   botaoAudioAtual = botaoClicado;
 
+  // Música nova no player: guarda qual é e libera a contagem uma única vez.
+  // Precisa acontecer ANTES do play() — o evento 'play' chega logo depois.
+  musicaNoPlayer = musica;
+  reproducaoJaContada = false;
+
   elementoAudio.src = musica.url_audio;
-  elementoAudio.play().catch((erro) => {
+  console.log(`[PLAY] src trocado, chamando elementoAudio.play()... (id ${musica.id})`);
+  elementoAudio.play().then(() => {
+    console.log('[PLAY] play() resolvido — o áudio começou');
+  }).catch((erro) => {
+    console.log('[PLAY] !! play() falhou — NADA será contabilizado');
     console.error('Erro ao tocar áudio:', erro);
     alert('Não foi possível tocar esta música.');
   });
@@ -535,16 +599,33 @@ function tocarMusica(musica, botaoClicado) {
 elementoAudio.addEventListener('play', () => {
   if (botaoAudioAtual) botaoAudioAtual.textContent = '⏸ Pausar';
   if (playerPlayPause) playerPlayPause.textContent = '⏸';
+
+  // O áudio começou de verdade. É aqui — e só aqui — que a reprodução é
+  // contada. Se o play falhar, o evento nunca dispara e nada é registrado.
+  console.log(`[PLAY] evento "play" | música no player: ${musicaNoPlayer ? `"${musicaNoPlayer.titulo}" (id ${musicaNoPlayer.id})` : 'nenhuma'} | já contada: ${reproducaoJaContada}`);
+
+  if (musicaNoPlayer && !reproducaoJaContada) {
+    reproducaoJaContada = true;
+    console.log('[PLAY] DECIDI CONTAR ESTA REPRODUÇÃO (+1)');
+    registrarReproducao(musicaNoPlayer);
+  } else {
+    console.log('[PLAY] não conta de novo (já contabilizada nesta execução)');
+  }
 });
 
 elementoAudio.addEventListener('pause', () => {
+  console.log('[PLAY] evento "pause" (o áudio parou, nada é contabilizado)');
   if (botaoAudioAtual) botaoAudioAtual.textContent = '▶ Tocar';
   if (playerPlayPause) playerPlayPause.textContent = '▶';
 });
 
 elementoAudio.addEventListener('ended', () => {
+  console.log('[PLAY] evento "ended" — a música acabou; ouvir de novo passa a contar +1');
   if (botaoAudioAtual) botaoAudioAtual.textContent = '▶ Tocar';
   botaoAudioAtual = null;
+
+  // A música terminou: a próxima execução dela volta a contar +1.
+  reproducaoJaContada = false;
 });
 
 elementoAudio.addEventListener('loadedmetadata', () => {
@@ -574,6 +655,7 @@ if (playerSeek) {
 if (playerPlayPause) {
   playerPlayPause.addEventListener('click', () => {
     if (!elementoAudio.src) return;
+    console.log(`[PLAY] botão da barra: ${elementoAudio.paused ? 'retomando' : 'pausando'} (NÃO conta +1)`);
     if (elementoAudio.paused) {
       elementoAudio.play();
     } else {
@@ -582,12 +664,22 @@ if (playerPlayPause) {
   });
 }
 
+// Elementos da busca + do título da seção de músicas. Declarados aqui
+// (antes do carrossel) porque carregarMusicas()/carregarMusicasMaisTocadas()
+// já mexem no título, e um const declarado depois ficaria inacessível
+// ("Cannot access before initialization") quando elas rodam.
+const formBusca = document.querySelector('.nav-center form');
+const campoBusca = formBusca ? formBusca.querySelector('input[name="q"]') : null;
+const tituloSecaoMusicas = document.querySelector('.secao-titulo.aba-musicas');
+
 // ============================================================
-// CARROSSEL "TODAS AS MÚSICAS"
+// CARROSSEL "MÚSICAS MAIS TOCADAS"
 // ============================================================
-// Por enquanto a API devolve TODAS as músicas. Quando o back-end tiver
-// o endpoint de "mais tocadas do mês", só o que entra em "musicasAtuais"
-// muda — a renderização (destaque + mini-capas navegáveis) continua igual.
+// O carrossel é o mesmo: quem muda é só a origem dos dados.
+// carregarMusicasMaisTocadas() (ranking) alimenta musicasAtuais e cai no
+// catálogo geral se ainda não houver nenhuma reprodução — assim a home
+// nunca fica vazia num banco novo, e a busca e o botão "inicio" seguem
+// funcionando igual.
 let musicasAtuais = [];
 let indiceMscAtual = 0;
 
@@ -753,6 +845,8 @@ if (btnMscSetaDir) {
 async function carregarMusicas() {
   if (!listaMusicas) return;
 
+  if (tituloSecaoMusicas) tituloSecaoMusicas.textContent = 'Todas as músicas';
+
   try {
     const resposta = await fetch('http://localhost:3000/api/musicas');
     const dados = await resposta.json();
@@ -789,15 +883,40 @@ async function carregarMusicas() {
   }
 }
 
-carregarMusicas();
+// Ranking geral (não é mensal: não existe histórico de data por play).
+// Se o endpoint falhar OU vier vazio, mostra o catálogo geral — nunca
+// deixa a seção principal da home quebrada por causa do ranking.
+async function carregarMusicasMaisTocadas() {
+  if (!listaMusicas) return;
+
+  if (tituloSecaoMusicas) tituloSecaoMusicas.textContent = 'Músicas mais tocadas';
+
+  try {
+    const resposta = await fetch('http://localhost:3000/api/musicas/mais-tocadas');
+    const dados = await resposta.json();
+
+    if (!resposta.ok || !dados.musicas || dados.musicas.length === 0) {
+      await carregarMusicas();
+      return;
+    }
+
+    musicasAtuais = dados.musicas;
+    indiceMscAtual = 0;
+    renderCarrosselMusicas(musicasAtuais);
+
+  } catch (erro) {
+    console.error('Erro ao carregar as músicas mais tocadas:', erro);
+    await carregarMusicas();
+  }
+}
+
+// Carga inicial da home: as duas requisições de ranking, uma vez só.
+carregarMusicasMaisTocadas();
+carregarArtistasMaisOuvidos();
 
 // ============================================================
 // BUSCA INLINE (mesma página — não navega, pra não matar o áudio tocando)
 // ============================================================
-
-const formBusca = document.querySelector('.nav-center form');
-const campoBusca = formBusca ? formBusca.querySelector('input[name="q"]') : null;
-const tituloSecaoMusicas = document.querySelector('.secao-titulo.aba-musicas');
 
 if (formBusca) {
   formBusca.addEventListener('submit', async (event) => {
@@ -855,14 +974,101 @@ async function executarBusca(termo) {
   }
 }
 
-// "inicio" já existia na navbar sem função — agora ele limpa a busca e
-// volta pro catálogo completo.
+// ============================================================
+// RANKING DE ARTISTAS MAIS OUVIDOS
+// ============================================================
+
+// Iniciais pro quadradinho do artista. Evita depender de foto/asset
+// externo: o projeto ainda não tem imagem de artista cadastrada, e puxar
+// uma capa aleatória da música enganaria (o ranking é por conta, não por
+// música).
+function iniciaisArtista(nome) {
+  const partes = String(nome || '').trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return '?';
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+}
+
+function criarItemArtista(artista, posicao) {
+  const item = document.createElement('div');
+  item.className = 'artista-item';
+
+  const numero = document.createElement('span');
+  numero.className = 'artista-posicao';
+  numero.textContent = `${posicao}`;
+
+  const avatar = document.createElement('span');
+  avatar.className = 'artista-avatar';
+  avatar.textContent = iniciaisArtista(artista.artista);
+
+  const info = document.createElement('div');
+  info.className = 'artista-info';
+
+  const nome = document.createElement('p');
+  nome.className = 'artista-nome';
+  nome.textContent = artista.artista || 'Artista sem nome';
+
+  const reproducoes = document.createElement('p');
+  reproducoes.className = 'artista-reproducoes';
+  reproducoes.textContent = formatarReproducoes(artista.reproducoes);
+
+  info.appendChild(nome);
+  info.appendChild(reproducoes);
+
+  item.appendChild(numero);
+  item.appendChild(avatar);
+  item.appendChild(info);
+
+  return item;
+}
+
+function mostrarMensagemArtistas(mensagem) {
+  if (!listaArtistas) return;
+  listaArtistas.innerHTML = '';
+  const paragrafo = document.createElement('p');
+  paragrafo.className = 'mensagem-lista';
+  paragrafo.textContent = mensagem;
+  listaArtistas.appendChild(paragrafo);
+}
+
+async function carregarArtistasMaisOuvidos() {
+  if (!listaArtistas) return;
+
+  try {
+    const resposta = await fetch('http://localhost:3000/api/artistas/mais-ouvidos');
+    const dados = await resposta.json();
+
+    if (!resposta.ok) {
+      mostrarMensagemArtistas(dados.mensagem || 'Não foi possível carregar os artistas.');
+      return;
+    }
+
+    if (!dados.artistas || dados.artistas.length === 0) {
+      mostrarMensagemArtistas('Comece a ouvir músicas para gerar o ranking.');
+      return;
+    }
+
+    listaArtistas.innerHTML = '';
+    dados.artistas.forEach((artista, indice) => {
+      listaArtistas.appendChild(criarItemArtista(artista, indice + 1));
+    });
+
+  } catch (erro) {
+    console.error('Erro ao carregar os artistas mais ouvidos:', erro);
+    mostrarMensagemArtistas('Erro de conexão ao carregar os artistas.');
+  }
+}
+
+// "inicio" limpa a busca e volta pro estado inicial da home, que agora é o
+// ranking de mais tocadas (com queda pro catálogo geral se ainda não houver
+// reproduções — o mesmo fallback de quando a home abre).
 const btnInicio = document.getElementById('btn-inicio');
 if (btnInicio) {
   btnInicio.addEventListener('click', () => {
     if (campoBusca) campoBusca.value = '';
-    if (tituloSecaoMusicas) tituloSecaoMusicas.textContent = 'Todas as músicas';
-    carregarMusicas();
+    // Só o carrossel: o ranking de artistas não depende da busca e não
+    // precisa ser recarregado aqui.
+    carregarMusicasMaisTocadas();
   });
 }
 

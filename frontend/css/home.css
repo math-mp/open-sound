@@ -367,6 +367,81 @@ body,
     padding: 46px 18px 34px;
 }
 
+/* Lista do ranking de artistas mais ouvidos. min-height pra o painel não
+   virar uma tira fina quando ainda tem pouca coisa dentro. */
+.lista-artistas {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  width: 100%;
+  min-height: 230px;
+}
+
+.artista-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  width: 100%;
+  padding: 8px 10px;
+
+  border-radius: var(--raio-pequeno);
+}
+
+.artista-item:hover {
+  background: var(--cor-superficie);
+}
+
+/* Avatar de iniciais: evita depender de imagem/arquivo externo (o projeto
+   ainda não tem uma pasta assets com foto de artista). */
+.artista-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+
+  border-radius: var(--raio-circular);
+
+  background: var(--aba-artistas);
+  color: var(--texto-sobre-pastel);
+
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.artista-info {
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+  flex-grow: 1;
+}
+
+.artista-nome {
+  font-size: 0.95rem;
+  font-weight: 700;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artista-reproducoes {
+  font-size: 0.78rem;
+}
+
+/* Posição do artista no ranking (1, 2, 3...). */
+.artista-posicao {
+  min-width: 18px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-align: right;
+}
+
 
 /* =========================================================
    GÊNEROS

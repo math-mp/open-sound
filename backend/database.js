@@ -41,8 +41,28 @@ const criarTabelas = async () => {
       url_audio TEXT NOT NULL,
       url_capa TEXT,
       usuario_id INTEGER REFERENCES usuarios(id),
-      criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      reproducoes INTEGER DEFAULT 0
     );
+  `;
+
+  // MIGRAÇÃO LEVE — a coluna `reproducoes` foi adicionada depois que a
+  // tabela já existia em vários bancos. Como o CREATE TABLE acima é
+  // "IF NOT EXISTS", ele NUNCA altera uma tabela que já está lá: quem já
+  // tem o banco criado continuaria sem a coluna. O ALTER abaixo é o que
+  // resolve isso sem apagar nada — ADD COLUMN IF NOT EXISTS só acrescenta
+  // a coluna quando ela falta, preservando todas as músicas e o id de cada
+  // uma. É seguro rodar toda vez que o servidor sobe.
+  const queryColunaReproducoes = `
+    ALTER TABLE musicas
+    ADD COLUMN IF NOT EXISTS reproducoes INTEGER DEFAULT 0;
+  `;
+
+  // Segurança extra: a coluna é nulável, e somar em cima de NULL continua
+  // NULL (viraria um "reproducoes = null" que o ranking não entenderia).
+  // Esta query garante que nenhuma música fique sem valor.
+  const queryNormalizarReproducoes = `
+    UPDATE musicas SET reproducoes = 0 WHERE reproducoes IS NULL;
   `;
 
   // Tabela para armazenar verificações 2FA temporárias (cadastro)
@@ -82,7 +102,14 @@ const criarTabelas = async () => {
     await pool.query(queryMusicas);
     await pool.query(queryVerificacoes2FA);
     await pool.query(queryRedefinicoesSenha);
+
+    // Migrações depois do CREATE: garantimos que a tabela musicas existe
+    // antes de mexer nas colunas dela.
+    await pool.query(queryColunaReproducoes);
+    await pool.query(queryNormalizarReproducoes);
+
     console.log('Tabelas "usuarios", "musicas", "verificacoes_2fa" e "redefinicoes_senha" verificadas/criadas com sucesso no PostgreSQL.');
+    console.log('Coluna "musicas.reproducoes" verificada/criada com sucesso no PostgreSQL.');
   } catch (erro) {
     console.error('Erro ao criar tabelas no PostgreSQL:', erro);
   }

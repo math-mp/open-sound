@@ -724,6 +724,70 @@ app.post(
   }
 );
 
+// ============================================================
+// CONTAGEM DE REPRODUÇÕES
+// ============================================================
+
+// Rota 14: registra UMA reprodução de uma música.
+//
+// Chamar só quando o áudio começa a tocar de verdade (o frontend chama a
+// partir do evento 'play' do player), nunca no clique do botão.
+//
+// Exige sessão pelo mesmo motivo de ouvir música exigir login no frontend.
+// Sem token válido a reprodução nem é contada, o que evita que um visitante
+// anônimo infle o ranking chamando a rota direto.
+//
+// O incremento acontece inteiro dentro do Postgres ("SET x = x + 1"), sem
+// ler o valor antes: se dois usuários towcarem a mesma música no mesmo
+// instante, o banco serializa os dois incrementos e nenhum se perde.
+app.post('/api/musicas/:id/reproduzir', verificarAutenticacao, async (req, res) => {
+  const idMusica = parseInt(req.params.id, 10);
+
+  if (!Number.isInteger(idMusica)) {
+    return res.status(400).json({ 
+      status: 'erro', 
+      mensagem: 'ID de música inválido.' 
+    });
+  }
+
+  try {
+    // === LOG DE DIAGNÓSTICO (temporário) ===
+    const antes = await pool.query('SELECT titulo, reproducoes FROM musicas WHERE id = $1', [idMusica]);
+    console.log(`[PLAY] servidor recebeu POST /api/musicas/${idMusica}/reproduzir | usuario ${req.usuario.id}` +
+      (antes.rows[0] ? ` | "${antes.rows[0].titulo}" tinha ${antes.rows[0].reproducoes}` : ' | música não encontrada'));
+
+    // COALESCE só protege contra uma linha antiga com reproducoes NULL
+    // (somar em cima de NULL daria NULL). O incremento continua sendo
+    // atômico, feito em uma única instrução.
+    const resultado = await pool.query(
+      'UPDATE musicas SET reproducoes = COALESCE(reproducoes, 0) + 1 WHERE id = $1 RETURNING id, reproducoes',
+      [idMusica]
+    );
+
+    if (resultado.rows.length === 0) {
+      console.log(`[PLAY] servidor: música ${idMusica} não existe -> 404 (nada foi contabilizado)`);
+      return res.status(404).json({ 
+        status: 'erro', 
+        mensagem: 'Música não encontrada.' 
+      });
+    }
+
+    console.log(`[PLAY] servidor: música ${idMusica} -> ${resultado.rows[0].reproducoes} reproduções (gravado no PostgreSQL)`);
+
+    return res.status(200).json({
+      status: 'sucesso',
+      musica: resultado.rows[0]
+    });
+
+  } catch (erro) {
+    console.error('Erro ao registrar reprodução:', erro);
+    return res.status(500).json({ 
+      status: 'erro', 
+      mensagem: 'Erro interno no servidor.' 
+    });
+  }
+});
+
 app.get('/api/musicas', async (req, res) => {
   try {
     const resultado = await pool.query('SELECT * FROM musicas ORDER BY criado_em DESC LIMIT 50');
@@ -731,6 +795,77 @@ app.get('/api/musicas', async (req, res) => {
   } catch (erro) {
     console.error('Erro ao listar músicas:', erro);
     return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  }
+});
+
+// Ranking público das músicas mais tocadas — ranking geral por total de
+// reproduções acumuladas. NÃO é ranking mensal: não existe histórico de
+// data/hora por reprodução, então não há como filtrar por período. A
+// ordenação é feita pelo próprio Postgres.
+//
+// Colunas explícitas em vez de SELECT * porque esta resposta só alimenta o
+// carrossel da home; não há motivo para expor tudo da linha.
+app.get('/api/musicas/mais-tocadas', async (req, res) => {
+  try {
+    const resultado = await pool.query(
+      `SELECT
+         id,
+         titulo,
+         artista,
+         url_audio,
+         url_capa,
+         reproducoes,
+         usuario_id,
+         criado_em
+       FROM musicas
+       ORDER BY reproducoes DESC NULLS LAST, criado_em DESC
+       LIMIT 10`
+    );
+
+    return res.status(200).json({ status: 'sucesso', musicas: resultado.rows });
+  } catch (erro) {
+    console.error('Erro ao listar músicas mais tocadas:', erro);
+    return res.status(500).json({ 
+      status: 'erro', 
+      mensagem: 'Erro interno no servidor.' 
+    });
+  }
+});
+
+// Ranking público dos artistas mais ouvidos: a soma das reproduções de
+// todas as músicas enviadas pela conta.
+//
+// O agrupamento é por u.id (o mesmo usuario_id de musicas) e NÃO pelo texto
+// musicas.artista. Aquele campo é só uma cópia do nome artístico feita no
+// momento do upload, sem chave: se duas contas diferentes escolherem o
+// mesmo nome artisticamente, agrupar pelo texto fundiria dois artistas
+// distintos num só. Agrupando pelo usuário, isso não acontece.
+app.get('/api/artistas/mais-ouvidos', async (req, res) => {
+  try {
+    const resultado = await pool.query(
+      `SELECT
+         u.id AS usuario_id,
+         u.nome_artista AS artista,
+         CAST(COUNT(m.id) AS INTEGER) AS musicas,
+         CAST(COALESCE(SUM(m.reproducoes), 0) AS INTEGER) AS reproducoes
+       FROM usuarios u
+       JOIN musicas m
+         ON m.usuario_id = u.id
+       WHERE u.eh_artista = TRUE
+         AND u.nome_artista IS NOT NULL
+         AND u.nome_artista <> ''
+       GROUP BY u.id, u.nome_artista
+       ORDER BY reproducoes DESC, u.nome_artista ASC
+       LIMIT 10`
+    );
+
+    return res.status(200).json({ status: 'sucesso', artistas: resultado.rows });
+  } catch (erro) {
+    console.error('Erro ao listar artistas mais ouvidos:', erro);
+    return res.status(500).json({ 
+      status: 'erro', 
+      mensagem: 'Erro interno no servidor.' 
+    });
   }
 });
 

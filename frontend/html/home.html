@@ -53,13 +53,12 @@
     <!--conteudo principal da pag-->
     <div class="main-ctt">
 
-        <!-- Container universal: recebe todas as músicas uploadadas via
-             GET /api/musicas e monta um card por música (mais recentes
-             primeiro). Substitui a div estática de "mais escutadas". -->
+        <!-- Container universal: recebe as músicas mais tocadas via
+             GET /api/musicas/mais-tocadas e monta um card por música.
+             Se ainda não houver nenhuma reprodução, o JS cai no catálogo
+             geral (GET /api/musicas) e troca o título. -->
         <div class="secao-musicas">
-            <!-- NOVO ID: nenhum — é só um <h2> decorativo, o JS não usa isso -->
-            <h2 class="secao-titulo aba-musicas">Todas as músicas</h2>
-            <!-- NOVO ID: necessário pro JS navegar o carrossel -->
+            <h2 class="secao-titulo aba-musicas">Músicas mais tocadas</h2>
             <div class="carrossel-controle">
                 <button type="button" id="msc-seta-esq" class="msc-seta" aria-label="Música anterior">‹</button>
                 <div id="lista-musicas" class="lista-musicas">
@@ -72,7 +71,10 @@
         <div class="double-div">
             <!--div dinamica artistas-->
             <div class="artists">
-            <h2 class="secao-titulo aba-artistas">Artistas mais tocados do mês</h2>
+            <h2 class="secao-titulo aba-artistas">Artistas mais ouvidos</h2>
+            <div id="lista-artistas" class="lista-artistas">
+                <p class="mensagem-lista">Carregando artistas...</p>
+            </div>
             </div>
             <!--div dinamica generos-->
             <div class="genres">
