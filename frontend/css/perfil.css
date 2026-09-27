@@ -1,0 +1,375 @@
+/* ============================================================
+   perfil.css
+   Layout de duas janelas lado a lado (identidade + biblioteca).
+   Nenhum valor de cor é escrito aqui — tudo vem de var() já
+   definidas em root.css (espaçamento/raio/fonte) e theme.css
+   (cores). nada mocked por aqui
+   ============================================================ */
+
+/* centraliza tudo na tela sem depender de mais nada carregar certo:
+   como perfil.css só é importado por perfil.html, esta regra em
+   "body" não afeta o home.html de jeito nenhum. */
+body {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.perfil-container {
+    display: flex;
+    justify-content: center;
+    gap: var(--espaco-5);
+    max-width: 1100px;
+    width: 100%;
+    margin: 0 auto;
+    padding: var(--espaco-7) var(--espaco-5);
+    align-items: stretch;
+    /* sem flex-wrap aqui de propósito: ou é lado a lado (acima de
+       760px) ou é empilhado (media query abaixo) — sem meio-termo
+       de quebra de linha malfeita entre os dois. */
+}
+
+/* ============================================================
+   JANELAS (moldura com aba, no mesmo padrão visual das abas
+   .secao-titulo já usadas em home.css)
+   ============================================================ */
+
+.perfil-janela {
+    position: relative;
+    margin-top: 36px;
+    /* abre espaço pra aba, que fica posicionada acima do painel */
+}
+
+.perfil-janela-identidade {
+    flex: 1 1 260px;
+    max-width: 320px;
+}
+
+.perfil-janela-biblioteca {
+    flex: 2 1 480px;
+}
+
+.perfil-janela-tab {
+    position: absolute;
+    top: -36px;
+    left: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    min-height: 36px;
+    padding: var(--espaco-2) var(--espaco-4);
+    border-radius: 12px 12px 0 0;
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--texto-sobre-pastel);
+    white-space: nowrap;
+}
+
+.perfil-janela-tab.aba-perfil {
+    background: var(--aba-perfil);
+}
+
+.perfil-janela-tab.aba-biblioteca {
+    background: var(--aba-biblioteca);
+}
+
+.perfil-painel {
+    position: relative;
+    height: 100%;
+    background: var(--painel-fundo);
+    border: 1px solid var(--painel-borda);
+    border-radius: var(--raio-grande);
+    box-shadow: var(--painel-sombra);
+    overflow: hidden;
+}
+
+/* ============================================================
+   JANELA 1: IDENTIDADE
+   ============================================================ */
+
+.perfil-banner {
+    width: 100%;
+    height: 120px;
+    background: var(--cor-superficie-clara);
+}
+
+.perfil-avatar-wrapper {
+    width: 80px;
+    height: 80px;
+    border-radius: var(--raio-circular);
+    overflow: hidden;
+    position: absolute;
+    left: var(--espaco-4);
+    top: 82px;
+    border: 4px solid var(--painel-fundo);
+    background: var(--cor-superficie);
+    cursor: pointer;
+}
+
+.perfil-local-aviso {
+    font-size: 0.7rem;
+    color: var(--cor-texto-fraco);
+    font-style: italic;
+}
+
+.perfil-avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.perfil-identidade {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espaco-1);
+    padding: 48px var(--espaco-4) var(--espaco-5);
+}
+
+.perfil-nome {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--cor-texto);
+}
+
+.perfil-bio {
+    font-size: 0.9rem;
+    color: var(--cor-texto-secundario);
+    max-width: 60ch;
+    white-space: pre-wrap;
+    border-radius: var(--raio-pequeno);
+    cursor: text;
+}
+
+.perfil-bio:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--input-borda-foco);
+    background: var(--cor-superficie-hover);
+}
+
+/* ============================================================
+   JANELA 2: BIBLIOTECA (três colunas)
+   ============================================================ */
+
+.perfil-biblioteca-colunas {
+    display: flex;
+}
+
+.perfil-coluna {
+    flex: 1;
+    min-width: 0;
+    padding: var(--espaco-5) var(--espaco-4);
+    border-right: 1px solid var(--painel-borda);
+    display: flex;
+    flex-direction: column;
+    gap: var(--espaco-2);
+}
+
+.perfil-coluna:last-child {
+    border-right: none;
+}
+
+.perfil-coluna-titulo {
+    font-size: 0.85rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding-left: var(--espaco-2);
+    border-left: 3px solid transparent;
+    color: var(--cor-texto);
+}
+
+/* Cada coluna usa um dos tokens de aba já existentes em theme.css
+   como cor de destaque, sem inventar nenhum valor novo. */
+.perfil-acento-favorita {
+    border-left-color: var(--aba-musicas);
+}
+
+.perfil-acento-curtidas {
+    border-left-color: var(--aba-artistas);
+}
+
+.perfil-acento-playlists {
+    border-left-color: var(--aba-generos);
+}
+
+/* ============================================================
+   CAMPOS DE FILTRO E BOTÕES (mesma linguagem visual dos inputs
+   já usados nos modais do home.css/theme.css)
+   ============================================================ */
+
+.perfil-filtro {
+    width: 100%;
+    padding: var(--espaco-2) var(--espaco-3);
+    border-radius: var(--raio-pequeno);
+    border: 1px solid var(--input-borda);
+    background: var(--input-fundo);
+    color: var(--input-texto);
+    font-family: inherit;
+    font-size: 0.85rem;
+}
+
+.perfil-filtro::placeholder {
+    color: var(--input-placeholder);
+}
+
+.perfil-filtro:focus {
+    outline: none;
+    border-color: var(--input-borda-foco);
+}
+
+.perfil-filtro:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.perfil-playlist-criar {
+    display: flex;
+    gap: var(--espaco-2);
+}
+
+.perfil-btn-salvar {
+    padding: var(--espaco-2) var(--espaco-3);
+    border: none;
+    border-radius: var(--raio-pequeno);
+    font-weight: 700;
+    font-size: 0.8rem;
+    cursor: pointer;
+    background: var(--cor-primaria);
+    color: var(--texto-sobre-pastel);
+    transition: transform var(--transicao-rapida), filter var(--transicao-rapida);
+}
+
+.perfil-btn-salvar:hover:not(:disabled) {
+    filter: brightness(0.96);
+    transform: scale(1.02);
+}
+
+.perfil-btn-salvar:disabled {
+    cursor: not-allowed;
+    background: var(--cor-superficie-clara);
+    color: var(--cor-texto-fraco);
+}
+
+/* ============================================================
+   LISTA DE RESULTADOS (catálogo filtrado, estados de carregando/
+   vazio/erro e itens selecionáveis)
+   ============================================================ */
+
+.perfil-resultados {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espaco-1);
+    list-style: none;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.perfil-estado-mensagem {
+    font-size: 0.8rem;
+    font-style: italic;
+    color: var(--cor-texto-fraco);
+    padding: var(--espaco-2) 0;
+}
+
+.perfil-resultado-item {
+    display: flex;
+    align-items: center;
+    gap: var(--espaco-2);
+    padding: var(--espaco-1) var(--espaco-2);
+    border-radius: var(--raio-pequeno);
+    cursor: pointer;
+    transition: background var(--transicao-rapida);
+}
+
+.perfil-resultado-item:hover {
+    background: var(--cor-superficie-hover);
+}
+
+.perfil-resultado-item.selecionado {
+    background: var(--cor-superficie-clara);
+    box-shadow: 0 0 0 1px var(--input-borda-foco);
+}
+
+.perfil-resultado-capa {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--raio-pequeno);
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.perfil-resultado-texto {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.perfil-resultado-titulo {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--cor-texto);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.perfil-resultado-artista {
+    font-size: 0.72rem;
+    color: var(--cor-texto-secundario);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.perfil-selecao-atual {
+    font-size: 0.78rem;
+    color: var(--cor-texto-secundario);
+}
+
+/* ============================================================
+   NOTA DE RODAPÉ DA BIBLIOTECA
+   ============================================================ */
+
+.perfil-biblioteca-nota {
+    font-size: 0.72rem;
+    color: var(--cor-texto-fraco);
+    padding: var(--espaco-3) var(--espaco-4);
+    border-top: 1px solid var(--painel-borda);
+    line-height: 1.5;
+}
+
+.perfil-biblioteca-nota code {
+    font-family: monospace;
+}
+
+/* ============================================================
+   RESPONSIVIDADE
+   ============================================================ */
+
+@media (max-width: 760px) {
+    .perfil-container {
+        flex-direction: column;
+    }
+
+    .perfil-janela-identidade {
+        max-width: none;
+    }
+
+    .perfil-biblioteca-colunas {
+        flex-direction: column;
+    }
+
+    .perfil-coluna {
+        border-right: none;
+        border-bottom: 1px solid var(--painel-borda);
+    }
+
+    .perfil-coluna:last-child {
+        border-bottom: none;
+    }
+}

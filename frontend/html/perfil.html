@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenSound - Perfil</title>
+
+    <!-- Mesma fonte e mesma ordem de import de CSS que o home.html usa:
+         root.css (tokens neutros) -> theme.css (cores) -> CSS da própria
+         página. Nenhuma cor é definida aqui nem no <style> abaixo. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/root.css">
+    <link rel="stylesheet" href="../css/theme.css">
+    <link rel="stylesheet" href="../css/perfil.css">
+
+    <!-- REDE DE SEGURANÇA TEMPORÁRIA: caso ../css/perfil.css não esteja
+         resolvendo no seu ambiente de teste (caminho relativo errado),
+         essas regras garantem a centralização mesmo assim. É só layout,
+         nenhuma cor — não fere o mandamento 1. Assim que você confirmar
+         que perfil.css está carregando de verdade (aba Network do
+         DevTools, status 200 e não 404), me avisa que eu removo isso
+         daqui pra não duplicar regra à toa. -->
+    <style>
+        .perfil-container {
+            display: flex;
+            justify-content: center;
+            align-items: stretch;
+            gap: 24px;
+            max-width: 1100px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 48px 24px;
+            box-sizing: border-box;
+        }
+    </style>
+
+    <script src="../js/profile.js" defer></script>
+</head>
+
+<body>
+
+    <!-- Navbar intencionalmente omitida por enquanto: o home.js já tem uma
+         navbar funcional com login/logout, mas reaproveitá-la aqui exige
+         decidir se ela vira um arquivo compartilhado ou se é duplicada —
+         isso é uma decisão de arquitetura pra próxima etapa, fora do
+         escopo desta página. -->
+
+    <main class="perfil-container">
+
+        <!-- ================================================
+             JANELA 1: IDENTIDADE DO USUÁRIO
+             Nome/e-mail vêm de GET /api/usuarios/eu (real). Bio e
+             avatar NÃO existem no banco — o que você digitar/enviar
+             aqui fica salvo em localStorage, neste navegador, até o
+             back-end ganhar as colunas/rotas correspondentes.
+        ================================================= -->
+        <section class="perfil-janela perfil-janela-identidade" aria-label="Identidade do usuário">
+            <span class="perfil-janela-tab aba-perfil">Perfil</span>
+
+            <div class="perfil-painel">
+                <div class="perfil-banner" id="perfil-banner"></div>
+
+                <div class="perfil-avatar-wrapper">
+                    <img id="perfil-avatar" class="perfil-avatar" src="../assets/avatar-padrao.png"
+                        alt="Foto de perfil do usuário. Clique para trocar (salva só neste navegador)."
+                        title="Clique para trocar o avatar (salvo só neste navegador)">
+                    <!-- Input de arquivo escondido, acionado ao clicar no avatar -->
+                    <input type="file" id="perfil-avatar-input" accept="image/png,image/jpeg,image/webp" hidden>
+                </div>
+
+                <div class="perfil-identidade">
+                    <h1 id="perfil-nome" class="perfil-nome">Carregando perfil...</h1>
+                    <p id="perfil-bio" class="perfil-bio" contenteditable="true" spellcheck="false"
+                        title="Clique para editar (salva só neste navegador)">Carregando biografia...</p>
+                    <p class="perfil-local-aviso">Bio e avatar salvam só neste navegador (localStorage) — ainda não vão pro banco.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================
+             JANELA 2: BIBLIOTECA
+             Filtro roda sobre dado real de GET /api/musicas (50 mais
+             recentes, sem exigir login). A escolha de favorita/
+             curtidas e a criação de playlist salvam em localStorage
+             — funcional de verdade neste navegador, mas ainda não
+             sincronizado com o banco (não existe rota pra isso).
+        ================================================= -->
+        <section class="perfil-janela perfil-janela-biblioteca" aria-label="Música favorita, músicas curtidas e playlists públicas">
+            <span class="perfil-janela-tab aba-biblioteca">Biblioteca</span>
+
+            <div class="perfil-painel">
+                <div class="perfil-biblioteca-colunas">
+
+                    <!-- COLUNA 1: MÚSICA FAVORITA (seleção única) -->
+                    <div class="perfil-coluna" aria-labelledby="titulo-favorita">
+                        <h2 id="titulo-favorita" class="perfil-coluna-titulo perfil-acento-favorita">Favorita</h2>
+
+                        <input type="text" id="perfil-favorita-filtro" class="perfil-filtro"
+                            placeholder="Filtrar as 50 recentes..." disabled>
+
+                        <ul id="perfil-favorita-resultados" class="perfil-resultados" data-estado="carregando">
+                            <li class="perfil-estado-mensagem">Carregando catálogo...</li>
+                        </ul>
+
+                        <p id="perfil-favorita-selecionada" class="perfil-selecao-atual">Nenhuma escolhida ainda.</p>
+
+                        <button type="button" id="perfil-favorita-salvar" class="perfil-btn-salvar"
+                            title="Salva neste navegador (localStorage) — ainda não sincroniza com o banco.">
+                            Salvar favorita
+                        </button>
+                    </div>
+
+                    <!-- COLUNA 2: MÚSICAS CURTIDAS (seleção múltipla, até 4) -->
+                    <div class="perfil-coluna" aria-labelledby="titulo-curtidas">
+                        <h2 id="titulo-curtidas" class="perfil-coluna-titulo perfil-acento-curtidas">Curtidas</h2>
+
+                        <input type="text" id="perfil-curtidas-filtro" class="perfil-filtro"
+                            placeholder="Filtrar as 50 recentes..." disabled>
+
+                        <ul id="perfil-curtidas-resultados" class="perfil-resultados" data-estado="carregando">
+                            <li class="perfil-estado-mensagem">Carregando catálogo...</li>
+                        </ul>
+
+                        <p id="perfil-curtidas-selecionadas" class="perfil-selecao-atual">0 de 4 escolhidas.</p>
+
+                        <button type="button" id="perfil-curtidas-salvar" class="perfil-btn-salvar"
+                            title="Salva neste navegador (localStorage) — ainda não sincroniza com o banco.">
+                            Salvar curtidas
+                        </button>
+                    </div>
+
+                    <!-- COLUNA 3: PLAYLISTS PÚBLICAS -->
+                    <div class="perfil-coluna" aria-labelledby="titulo-playlists">
+                        <h2 id="titulo-playlists" class="perfil-coluna-titulo perfil-acento-playlists">Playlists</h2>
+
+                        <div class="perfil-playlist-criar">
+                            <input type="text" id="perfil-playlist-nome" class="perfil-filtro"
+                                placeholder="Nome da nova playlist">
+                            <button type="button" id="perfil-playlist-criar-btn" class="perfil-btn-salvar"
+                                title="Salva neste navegador (localStorage) — ainda não sincroniza com o banco.">
+                                Criar
+                            </button>
+                        </div>
+
+                        <ul id="perfil-playlists-lista" class="perfil-resultados" data-estado="vazio">
+                            <li class="perfil-estado-mensagem">Você ainda não tem playlists públicas.</li>
+                        </ul>
+                    </div>
+
+                </div>
+
+                <p class="perfil-biblioteca-nota">
+                    A busca acima roda sobre as 50 músicas mais recentes (limite do <code>GET /api/musicas</code>).
+                    Favorita, curtidas e playlists salvam em <code>localStorage</code> neste navegador — funcional
+                    de verdade, mas ainda não sincronizado com o banco (não existe rota pra isso no back-end).
+                </p>
+            </div>
+        </section>
+
+    </main>
+
+</body>
+
+</html>
