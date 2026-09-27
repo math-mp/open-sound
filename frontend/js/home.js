@@ -649,6 +649,16 @@ function criarMiniCapa(musica, indiceReal, classeExtra) {
   return img;
 }
 
+// Quantas "próximas" mostrar, dependendo de quão longe o usuário já
+// avançou. Perto do início (destaque ainda à esquerda) há mais espaço
+// sobrando, então mostramos mais; depois de 3 posições, quando o destaque
+// já estabilizou, mantemos só 3 (o mínimo ideal do plano).
+function quantidadeProximasAlvo(indice) {
+  if (indice === 0) return 6;
+  if (indice <= 2) return 5;
+  return 4;
+}
+
 // Renderiza o destaque + as mini-capas dentro de #lista-musicas, com base
 // em indiceMscAtual.
 function renderCarrosselMusicas(lista) {
@@ -661,26 +671,62 @@ function renderCarrosselMusicas(lista) {
 
   const anteriores = document.createElement('div');
   anteriores.className = 'msc-anteriores';
-  lista.slice(0, indiceMscAtual).forEach((musica, i) => {
-    anteriores.appendChild(criarMiniCapa(musica, i, 'msc-mini'));
+
+  const inicioAnteriores = Math.max(0, indiceMscAtual - 3);
+
+  lista.slice(inicioAnteriores, indiceMscAtual).forEach((musica, i) => {
+    const indiceReal = inicioAnteriores + i;
+    anteriores.appendChild(criarMiniCapa(musica, indiceReal, 'msc-mini'));
   });
+
   listaMusicas.appendChild(anteriores);
 
   listaMusicas.appendChild(criarDestaqueMusica(lista[indiceMscAtual]));
 
   const proximas = document.createElement('div');
   proximas.className = 'msc-carrossel';
-  lista.slice(indiceMscAtual + 1).forEach((musica, i) => {
+
+  const alvoProximas = quantidadeProximasAlvo(indiceMscAtual);
+  const disponiveis = lista.length - indiceMscAtual - 1;
+  const qtdProximas = Math.min(alvoProximas, disponiveis);
+
+  for (let i = 0; i < qtdProximas; i++) {
     const indiceReal = indiceMscAtual + 1 + i;
-    proximas.appendChild(criarMiniCapa(musica, indiceReal, 'msc-carrossel-item'));
-  });
+    proximas.appendChild(criarMiniCapa(lista[indiceReal], indiceReal, 'msc-carrossel-item'));
+  }
+
   listaMusicas.appendChild(proximas);
 }
 
-// Troca a música em foco do carrossel e renderiza de novo.
+// Troca a música em foco do carrossel. Primeiro dispara a animação de
+// saída (capa encolhe, vinil fecha, texto some) nos elementos atuais,
+// espera ela terminar, e só então troca o conteúdo — que entra com a
+// animação normal (capa cresce, vinil abre, texto some com fade-in).
+let carrosselAnimando = false;
+
 function focarMusica(novoIndice) {
-  indiceMscAtual = novoIndice;
-  renderCarrosselMusicas(musicasAtuais);
+  if (!listaMusicas) {
+    indiceMscAtual = novoIndice;
+    renderCarrosselMusicas(musicasAtuais);
+    return;
+  }
+
+  if (carrosselAnimando) {
+    // Troca já em andamento: aplica direto, sem empilhar animações.
+    indiceMscAtual = novoIndice;
+    renderCarrosselMusicas(musicasAtuais);
+    return;
+  }
+
+  carrosselAnimando = true;
+  listaMusicas.classList.add('saindo');
+
+  setTimeout(() => {
+    indiceMscAtual = novoIndice;
+    renderCarrosselMusicas(musicasAtuais);
+    listaMusicas.classList.remove('saindo');
+    carrosselAnimando = false;
+  }, 160);
 }
 
 // Setas de navegação: avançam/voltam uma música por vez, dando a volta

@@ -607,181 +607,633 @@ body,
   aba/faixas — aqui é só o conteúdo interno.
 ====================================================*/
 
-/* Animações disparadas toda vez que o carrossel troca de música (os
-   elementos são recriados do zero a cada renderização). */
+/*===================================================
+  CARROSSEL "TODAS AS MÚSICAS"
+  
+  Estrutura visual:
+  
+  [ seta ] [ destaque ] [ mini-capas ] [ seta ]
+  
+  A primeira música recebe destaque.
+  As demais aparecem como uma faixa de capas.
+===================================================*/
+
+
+/* ===================================================
+   ANIMAÇÕES DE ENTRADA
+   Disparadas sempre que os elementos são recriados
+   (a cada troca de música).
+   =================================================== */
+
 @keyframes mscEntradaInfo {
-  from {
-    opacity: 0;
-    transform: translateX(14px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+    from {
+        opacity: 0;
+        transform: translateX(14px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
+
 
 @keyframes mscEntradaCapa {
-  from {
-    transform: translateX(24px) scale(0.94);
-  }
-  to {
-    transform: translateX(0) scale(1);
-  }
+    from {
+        opacity: 0;
+        transform: translateX(26px) scale(0.8);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
 }
 
-@keyframes mscMoverEsquerda {
-  from {
-    transform: translateX(-26px);
-  }
-  to {
-    transform: translateX(0);
-  }
+/* O vinil "abre": gira e cresce até a posição final, dando a sensação de
+   ter sido revelado por trás da capa nova. */
+@keyframes mscEntradaVinil {
+    from {
+        opacity: 0;
+        transform: translateY(-50%) scale(0.55) rotate(-35deg);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(-50%) scale(1) rotate(0deg);
+    }
 }
+
 
 @keyframes mscMoverDireita {
-  from {
-    transform: translateX(26px);
-  }
-  to {
-    transform: translateX(0);
-  }
+    from {
+        opacity: 0;
+        transform: translateX(18px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
+
+
+/* ===================================================
+   ANIMAÇÕES DE SAÍDA
+   Disparadas pela classe .saindo, que o JS aplica em
+   #lista-musicas por um instante antes de trocar de
+   música (ver focarMusica em home.js).
+   =================================================== */
+
+@keyframes mscSaidaCapa {
+    from {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(-34px) scale(0.72);
+    }
+}
+
+/* O vinil "fecha": encolhe e gira de volta antes de sumir. */
+@keyframes mscSaidaVinil {
+    from {
+        opacity: 1;
+        transform: translateY(-50%) scale(1) rotate(0deg);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateY(-50%) scale(0.55) rotate(25deg);
+    }
+}
+
+@keyframes mscSaidaInfo {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(-18px);
+    }
+}
+
+@keyframes mscSaidaLateral {
+    from {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0.15;
+    }
+}
+
+.msc-destaque::before {
+    animation: mscEntradaVinil 0.4s ease;
+}
+
+#lista-musicas.saindo .msc-capa-img {
+    animation: mscSaidaCapa 0.16s ease forwards;
+}
+
+#lista-musicas.saindo .msc-destaque::before {
+    animation: mscSaidaVinil 0.16s ease forwards;
+}
+
+#lista-musicas.saindo .msc-info {
+    animation: mscSaidaInfo 0.14s ease forwards;
+}
+
+#lista-musicas.saindo .msc-mini,
+#lista-musicas.saindo .msc-carrossel-item {
+    animation: mscSaidaLateral 0.14s ease forwards;
+}
+
+
+/* ===================================================
+   CONTROLE GERAL
+   =================================================== */
 
 .carrossel-controle {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  width: 100%;
+    display: flex;
+    align-items: center;
+
+    width: 100%;
+
+    gap: 12px;
+
+    min-width: 0;
 }
 
+
+/* ===================================================
+   SETAS
+   =================================================== */
+
 .msc-seta {
-  flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: none;
-  font-size: 1.3rem;
-  font-weight: 800;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform var(--transicao-rapida), filter var(--transicao-rapida), background-color 0.3s ease, color 0.3s ease;
+    flex-shrink: 0;
+
+    width: 42px;
+    height: 42px;
+
+    border-radius: 50%;
+    border: 1px solid var(--cor-borda);
+
+    font-size: 1.35rem;
+    font-weight: 800;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+
+    transition:
+        transform var(--transicao-rapida),
+        filter var(--transicao-rapida),
+        background-color 0.3s ease,
+        color 0.3s ease;
 }
 
 .msc-seta:hover {
-  transform: scale(1.08);
+    transform: scale(1.08);
+    filter: brightness(1.08);
 }
 
 .msc-seta:active {
-  transform: scale(0.94);
+    transform: scale(0.94);
 }
+
+
+/* ===================================================
+   ÁREA DO CARROSSEL
+   =================================================== */
 
 .lista-musicas {
     display: flex;
     align-items: center;
-    gap: 24px;
 
     flex: 1;
+
     min-width: 0;
-    min-height: 230px;
+    min-height: 205px;
 
-    padding: 8px 0 0;
+    gap: 14px;
+
+    padding: 4px 0;
+
+    overflow: hidden;
 }
 
-.mensagem-lista {
-  flex: 1;
-  text-align: center;
-  padding: 20px;
-}
+/* ===================================================
+   MINI-CAPAS ANTERIORES
+  
+   No mockup elas não aparecem.
+   A navegação continua funcionando pelo JS;
+   estamos apenas escondendo visualmente as anteriores.
+   =================================================== */
 
-/* Mini-capas já vistas (esquerda) */
 .msc-anteriores {
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
+    display: flex;
+
+    align-items: center;
+
+    gap: 0;
+
+    /* Largura dinâmica: cresce conforme as músicas anteriores reais vão
+       sendo renderizadas (até 3). É isso que faz a música em destaque
+       começar mais à esquerda e ir se deslocando pra direita conforme o
+       usuário avança, estabilizando quando o bloco atinge 3 itens. */
+    flex: 0 0 auto;
+
+    overflow: visible;
 }
 
 .msc-mini {
-  width: 74px;
-  height: 74px;
-  object-fit: cover;
-  border-radius: var(--raio-pequeno);
-  flex-shrink: 0;
-  cursor: pointer;
-  opacity: 0.55;
-  transition: opacity var(--transicao-rapida), transform var(--transicao-rapida);
-  animation: mscMoverEsquerda 0.3s ease;
+    width: 68px;
+    height: 68px;
+
+    flex: 0 0 68px;
+
+    object-fit: cover;
+
+    border-radius: 0;
+
+    cursor: pointer;
+
+    filter:
+        saturate(0.65)
+        brightness(0.9);
+
+    position: relative;
+
+    margin-left: -20px;
+
+    transition:
+        opacity var(--transicao-padrao),
+        transform var(--transicao-padrao),
+        filter var(--transicao-padrao);
+}
+
+/* Tamanho por distância da música em destaque. Como a ordem no DOM é
+   antiga→mais recente, a distância é contada a partir do FINAL da lista
+   (nth-last-child), já que quem fica colado no destaque é sempre o
+   último elemento, não importa quantas anteriores existam no momento. */
+.msc-anteriores .msc-mini:nth-last-child(1) {
+    width: 140px;
+    height: 140px;
+    flex-basis: 140px;
+    margin-left: -42px;
+    z-index: 10;
+}
+
+.msc-anteriores .msc-mini:nth-last-child(2) {
+    width: 115px;
+    height: 115px;
+    flex-basis: 115px;
+    margin-left: -35px;
+    z-index: 9;
+}
+
+.msc-anteriores .msc-mini:nth-last-child(3) {
+    width: 95px;
+    height: 95px;
+    flex-basis: 95px;
+    margin-left: -29px;
+    z-index: 8;
+}
+
+.msc-mini:first-child {
+    margin-left: 0 !important;
+    z-index: 8;
 }
 
 .msc-mini:hover {
-  opacity: 0.9;
-  transform: scale(1.05);
+    opacity: 1;
+
+    filter:
+        saturate(1)
+        brightness(1.05);
+
+    transform:
+        translateY(-3px)
+        scale(1.03);
+
+    z-index: 20;
 }
 
-/* Card de destaque: capa + título + artista + play */
+
+/* ===================================================
+   MÚSICA EM DESTAQUE
+   =================================================== */
+
 .msc-destaque {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  flex-shrink: 0;
+    position: relative;
+
+    display: flex;
+    align-items: center;
+
+    flex: 0 0 500px;
+    min-width: 500px;
+
+    gap: 45px;
+
+    flex-shrink: 0;
+
+    isolation: isolate;
 }
+
+
+/* ===================================================
+   DISCO / VINIL DECORATIVO
+   ===================================================
+
+   O JS atual cria somente a capa.
+   Portanto, o vinil é desenhado pelo CSS, sem criar
+   ID novo e sem alterar a estrutura do backend.
+   =================================================== */
+
+.msc-destaque::before {
+    content: "";
+
+    position: absolute;
+
+    left: 120px;
+    top: 50%;
+
+    width: 170px;
+    height: 170px;
+
+    transform: translateY(-50%);
+
+    border-radius: 50%;
+
+    background:
+        radial-gradient(
+            circle at center,
+            #dedede 0 8%,
+            #bdbdbd 8.5% 11%,
+            #202020 11.5% 13%,
+            #262626 13.5% 100%
+        );
+
+    box-shadow:
+        inset 0 0 0 2px rgba(255,255,255,0.08),
+        var(--sombra-media);
+
+    z-index: -1;
+}
+
+
+/* ===================================================
+   CAPA PRINCIPAL
+   =================================================== */
 
 .msc-capa-img {
-  width: 190px;
-  height: 190px;
-  object-fit: cover;
-  border-radius: var(--raio-medio);
-  flex-shrink: 0;
-  box-shadow: var(--sombra-suave);
-  animation: mscEntradaCapa 0.35s ease;
+    width: 185px;
+    height: 185px;
+
+    object-fit: cover;
+
+    border-radius: 0;
+
+    flex-shrink: 0;
+
+    box-shadow: var(--sombra-media);
+
+    position: relative;
+    z-index: 2;
+
+    animation: mscEntradaCapa 0.35s ease;
 }
 
+
+/* ===================================================
+   INFORMAÇÕES DA MÚSICA
+   =================================================== */
+
 .msc-info {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  animation: mscEntradaInfo 0.35s ease;
+    display: flex;
+
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    text-align: center;
+
+    /*
+     * A informação tem uma área física própria.
+     * Ela nunca pode invadir a região da capa/vinil.
+     */
+    width: 230px;
+    min-width: 0;
+    max-width: 230px;
+
+    gap: 4px;
+
+    position: relative;
+    z-index: 3;
+
+    overflow: hidden;
+
+    animation: mscEntradaInfo 0.35s ease;
 }
 
 .msc-nome {
-  font-size: 1.7rem;
-  font-weight: 800;
+    width: 100%;
+    max-width: 230px;
+
+    font-size: 1.65rem;
+    font-weight: 800;
+
+    line-height: 1.1;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+
+    /*
+     * Permite quebra de linha para nomes grandes.
+     */
+    white-space: normal;
+
+    overflow-wrap: anywhere;
+
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
 }
+
 
 .msc-artista {
-  font-size: 0.95rem;
-  font-weight: 600;
-  margin-bottom: 5px;
+    width: 100%;
+    max-width: 230px;
+
+    font-size: 1.05rem;
+    font-weight: 500;
+
+    margin-bottom: 8px;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    white-space: nowrap;
 }
+
 
 .msc-info .btn-play {
-  margin: 0;
+    margin: 0;
 }
 
-/* Próximas mini-capas (direita): preenche o espaço restante */
+
+/* ===================================================
+   FAIXA DE PRÓXIMAS MÚSICAS
+   =================================================== */
+
 .msc-carrossel {
-  display: flex;
-  gap: 8px;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
+    display: flex;
+    align-items: center;
+
+    flex: 1;
+
+    min-width: 0;
+
+    height: 140px;
+
+    position: relative;
+
+    overflow: hidden;
+
+    gap: 0;
 }
+
+
+/* ===================================================
+   MINI-CAPAS
+   =================================================== */
 
 .msc-carrossel-item {
-  width: 74px;
-  height: 74px;
-  object-fit: cover;
-  border-radius: var(--raio-pequeno);
-  flex-shrink: 0;
-  cursor: pointer;
-  transition: transform var(--transicao-rapida);
-  animation: mscMoverDireita 0.3s ease;
+    width: 68px;
+    height: 68px;
+
+    object-fit: cover;
+
+    flex: 0 0 68px;
+
+    border-radius: 0;
+
+    cursor: pointer;
+
+    opacity: 1;
+
+    margin-left: -20px;
+
+    position: relative;
+
+    transition:
+        transform var(--transicao-rapida),
+        filter var(--transicao-rapida);
+
+    animation: mscMoverDireita 0.3s ease;
 }
 
-.msc-carrossel-item:hover {
-  transform: scale(1.06);
+.msc-carrossel .msc-carrossel-item:first-child {
+    margin-left: 0 !important;
+}
+
+/* Tamanho por distância da música em destaque: a 1ª próxima (colada no
+   destaque) é a maior, e cada uma depois fica progressivamente menor —
+   dando a sensação de profundidade/escada pedida no plano. */
+.msc-carrossel-item:nth-child(1) {
+    width: 140px;
+    height: 140px;
+    flex-basis: 140px;
+    margin-left: 0 !important;
+    z-index: 10;
+}
+
+.msc-carrossel-item:nth-child(2) {
+    width: 115px;
+    height: 115px;
+    flex-basis: 115px;
+    margin-left: -35px;
+    z-index: 9;
+}
+
+.msc-carrossel-item:nth-child(3) {
+    width: 95px;
+    height: 95px;
+    flex-basis: 95px;
+    margin-left: -29px;
+    z-index: 8;
+}
+
+.msc-carrossel-item:nth-child(4) {
+    width: 80px;
+    height: 80px;
+    flex-basis: 80px;
+    margin-left: -24px;
+    z-index: 7;
+}
+
+.msc-carrossel-item:nth-child(5) {
+    width: 68px;
+    height: 68px;
+    flex-basis: 68px;
+    margin-left: -20px;
+    z-index: 6;
+}
+
+.msc-carrossel-item:nth-child(6) {
+    width: 58px;
+    height: 58px;
+    flex-basis: 58px;
+    margin-left: -17px;
+    z-index: 5;
+    opacity: 0.4;
+}
+
+.msc-carrossel::after {
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+    right: 0;
+
+    width: 85px;
+    height: 100%;
+
+    /*
+     * Transparente → mesma cor do painel.
+     *
+     * A variável faz o efeito acompanhar
+     * automaticamente o tema escuro/claro.
+     */
+    background: linear-gradient(
+        to right,
+        rgba(45, 40, 56, 0),
+        var(--painel-fundo)
+    );
+
+    z-index: 20;
+
+    pointer-events: none;
+}
+
+
+/* ===================================================
+   PAINEL DE MÚSICAS — AJUSTE INTERNO
+   =================================================== */
+
+.secao-musicas {
+    width: 85vw;
+
+    padding: 46px 18px 34px;
 }
 
 /*===================================================

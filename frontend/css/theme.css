@@ -383,6 +383,20 @@
     background: var(--cor-superficie);
 }
 
+/* =====================================================
+   SETAS DO CARROSSEL
+   ===================================================== */
+
+.msc-seta {
+    background: var(--cor-superficie-clara);
+    color: var(--cor-texto);
+}
+
+.msc-seta:hover {
+    background: var(--cor-primaria);
+    color: var(--texto-sobre-pastel);
+}
+
 /* -----------------------------------------------------
    MODAIS (registro, login, cadastro de artista, upload)
    ----------------------------------------------------- */
