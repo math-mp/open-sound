@@ -1,4 +1,4 @@
-require('dotenv').config(); // Puxa variáveis globais do .env
+    require('dotenv').config(); // Puxa variáveis globais do .env
 const express = require('express');
 const nodemailer = require('nodemailer');
 const cors = require('cors');
@@ -730,6 +730,29 @@ app.get('/api/musicas', async (req, res) => {
     return res.status(200).json({ status: 'sucesso', musicas: resultado.rows });
   } catch (erro) {
     console.error('Erro ao listar músicas:', erro);
+    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  }
+});
+
+// Busca por título OU artista, correspondência parcial (case-insensitive)
+// — cobre "parecidas" e "exatamente iguais" na mesma query. Pública,
+// igual à listagem geral: buscar não exige login.
+app.get('/api/musicas/buscar', async (req, res) => {
+  const termo = req.query.q;
+
+  if (!termo || !termo.trim()) {
+    return res.status(400).json({ status: 'erro', mensagem: 'Digite um termo de busca.' });
+  }
+
+  try {
+    const padrao = `%${termo.trim()}%`;
+    const resultado = await pool.query(
+      'SELECT * FROM musicas WHERE titulo ILIKE $1 OR artista ILIKE $1 ORDER BY criado_em DESC LIMIT 50',
+      [padrao]
+    );
+    return res.status(200).json({ status: 'sucesso', musicas: resultado.rows });
+  } catch (erro) {
+    console.error('Erro ao buscar músicas:', erro);
     return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
   }
 });

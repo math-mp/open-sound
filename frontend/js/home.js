@@ -746,6 +746,81 @@ async function carregarMusicas() {
 carregarMusicas();
 
 // ============================================================
+// BUSCA INLINE (mesma página — não navega, pra não matar o áudio tocando)
+// ============================================================
+
+const formBusca = document.querySelector('.nav-center form');
+const campoBusca = formBusca ? formBusca.querySelector('input[name="q"]') : null;
+const tituloSecaoMusicas = document.querySelector('.secao-titulo.aba-musicas');
+
+if (formBusca) {
+  formBusca.addEventListener('submit', async (event) => {
+    event.preventDefault(); // intercepta — sem isso ele navegaria pro action do form
+    const termo = campoBusca ? campoBusca.value.trim() : '';
+    if (termo) executarBusca(termo);
+  });
+}
+
+async function executarBusca(termo) {
+  if (!listaMusicas) return;
+
+  if (tituloSecaoMusicas) tituloSecaoMusicas.textContent = `Resultados para "${termo}"`;
+  listaMusicas.innerHTML = '';
+  const carregando = document.createElement('p');
+  carregando.className = 'mensagem-lista';
+  carregando.textContent = 'Buscando...';
+  listaMusicas.appendChild(carregando);
+
+  try {
+    const resposta = await fetch(`http://localhost:3000/api/musicas/buscar?q=${encodeURIComponent(termo)}`);
+    const dados = await resposta.json();
+
+    if (!resposta.ok) {
+      listaMusicas.innerHTML = '';
+      const mensagem = document.createElement('p');
+      mensagem.className = 'mensagem-lista';
+      mensagem.textContent = dados.mensagem || 'Não foi possível buscar as músicas.';
+      listaMusicas.appendChild(mensagem);
+      return;
+    }
+
+    if (!dados.musicas || dados.musicas.length === 0) {
+      listaMusicas.innerHTML = '';
+      const mensagem = document.createElement('p');
+      mensagem.className = 'mensagem-lista';
+      mensagem.textContent = `Nenhuma música encontrada para "${termo}".`;
+      listaMusicas.appendChild(mensagem);
+      return;
+    }
+
+    // Reaproveita o mesmo carrossel do catálogo principal — só troca os
+    // dados; a forma de renderizar (destaque + setas) continua igual.
+    musicasAtuais = dados.musicas;
+    indiceMscAtual = 0;
+    renderCarrosselMusicas(musicasAtuais);
+
+  } catch (erro) {
+    console.error('Erro ao buscar músicas:', erro);
+    listaMusicas.innerHTML = '';
+    const mensagem = document.createElement('p');
+    mensagem.className = 'mensagem-lista';
+    mensagem.textContent = 'Erro de conexão ao buscar músicas.';
+    listaMusicas.appendChild(mensagem);
+  }
+}
+
+// "inicio" já existia na navbar sem função — agora ele limpa a busca e
+// volta pro catálogo completo.
+const btnInicio = document.getElementById('btn-inicio');
+if (btnInicio) {
+  btnInicio.addEventListener('click', () => {
+    if (campoBusca) campoBusca.value = '';
+    if (tituloSecaoMusicas) tituloSecaoMusicas.textContent = 'Todas as músicas';
+    carregarMusicas();
+  });
+}
+
+// ============================================================
 // UPLOAD DE MÚSICA
 // ============================================================
 
