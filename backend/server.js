@@ -826,6 +826,7 @@ app.delete('/api/usuarios/eu', verificarAutenticacao, async (req, res) => {
     // antes de deletar o usuário, sem precisar mexer na constraint.
     await client.query('BEGIN');
     await client.query('DELETE FROM musicas WHERE usuario_id = $1', [req.usuario.id]);
+    await client.query('DELETE FROM playlists WHERE usuario_id = $1', [req.usuario.id]);   // <-- NOVA
     await client.query('DELETE FROM redefinicoes_senha WHERE usuario_id = $1', [req.usuario.id]);
     await client.query('DELETE FROM usuarios WHERE id = $1', [req.usuario.id]);
     await client.query('COMMIT');
@@ -1193,6 +1194,279 @@ app.delete('/api/musicas/:id', verificarAutenticacao, async (req, res) => {
 
   } catch (erro) {
     console.error('Erro ao excluir música:', erro);
+    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  }
+});
+
+// ============================================================
+// PLAYLISTS (criar, listar, adicionar/remover músicas) + FAVORITOS
+// ============================================================
+
+// "Favoritos" é criada sob demanda (lazy) — assim, contas criadas antes
+// dessa funcionalidade existir também ganham a playlist automaticamente
+// na primeira vez que precisarem dela, sem precisar de migração manual.
+async function obterOuCriarPlaylistFavoritos(usuarioId) {
+  const existente = await pool.query(
+    'SELECT * FROM playlists WHERE usuario_id = $1 AND eh_favoritos = TRUE',
+    [usuarioId]
+  );
+  if (existente.rows[0]) return existente.rows[0];
+
+  const criada = await pool.query(
+    `INSERT INTO playlists (nome, usuario_id, eh_favoritos)
+     VALUES ('Favoritos', $1, TRUE) RETURNING *`,
+    [usuarioId]
+  );
+  return criada.rows[0];
+}
+
+const uploadCapaPlaylist = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB — é só uma capa, não precisa do limite de 25MB do áudio
+  fileFilter: (req, file, cb) => {
+    const tiposImagem = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!tiposImagem.includes(file.mimetype)) {
+      return cb(new Error('Formato de imagem não suportado. Use JPEG, PNG ou WEBP.'));
+    }
+    cb(null, true);
+  }
+});
+
+// Lista as playlists do usuário logado. Favoritos sempre aparece primeiro
+// (ORDER BY eh_favoritos DESC) e é garantida a existir antes de listar.
+app.get('/api/playlists', verificarAutenticacao, async (req, res) => {
+  try {
+    await obterOuCriarPlaylistFavoritos(req.usuario.id);
+
+    const resultado = await pool.query(
+      'SELECT * FROM playlists WHERE usuario_id = $1 ORDER BY eh_favoritos DESC, criado_em ASC',
+      [req.usuario.id]
+    );
+    return res.status(200).json({ status: 'sucesso', playlists: resultado.rows });
+  } catch (erro) {
+    console.error('Erro ao listar playlists:', erro);
+    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  }
+});
+
+// Cria uma playlist nova (nome obrigatório, capa opcional).
+app.post('/api/playlists', verificarAutenticacao, uploadCapaPlaylist.single('capa'), async (req, res) => {
+  const { nome } = req.body;
+
+  if (!nome || !nome.trim()) {
+    return res.status(400).json({ status: 'erro', mensagem: 'Nome da playlist é obrigatório.' });
+  }
+
+  try {
+    let urlCapa = null;
+
+    if (req.file) {
+      const caminhoCapa = `capas-playlist/${Date.now()}-${Math.round(Math.random() * 1e9)}-${req.file.originalname}`;
+      const { error: erroUpload } = await supabase.storage
+        .from(SUPABASE_BUCKET)
+        .upload(caminhoCapa, req.file.buffer, { contentType: req.file.mimetype });
+
+      if (erroUpload) {
+        console.error('Erro ao subir capa da playlist (playlist seguirá sem capa):', erroUpload);
+      } else {
+        const { data } = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(caminhoCapa);
+        urlCapa = data.publicUrl;
+      }
+    }
+
+    const resultado = await pool.query(
+      `INSERT INTO playlists (nome, url_capa, usuario_id, eh_favoritos)
+       VALUES ($1, $2, $3, FALSE) RETURNING *`,
+      [nome.trim(), urlCapa, req.usuario.id]
+    );
+
+    return res.status(201).json({ status: 'sucesso', playlist: resultado.rows[0] });
+  } catch (erro) {
+    console.error('Erro ao criar playlist:', erro);
+    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  }
+});
+
+// Detalhe de uma playlist + suas músicas — só o dono pode ver.
+app.get('/api/playlists/:id', verificarAutenticacao, async (req, res) => {
+  const idPlaylist = parseInt(req.params.id, 10);
+  if (!Number.isInteger(idPlaylist)) {
+    return res.status(400).json({ status: 'erro', mensagem: 'ID de playlist inválido.' });
+  }
+
+  try {
+    const resultadoPlaylist = await pool.query('SELECT * FROM playlists WHERE id = $1', [idPlaylist]);
+    const playlist = resultadoPlaylist.rows[0];
+
+    if (!playlist) {
+      return res.status(404).json({ status: 'erro', mensagem: 'Playlist não encontrada.' });
+    }
+    if (playlist.usuario_id !== req.usuario.id) {
+      return res.status(403).json({ status: 'erro', mensagem: 'Você não tem acesso a esta playlist.' });
+    }
+
+    const resultadoMusicas = await pool.query(
+      `SELECT m.* FROM musicas m
+       JOIN playlist_musicas pm ON pm.musica_id = m.id
+       WHERE pm.playlist_id = $1
+       ORDER BY pm.adicionado_em DESC`,
+      [idPlaylist]
+    );
+
+    return res.status(200).json({ status: 'sucesso', playlist, musicas: resultadoMusicas.rows });
+  } catch (erro) {
+    console.error('Erro ao buscar playlist:', erro);
+    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  }
+});
+
+// Exclui uma playlist — a de Favoritos é protegida e nunca pode ser excluída.
+app.delete('/api/playlists/:id', verificarAutenticacao, async (req, res) => {
+  const idPlaylist = parseInt(req.params.id, 10);
+  if (!Number.isInteger(idPlaylist)) {
+    return res.status(400).json({ status: 'erro', mensagem: 'ID de playlist inválido.' });
+  }
+
+  try {
+    const resultado = await pool.query('SELECT * FROM playlists WHERE id = $1', [idPlaylist]);
+    const playlist = resultado.rows[0];
+
+    if (!playlist) {
+      return res.status(404).json({ status: 'erro', mensagem: 'Playlist não encontrada.' });
+    }
+    if (playlist.usuario_id !== req.usuario.id) {
+      return res.status(403).json({ status: 'erro', mensagem: 'Você não tem acesso a esta playlist.' });
+    }
+    if (playlist.eh_favoritos) {
+      return res.status(400).json({ status: 'erro', mensagem: 'A playlist de Favoritos não pode ser excluída.' });
+    }
+
+    await pool.query('DELETE FROM playlists WHERE id = $1', [idPlaylist]);
+    return res.status(200).json({ status: 'sucesso', mensagem: 'Playlist excluída.' });
+  } catch (erro) {
+    console.error('Erro ao excluir playlist:', erro);
+    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  }
+});
+
+// Adiciona uma música a uma playlist — ON CONFLICT evita duplicar.
+app.post('/api/playlists/:id/musicas', verificarAutenticacao, async (req, res) => {
+  const idPlaylist = parseInt(req.params.id, 10);
+  const { musicaId } = req.body;
+
+  if (!Number.isInteger(idPlaylist) || !musicaId) {
+    return res.status(400).json({ status: 'erro', mensagem: 'Dados inválidos.' });
+  }
+
+  try {
+    const resultadoPlaylist = await pool.query('SELECT * FROM playlists WHERE id = $1', [idPlaylist]);
+    const playlist = resultadoPlaylist.rows[0];
+
+    if (!playlist || playlist.usuario_id !== req.usuario.id) {
+      return res.status(403).json({ status: 'erro', mensagem: 'Você não tem acesso a esta playlist.' });
+    }
+
+    await pool.query(
+      `INSERT INTO playlist_musicas (playlist_id, musica_id) VALUES ($1, $2)
+       ON CONFLICT (playlist_id, musica_id) DO NOTHING`,
+      [idPlaylist, musicaId]
+    );
+
+    return res.status(200).json({ status: 'sucesso', mensagem: 'Música adicionada à playlist.' });
+  } catch (erro) {
+    console.error('Erro ao adicionar música à playlist:', erro);
+    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  }
+});
+
+// Remove uma música de uma playlist.
+app.delete('/api/playlists/:id/musicas/:musicaId', verificarAutenticacao, async (req, res) => {
+  const idPlaylist = parseInt(req.params.id, 10);
+  const idMusica = parseInt(req.params.musicaId, 10);
+
+  if (!Number.isInteger(idPlaylist) || !Number.isInteger(idMusica)) {
+    return res.status(400).json({ status: 'erro', mensagem: 'Dados inválidos.' });
+  }
+
+  try {
+    const resultadoPlaylist = await pool.query('SELECT * FROM playlists WHERE id = $1', [idPlaylist]);
+    const playlist = resultadoPlaylist.rows[0];
+
+    if (!playlist || playlist.usuario_id !== req.usuario.id) {
+      return res.status(403).json({ status: 'erro', mensagem: 'Você não tem acesso a esta playlist.' });
+    }
+
+    await pool.query(
+      'DELETE FROM playlist_musicas WHERE playlist_id = $1 AND musica_id = $2',
+      [idPlaylist, idMusica]
+    );
+
+    return res.status(200).json({ status: 'sucesso', mensagem: 'Música removida da playlist.' });
+  } catch (erro) {
+    console.error('Erro ao remover música da playlist:', erro);
+    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  }
+});
+
+// Atalhos de favoritar/desfavoritar — por baixo dos panos usam a playlist
+// Favoritos, mas o frontend não precisa saber o ID dela pra isso.
+app.post('/api/musicas/:id/favoritar', verificarAutenticacao, async (req, res) => {
+  const idMusica = parseInt(req.params.id, 10);
+  if (!Number.isInteger(idMusica)) {
+    return res.status(400).json({ status: 'erro', mensagem: 'ID de música inválido.' });
+  }
+
+  try {
+    const favoritos = await obterOuCriarPlaylistFavoritos(req.usuario.id);
+
+    await pool.query(
+      `INSERT INTO playlist_musicas (playlist_id, musica_id) VALUES ($1, $2)
+       ON CONFLICT (playlist_id, musica_id) DO NOTHING`,
+      [favoritos.id, idMusica]
+    );
+
+    return res.status(200).json({ status: 'sucesso', mensagem: 'Música favoritada.' });
+  } catch (erro) {
+    console.error('Erro ao favoritar música:', erro);
+    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  }
+});
+
+app.delete('/api/musicas/:id/favoritar', verificarAutenticacao, async (req, res) => {
+  const idMusica = parseInt(req.params.id, 10);
+  if (!Number.isInteger(idMusica)) {
+    return res.status(400).json({ status: 'erro', mensagem: 'ID de música inválido.' });
+  }
+
+  try {
+    const favoritos = await obterOuCriarPlaylistFavoritos(req.usuario.id);
+
+    await pool.query(
+      'DELETE FROM playlist_musicas WHERE playlist_id = $1 AND musica_id = $2',
+      [favoritos.id, idMusica]
+    );
+
+    return res.status(200).json({ status: 'sucesso', mensagem: 'Música removida dos favoritos.' });
+  } catch (erro) {
+    console.error('Erro ao desfavoritar música:', erro);
+    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  }
+});
+
+// IDs das músicas favoritadas pelo usuário logado — o frontend busca isso
+// uma vez e usa pra decidir qual coração pintar de preenchido nos cards.
+app.get('/api/musicas/favoritos/ids', verificarAutenticacao, async (req, res) => {
+  try {
+    const favoritos = await obterOuCriarPlaylistFavoritos(req.usuario.id);
+
+    const resultado = await pool.query(
+      'SELECT musica_id FROM playlist_musicas WHERE playlist_id = $1',
+      [favoritos.id]
+    );
+
+    return res.status(200).json({ status: 'sucesso', ids: resultado.rows.map((r) => r.musica_id) });
+  } catch (erro) {
+    console.error('Erro ao buscar favoritos:', erro);
     return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
   }
 });

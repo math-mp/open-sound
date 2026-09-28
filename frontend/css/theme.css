@@ -662,3 +662,51 @@
     background: var(--cor-erro);
     color: #292434;
 }
+
+/* -----------------------------------------------------
+   PLAYLISTS / FAVORITOS
+   ----------------------------------------------------- */
+
+/* Na barra do player: acompanha o tema. */
+.player-barra .btn-icone {
+    background: var(--cor-superficie-clara);
+    color: var(--cor-texto);
+}
+
+.player-barra .btn-icone:hover {
+    background: var(--cor-superficie-hover);
+}
+
+/* Sobre a capa: fundo escuro translúcido nos dois temas, porque quem
+   manda no contraste ali é a imagem, não o tema. */
+.msc-acoes-capa .btn-icone {
+    background: rgba(20, 16, 30, 0.62);
+    color: #fff8f3;
+}
+
+.msc-acoes-capa .btn-icone:hover {
+    background: rgba(20, 16, 30, 0.82);
+}
+
+/* Coração preenchido (música favoritada). */
+.btn-icone.ativo {
+    color: #ff6b8b;
+}
+
+.item-playlist-modal {
+    background: var(--input-fundo);
+    color: var(--cor-texto);
+    border-color: var(--input-borda);
+}
+
+.item-playlist-modal:hover {
+    background: var(--input-fundo-hover);
+}
+
+.item-playlist-modal.adicionada {
+    border-color: var(--cor-sucesso);
+}
+
+.item-playlist-capa {
+    background: var(--cor-superficie-clara);
+}

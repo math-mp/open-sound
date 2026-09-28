@@ -448,6 +448,21 @@
     </div>
     </div>
 
+        <!-- Modal/Popup "Adicionar à Playlist" — usado pelo botão do carrossel
+         e pelo botão da barra de player (mesmo modal). -->
+    <div id="modal-add-playlist" class="modal hidden">
+    <div class="conteudo-modal">
+        <button id="btn-fechar-add-playlist" class="btn-fechar" aria-label="Fechar">×</button>
+
+        <div class="etapa">
+        <h2>Adicionar à Playlist</h2>
+        <div id="lista-playlists-modal" class="lista-playlists-modal">
+            <p class="mensagem-lista">Carregando...</p>
+        </div>
+        </div>
+    </div>
+    </div>
+
     <!-- Barra de player fixa no rodapé — só funcional, sem estilo bonito.
          Fica escondida até a primeira música ser tocada. -->
     <div id="player-barra" class="player-barra hidden">
@@ -460,6 +475,8 @@
         <span id="player-tempo-atual" class="player-tempo">0:00</span>
         <input type="range" id="player-seek" class="player-seek" min="0" max="100" value="0" step="1">
         <span id="player-tempo-total" class="player-tempo">0:00</span>
+        <button id="player-favoritar" type="button" class="btn-icone" aria-label="Favoritar">♡</button>
+        <button id="player-add-playlist" type="button" class="btn-icone" aria-label="Adicionar à playlist">+</button>
     </div>
 
 </body>

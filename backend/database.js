@@ -80,6 +80,43 @@ const criarTabelas = async () => {
       ultimo_envio_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `;
+      // redefine a senha
+  const queryRedefinicoesSenha = `
+    CREATE TABLE IF NOT EXISTS redefinicoes_senha (
+      id UUID PRIMARY KEY,
+      usuario_id INTEGER REFERENCES usuarios(id),
+      nova_senha_hash VARCHAR(255) NOT NULL,
+      codigo_hash VARCHAR(255) NOT NULL,
+      tentativas INTEGER DEFAULT 0,
+      criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      expira_em TIMESTAMP NOT NULL,
+      ultimo_envio_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
+
+  // Playlists do usuário. "Favoritos" é criada sob demanda pelo servidor
+  // e marcada com eh_favoritos = TRUE.
+  const queryPlaylists = `
+    CREATE TABLE IF NOT EXISTS playlists (
+      id SERIAL PRIMARY KEY,
+      nome VARCHAR(255) NOT NULL,
+      url_capa TEXT,
+      usuario_id INTEGER REFERENCES usuarios(id),
+      eh_favoritos BOOLEAN DEFAULT FALSE,
+      criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
+
+  // Junção playlist <-> música. UNIQUE evita duplicar a mesma música.
+  const queryPlaylistMusicas = `
+    CREATE TABLE IF NOT EXISTS playlist_musicas (
+      id SERIAL PRIMARY KEY,
+      playlist_id INTEGER REFERENCES playlists(id) ON DELETE CASCADE,
+      musica_id INTEGER REFERENCES musicas(id) ON DELETE CASCADE,
+      adicionado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(playlist_id, musica_id)
+    );
+  `;
 
   // NOVO: verificações temporárias de RECUPERAÇÃO de senha (esqueci minha senha)
   // Mesmo padrão da verificacoes_2fa: código hasheado, expira em 10min,
@@ -99,9 +136,10 @@ const criarTabelas = async () => {
   try {
     await pool.query(queryUsuarios);
     await pool.query(queryMusicas);
-    await pool.query(queryVerificacoes2FA);
-    await pool.query(queryRedefinicoesSenha);
+    await pool.query(queryVerificacoes2FA);   
     await pool.query(queryRecuperacoesSenha);
+    await pool.query(queryPlaylists);
+    await pool.query(queryPlaylistMusicas);
 
     // Migrações depois do CREATE: garantimos que a tabela musicas existe
     // antes de mexer nas colunas dela.
