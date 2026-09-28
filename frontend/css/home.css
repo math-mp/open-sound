@@ -2571,3 +2571,9 @@ body,
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.item-playlist-estado {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+}

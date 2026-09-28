@@ -710,3 +710,6 @@
 .item-playlist-capa {
     background: var(--cor-superficie-clara);
 }
+.item-playlist-estado {
+    color: var(--cor-sucesso);
+}

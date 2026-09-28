@@ -1525,9 +1525,22 @@ app.get('/api/playlists', verificarAutenticacao, async (req, res) => {
   try {
     await obterOuCriarPlaylistFavoritos(req.usuario.id);
 
+    // ?musicaId=X é opcional: quando vem, cada playlist informa se já contém a música.
+    const idMusica = parseInt(req.query.musicaId, 10);
+    const musicaId = Number.isInteger(idMusica) ? idMusica : null;
+
     const resultado = await pool.query(
-      'SELECT * FROM playlists WHERE usuario_id = $1 ORDER BY eh_favoritos DESC, criado_em ASC',
-      [req.usuario.id]
+      `SELECT
+         p.*,
+         CAST((SELECT COUNT(*) FROM playlist_musicas pm WHERE pm.playlist_id = p.id) AS INTEGER) AS total_musicas,
+         EXISTS (
+           SELECT 1 FROM playlist_musicas pm
+           WHERE pm.playlist_id = p.id AND pm.musica_id = $2
+         ) AS contem_musica
+       FROM playlists p
+       WHERE p.usuario_id = $1
+       ORDER BY p.eh_favoritos DESC, p.criado_em ASC`,
+      [req.usuario.id, musicaId]
     );
     return res.status(200).json({ status: 'sucesso', playlists: resultado.rows });
   } catch (erro) {
@@ -1639,7 +1652,11 @@ app.delete('/api/playlists/:id', verificarAutenticacao, async (req, res) => {
 // Adiciona uma música a uma playlist — ON CONFLICT evita duplicar.
 app.post('/api/playlists/:id/musicas', verificarAutenticacao, async (req, res) => {
   const idPlaylist = parseInt(req.params.id, 10);
-  const { musicaId } = req.body;
+  const idMusica = parseInt(req.body.musicaId, 10);
+
+  if (!Number.isInteger(idPlaylist) || !Number.isInteger(idMusica)) {
+    return res.status(400).json({ status: 'erro', mensagem: 'Dados inválidos.' });
+  }
 
   if (!Number.isInteger(idPlaylist) || !musicaId) {
     return res.status(400).json({ status: 'erro', mensagem: 'Dados inválidos.' });
@@ -1652,11 +1669,15 @@ app.post('/api/playlists/:id/musicas', verificarAutenticacao, async (req, res) =
     if (!playlist || playlist.usuario_id !== req.usuario.id) {
       return res.status(403).json({ status: 'erro', mensagem: 'Você não tem acesso a esta playlist.' });
     }
+        const musicaExiste = await pool.query('SELECT 1 FROM musicas WHERE id = $1', [idMusica]);
+    if (!musicaExiste.rows[0]) {
+      return res.status(404).json({ status: 'erro', mensagem: 'Música não encontrada.' });
+    }
 
     await pool.query(
       `INSERT INTO playlist_musicas (playlist_id, musica_id) VALUES ($1, $2)
        ON CONFLICT (playlist_id, musica_id) DO NOTHING`,
-      [idPlaylist, musicaId]
+      [idPlaylist, idMusica]
     );
 
     return res.status(200).json({ status: 'sucesso', mensagem: 'Música adicionada à playlist.' });
@@ -1701,6 +1722,10 @@ app.post('/api/musicas/:id/favoritar', verificarAutenticacao, async (req, res) =
   const idMusica = parseInt(req.params.id, 10);
   if (!Number.isInteger(idMusica)) {
     return res.status(400).json({ status: 'erro', mensagem: 'ID de música inválido.' });
+  }
+    const musicaExiste = await pool.query('SELECT 1 FROM musicas WHERE id = $1', [idMusica]);
+  if (!musicaExiste.rows[0]) {
+    return res.status(404).json({ status: 'erro', mensagem: 'Música não encontrada.' });
   }
 
   try {
