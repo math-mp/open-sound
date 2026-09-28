@@ -81,14 +81,13 @@ const criarTabelas = async () => {
     );
   `;
 
-  // NOVO: verificações temporárias de REDEFINIÇÃO de senha — mesmo padrão
-  // da verificacoes_2fa (código hasheado, expira em 10min), mas vinculada
-  // a um usuário já existente (usuario_id) em vez de um cadastro novo.
-  const queryRedefinicoesSenha = `
-    CREATE TABLE IF NOT EXISTS redefinicoes_senha (
+  // NOVO: verificações temporárias de RECUPERAÇÃO de senha (esqueci minha senha)
+  // Mesmo padrão da verificacoes_2fa: código hasheado, expira em 10min,
+  // mas para usuários JÁ CADASTRADOS que esqueceram a senha (sem login).
+  const queryRecuperacoesSenha = `
+    CREATE TABLE IF NOT EXISTS recuperacoes_senha (
       id UUID PRIMARY KEY,
-      usuario_id INTEGER REFERENCES usuarios(id),
-      nova_senha_hash VARCHAR(255) NOT NULL,
+      email VARCHAR(255) NOT NULL,
       codigo_hash VARCHAR(255) NOT NULL,
       tentativas INTEGER DEFAULT 0,
       criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -102,13 +101,14 @@ const criarTabelas = async () => {
     await pool.query(queryMusicas);
     await pool.query(queryVerificacoes2FA);
     await pool.query(queryRedefinicoesSenha);
+    await pool.query(queryRecuperacoesSenha);
 
     // Migrações depois do CREATE: garantimos que a tabela musicas existe
     // antes de mexer nas colunas dela.
     await pool.query(queryColunaReproducoes);
     await pool.query(queryNormalizarReproducoes);
 
-    console.log('Tabelas "usuarios", "musicas", "verificacoes_2fa" e "redefinicoes_senha" verificadas/criadas com sucesso no PostgreSQL.');
+    console.log('Tabelas "usuarios", "musicas", "verificacoes_2fa", "redefinicoes_senha" e "recuperacoes_senha" verificadas/criadas com sucesso no PostgreSQL.');
     console.log('Coluna "musicas.reproducoes" verificada/criada com sucesso no PostgreSQL.');
   } catch (erro) {
     console.error('Erro ao criar tabelas no PostgreSQL:', erro);

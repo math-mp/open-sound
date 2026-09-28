@@ -36,6 +36,25 @@ const btnSubmitRegistro = formRegistro ? formRegistro.querySelector('button[type
 const inputSenha = document.getElementById('input-senha');
 const btnToggleSenha = document.getElementById('btn-toggle-senha');
 
+// === CONTADOR DO NOME DE USUÁRIO ===
+
+const campoNomeUsuarioCadastro = document.getElementById('registro-nome-usuario');
+const contadorUsuario = document.querySelector('.contador-usuario');
+
+if (campoNomeUsuarioCadastro && contadorUsuario) {
+  const atualizarContadorUsuario = () => {
+    contadorUsuario.textContent =
+      `${campoNomeUsuarioCadastro.value.length} / 28`;
+  };
+
+  campoNomeUsuarioCadastro.addEventListener(
+    'input',
+    atualizarContadorUsuario
+  );
+
+  atualizarContadorUsuario();
+}
+
 // Elementos das Regras de Senha
 const regraTam = document.getElementById('regra-tam');
 const regraMai = document.getElementById('regra-mai');
@@ -154,7 +173,7 @@ if (btnToggleSenha && inputSenha) {
     const tipoAtual = inputSenha.getAttribute('type');
     if (tipoAtual === 'password') {
       inputSenha.setAttribute('type', 'text');
-      btnToggleSenha.textContent = '🙈';
+      btnToggleSenha.textContent = '👁️';
     } else {
       inputSenha.setAttribute('type', 'password');
       btnToggleSenha.textContent = '👁️';
@@ -189,6 +208,16 @@ if (inputSenha) {
 if (formRegistro) {
   formRegistro.addEventListener('submit', async (event) => {
     event.preventDefault();
+
+      const aceiteTermos = formRegistro.querySelector(
+      '.aceite-termos input[type="checkbox"]'
+      );
+
+    if (!aceiteTermos || !aceiteTermos.checked) {
+      aceiteTermos?.focus();
+      alert('Você precisa aceitar os Termos de Uso para criar sua conta.');
+      return;
+    }
 
     if (btnSubmitRegistro && btnSubmitRegistro.disabled) return;
 
@@ -481,6 +510,391 @@ if (btnSair) {
 
 // Estado inicial da navbar ao carregar a página
 atualizarUIAutenticacao();
+
+// ============================================================
+// MODAL DE LOGIN — MELHORIAS (olho, links, toggle modais)
+// ============================================================
+
+// Elementos do modal de login
+const btnToggleLoginSenha = document.getElementById('btn-toggle-login-senha');
+const inputLoginSenha = document.getElementById('login-senha');
+const linkEsqueciSenha = document.getElementById('link-esqueci-senha');
+const linkIrRegistro = document.getElementById('link-ir-registro');
+
+// Elementos do modal "esqueci minha senha"
+const modalEsqueciSenha = document.getElementById('modal-esqueci-senha');
+const btnFecharEsqueci = document.getElementById('btn-fechar-esqueci');
+const formEsqueciSenha = document.getElementById('form-esqueci-senha');
+const etapaEsqueci = document.getElementById('etapa-esqueci');
+const etapaEsqueci2fa = document.getElementById('etapa-esqueci-2fa');
+const etapaEsqueciNovaSenha = document.getElementById('etapa-esqueci-nova-senha');
+const esqueciEmailMascarado = document.getElementById('esqueci-email-mascarado');
+const inputsOTPEsqueci = document.querySelectorAll('#modal-esqueci-senha .input-otp');
+const btnConfirmarEsqueci = document.getElementById('btn-confirmar-esqueci');
+const btnReenviarEsqueci = document.getElementById('btn-reenviar-esqueci');
+const esqueciMensagemTimer = document.getElementById('esqueci-mensagem-timer');
+const formEsqueciNovaSenha = document.getElementById('form-esqueci-nova-senha');
+const esqueciNovaSenha = document.getElementById('esqueci-nova-senha');
+const esqueciConfirmaSenha = document.getElementById('esqueci-confirma-senha');
+const btnToggleEsqueciSenha = document.getElementById('btn-toggle-esqueci-senha');
+const btnToggleEsqueciConfirma = document.getElementById('btn-toggle-esqueci-confirma');
+
+// Regras de senha — etapa nova senha
+const esqueciRegraTam = document.getElementById('esqueci-regra-tam');
+const esqueciRegraMai = document.getElementById('esqueci-regra-mai');
+const esqueciRegraMin = document.getElementById('esqueci-regra-min');
+const esqueciRegraNum = document.getElementById('esqueci-regra-num');
+const esqueciRegraEsp = document.getElementById('esqueci-regra-esp');
+
+// Links de voltar
+const linkVoltarLogin = document.getElementById('link-voltar-login');
+const linkVoltarLogin2 = document.getElementById('link-voltar-login-2');
+const linkVoltarLogin3 = document.getElementById('link-voltar-login-3');
+
+// Estado do fluxo esqueci senha
+let esqueciEmailAtual = '';
+let esqueciTempoRestante = 60;
+let esqueciIntervaloTimer = null;
+let esqueciIdVerificacao = '';
+
+// === OLHO NA SENHA — LOGIN ===
+if (btnToggleLoginSenha && inputLoginSenha) {
+  btnToggleLoginSenha.addEventListener('click', () => {
+    const tipoAtual = inputLoginSenha.getAttribute('type');
+    if (tipoAtual === 'password') {
+      inputLoginSenha.setAttribute('type', 'text');
+    } else {
+      inputLoginSenha.setAttribute('type', 'password');
+    }
+  });
+}
+
+// === LINK "ESQUECI MINHA SENHA" — ABRE MODAL ESQUECI, FECHA LOGIN ===
+if (linkEsqueciSenha) {
+  linkEsqueciSenha.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (modalLogin) modalLogin.classList.add('hidden');
+    if (modalEsqueciSenha) {
+      modalEsqueciSenha.classList.remove('hidden');
+      resetarFluxoEsqueci();
+    }
+  });
+}
+
+// === LINK "CADASTRE-SE" — ABRE MODAL REGISTRO, FECHA LOGIN ===
+if (linkIrRegistro) {
+  linkIrRegistro.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (modalLogin) modalLogin.classList.add('hidden');
+    if (modal) modal.classList.remove('hidden');
+    if (etapaRegistro) etapaRegistro.classList.remove('hidden');
+    if (etapa2fa) etapa2fa.classList.add('hidden');
+  });
+}
+
+// === LINKS VOLTAR PARA LOGIN ===
+function voltarParaLogin() {
+  if (modalEsqueciSenha) modalEsqueciSenha.classList.add('hidden');
+  if (modalLogin) modalLogin.classList.remove('hidden');
+  resetarFluxoEsqueci();
+}
+
+if (linkVoltarLogin) linkVoltarLogin.addEventListener('click', (e) => { e.preventDefault(); voltarParaLogin(); });
+if (linkVoltarLogin2) linkVoltarLogin2.addEventListener('click', (e) => { e.preventDefault(); voltarParaLogin(); });
+if (linkVoltarLogin3) linkVoltarLogin3.addEventListener('click', (e) => { e.preventDefault(); voltarParaLogin(); });
+
+// === FECHAR MODAL ESQUECI ===
+if (btnFecharEsqueci && modalEsqueciSenha) {
+  btnFecharEsqueci.addEventListener('click', () => {
+    modalEsqueciSenha.classList.add('hidden');
+    resetarFluxoEsqueci();
+  });
+}
+
+// === RESETAR FLUXO ESQUECI SENHA ===
+function resetarFluxoEsqueci() {
+  if (etapaEsqueci) etapaEsqueci.classList.remove('hidden');
+  if (etapaEsqueci2fa) etapaEsqueci2fa.classList.add('hidden');
+  if (etapaEsqueciNovaSenha) etapaEsqueciNovaSenha.classList.add('hidden');
+  if (formEsqueciSenha) formEsqueciSenha.reset();
+  if (formEsqueciNovaSenha) formEsqueciNovaSenha.reset();
+  inputsOTPEsqueci.forEach(inp => inp.value = '');
+  if (esqueciMensagemTimer) esqueciMensagemTimer.textContent = '';
+  if (btnReenviarEsqueci) btnReenviarEsqueci.disabled = true;
+  if (esqueciIntervaloTimer) clearInterval(esqueciIntervaloTimer);
+  esqueciEmailAtual = '';
+  esqueciIdVerificacao = '';
+}
+
+// === NAVEGAÇÃO OTP — ESQUECI SENHA ===
+inputsOTPEsqueci.forEach((input, index) => {
+  input.addEventListener('input', () => {
+    input.value = input.value.replace(/\D/g, '');
+    if (input.value && index < inputsOTPEsqueci.length - 1) {
+      inputsOTPEsqueci[index + 1].focus();
+    }
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Backspace' && !input.value && index > 0) {
+      inputsOTPEsqueci[index - 1].focus();
+    }
+  });
+
+  input.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const dadosColados = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
+    if (dadosColados) {
+      dadosColados.split('').forEach((char, i) => {
+        if (inputsOTPEsqueci[i]) inputsOTPEsqueci[i].value = char;
+      });
+      const proximoVazio = Array.from(inputsOTPEsqueci).find(inp => !inp.value);
+      if (proximoVazio) proximoVazio.focus();
+      else if (inputsOTPEsqueci.length > 0) inputsOTPEsqueci[inputsOTPEsqueci.length - 1].focus();
+    }
+  });
+});
+
+// === REGRAS DE SENHA TEMPO REAL — ETAPA NOVA SENHA ===
+function atualizarRegraEsqueci(elemento, estaValido, texto) {
+  if (!elemento) return;
+  if (estaValido) {
+    elemento.classList.add('valido');
+    elemento.textContent = `✔ ${texto}`;
+  } else {
+    elemento.classList.remove('valido');
+    elemento.textContent = `❌ ${texto}`;
+  }
+}
+
+if (esqueciNovaSenha) {
+  esqueciNovaSenha.addEventListener('input', () => {
+    const valor = esqueciNovaSenha.value || '';
+    atualizarRegraEsqueci(esqueciRegraTam, valor.length >= 8, 'Mínimo de 8 caracteres');
+    atualizarRegraEsqueci(esqueciRegraMai, /[A-Z]/.test(valor), 'Ao menos 1 letra maiúscula');
+    atualizarRegraEsqueci(esqueciRegraMin, /[a-z]/.test(valor), 'Ao menos 1 letra minúscula');
+    atualizarRegraEsqueci(esqueciRegraNum, /[0-9]/.test(valor), 'Ao menos 1 número');
+    atualizarRegraEsqueci(esqueciRegraEsp, /[@()!%*?&#]/.test(valor), 'Ao menos 1 caractere especial (@$!%*?&#)');
+  });
+}
+
+// === OLHO NA SENHA — ESQUECI SENHA (nova senha e confirma) ===
+function configurarOlhoSenha(btnToggle, inputSenha) {
+  if (btnToggle && inputSenha) {
+    btnToggle.addEventListener('click', () => {
+      const tipoAtual = inputSenha.getAttribute('type');
+      if (tipoAtual === 'password') {
+        inputSenha.setAttribute('type', 'text');
+      } else {
+        inputSenha.setAttribute('type', 'password');
+      }
+    });
+  }
+}
+
+configurarOlhoSenha(btnToggleEsqueciSenha, esqueciNovaSenha);
+configurarOlhoSenha(btnToggleEsqueciConfirma, esqueciConfirmaSenha);
+
+// === ETAPA 1: SOLICITAR CÓDIGO (EMAIL) ===
+if (formEsqueciSenha) {
+  formEsqueciSenha.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const campoEmail = document.getElementById('esqueci-email');
+    const email = campoEmail ? campoEmail.value.trim() : '';
+
+    if (!regexEmail.test(email)) {
+      alert('Insira um e-mail válido.');
+      return;
+    }
+
+    const btnSubmit = formEsqueciSenha.querySelector('button[type="submit"]');
+    if (btnSubmit) {
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = 'Enviando...';
+    }
+
+    try {
+      // TODO: Endpoint não existe ainda no backend — implementar POST /api/auth/esqueci-senha
+      const resposta = await fetch('http://localhost:3000/api/auth/esqueci-senha', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      const dados = await resposta.json();
+
+      if (resposta.ok) {
+        esqueciEmailAtual = email;
+        esqueciIdVerificacao = dados.idVerificacao;
+
+        if (esqueciEmailMascarado) esqueciEmailMascarado.textContent = mascararEmail(email);
+        if (etapaEsqueci) etapaEsqueci.classList.add('hidden');
+        if (etapaEsqueci2fa) etapaEsqueci2fa.classList.remove('hidden');
+
+        inputsOTPEsqueci.forEach(inp => inp.value = '');
+        setTimeout(() => inputsOTPEsqueci[0]?.focus(), 100);
+
+        iniciarTimerEsqueci();
+      } else {
+        alert(dados.mensagem || 'Não foi possível enviar o código.');
+      }
+    } catch (erro) {
+      console.error('Erro de conexão:', erro);
+      alert('Erro de conexão com o servidor.');
+    } finally {
+      const btnSubmit = formEsqueciSenha.querySelector('button[type="submit"]');
+      if (btnSubmit) {
+        btnSubmit.disabled = false;
+        btnSubmit.textContent = 'Enviar código';
+      }
+    }
+  });
+}
+
+// === TIMER REENVIO — ESQUECI SENHA ===
+function iniciarTimerEsqueci() {
+  esqueciTempoRestante = 60;
+  if (btnReenviarEsqueci) btnReenviarEsqueci.disabled = true;
+  if (esqueciMensagemTimer) esqueciMensagemTimer.textContent = `Aguarde ${esqueciTempoRestante}s para solicitar um novo código.`;
+
+  if (esqueciIntervaloTimer) clearInterval(esqueciIntervaloTimer);
+
+  esqueciIntervaloTimer = setInterval(() => {
+    esqueciTempoRestante--;
+
+    if (esqueciTempoRestante <= 0) {
+      clearInterval(esqueciIntervaloTimer);
+      if (btnReenviarEsqueci) btnReenviarEsqueci.disabled = false;
+      if (esqueciMensagemTimer) esqueciMensagemTimer.textContent = '';
+    } else {
+      if (esqueciMensagemTimer) esqueciMensagemTimer.textContent = `Aguarde ${esqueciTempoRestante}s para solicitar um novo código.`;
+    }
+  }, 1000);
+}
+
+// === REENVIAR CÓDIGO — ESQUECI SENHA ===
+if (btnReenviarEsqueci) {
+  btnReenviarEsqueci.addEventListener('click', async () => {
+    if (esqueciTempoRestante > 0) return;
+
+    btnReenviarEsqueci.disabled = true;
+    if (esqueciMensagemTimer) esqueciMensagemTimer.textContent = 'Enviando novo código...';
+
+    try {
+      // TODO: Endpoint não existe ainda — implementar POST /api/auth/reenviar-esqueci
+      const resposta = await fetch('http://localhost:3000/api/auth/reenviar-esqueci', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idVerificacao: esqueciIdVerificacao })
+      });
+
+      const dados = await resposta.json();
+
+      if (resposta.ok) {
+        inputsOTPEsqueci.forEach(inp => inp.value = '');
+        setTimeout(() => inputsOTPEsqueci[0]?.focus(), 100);
+        iniciarTimerEsqueci();
+      } else {
+        btnReenviarEsqueci.disabled = false;
+        if (esqueciMensagemTimer) esqueciMensagemTimer.textContent = dados.mensagem;
+      }
+    } catch (erro) {
+      btnReenviarEsqueci.disabled = false;
+      if (esqueciMensagemTimer) esqueciMensagemTimer.textContent = 'Erro ao conectar ao servidor.';
+    }
+  });
+}
+
+// === ETAPA 2: CONFIRMAR CÓDIGO 2FA ===
+if (btnConfirmarEsqueci) {
+  btnConfirmarEsqueci.addEventListener('click', async () => {
+    let codigoDigitado = '';
+    inputsOTPEsqueci.forEach(inp => codigoDigitado += inp.value.trim());
+
+    if (codigoDigitado.length < 6) {
+      alert('Por favor, digite os 6 dígitos do código.');
+      return;
+    }
+
+    try {
+      // TODO: Endpoint não existe ainda — implementar POST /api/auth/validar-esqueci
+      const resposta = await fetch('http://localhost:3000/api/auth/validar-esqueci', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codigo: codigoDigitado, idVerificacao: esqueciIdVerificacao })
+      });
+
+      const dados = await resposta.json();
+
+      if (resposta.ok) {
+        if (etapaEsqueci2fa) etapaEsqueci2fa.classList.add('hidden');
+        if (etapaEsqueciNovaSenha) etapaEsqueciNovaSenha.classList.remove('hidden');
+        if (esqueciIntervaloTimer) clearInterval(esqueciIntervaloTimer);
+      } else {
+        alert(dados.mensagem || 'Código incorreto ou expirado.');
+      }
+    } catch (erro) {
+      console.error('Erro de conexão:', erro);
+      alert('Não foi possível conectar ao servidor.');
+    }
+  });
+}
+
+// === ETAPA 3: NOVA SENHA ===
+if (formEsqueciNovaSenha) {
+  formEsqueciNovaSenha.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const novaSenha = esqueciNovaSenha ? esqueciNovaSenha.value.trim() : '';
+    const confirmaSenha = esqueciConfirmaSenha ? esqueciConfirmaSenha.value.trim() : '';
+
+    if (novaSenha !== confirmaSenha) {
+      alert('As senhas não conferem.');
+      return;
+    }
+
+    if (!regexSenha.test(novaSenha)) {
+      alert('A senha precisa ter no mínimo 8 caracteres, com pelo menos uma letra maiúscula, uma minúscula, um número e um símbolo especial (@$!%*?&#).');
+      return;
+    }
+
+    const btnSubmit = formEsqueciNovaSenha.querySelector('button[type="submit"]');
+    if (btnSubmit) {
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = 'Salvando...';
+    }
+
+    try {
+      // TODO: Endpoint não existe ainda — implementar POST /api/auth/confirmar-esqueci
+      const resposta = await fetch('http://localhost:3000/api/auth/confirmar-esqueci', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ novaSenha, idVerificacao: esqueciIdVerificacao })
+      });
+
+      const dados = await resposta.json();
+
+      if (resposta.ok) {
+        alert('Senha alterada com sucesso! Faça login com a nova senha.');
+        if (modalEsqueciSenha) modalEsqueciSenha.classList.add('hidden');
+        if (modalLogin) modalLogin.classList.remove('hidden');
+        resetarFluxoEsqueci();
+      } else {
+        alert(dados.mensagem || 'Não foi possível alterar a senha.');
+      }
+    } catch (erro) {
+      console.error('Erro de conexão:', erro);
+      alert('Erro de conexão com o servidor.');
+    } finally {
+      const btnSubmit = formEsqueciNovaSenha.querySelector('button[type="submit"]');
+      if (btnSubmit) {
+        btnSubmit.disabled = false;
+        btnSubmit.textContent = 'Salvar nova senha';
+      }
+    }
+  });
+}
 
 // ============================================================
 // CONTAINER UNIVERSAL DE MÚSICAS (carregar + renderizar cards)

@@ -462,16 +462,25 @@ body,
   display: none !important;
 }
 
-/* Fundo escurecido do popup */
+/* ===================================================
+   FUNDO DOS MODAIS
+   =================================================== */
+
 .modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+    position: fixed;
+
+    inset: 0;
+
+    width: 100%;
+    height: 100%;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 28px 18px;
+
+    z-index: 1100;
 }
 
 /* Caixa principal do popup */
@@ -509,14 +518,50 @@ body,
   cursor: pointer;
 }
 
-.btn-fechar {
-  position: absolute;
-  top: 10px;
-  right: 14px;
-  cursor: pointer;
-  font-size: 1.1rem;
-  background: none;
-  border: none;
+/* BOTÃO DE FECHAR MODAL REGISTRO */
+
+#modal-registro .btn-fechar {
+    position: absolute;
+
+    top: 9px;
+    right: 10px;
+
+    width: 36px;
+    height: 36px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 0;
+
+    border: none;
+    border-radius: 10px;
+
+    background: transparent;
+
+    color: var(--cor-texto);
+
+    font-size: 1.45rem;
+    line-height: 1;
+    font-weight: 800;
+
+    cursor: pointer;
+
+    z-index: 20;
+
+    transition:
+        background-color var(--transicao-rapida),
+        color var(--transicao-rapida),
+        transform var(--transicao-rapida);
+}
+
+#modal-registro .btn-fechar:hover {
+    background: var(--cor-superficie-clara);
+
+    color: var(--cor-texto);
+
+    transform: scale(1.08);
 }
 
 .etapa{
@@ -1544,4 +1589,838 @@ body,
   cursor: not-allowed !important;
   transform: none !important;
   filter: grayscale(0.6) brightness(0.75) !important;
+}
+
+
+/* ===================================================
+   MODAL DE CADASTRO
+   =================================================== */
+
+#modal-registro .conteudo-modal {
+    position: relative;
+
+    width: min(360px, calc(100vw - 36px));
+
+    height: min(540px, calc(100vh - 56px));
+    max-height: calc(100vh - 56px);
+
+    padding: 20px;
+
+    border-radius: 20px;
+
+    background: var(--cor-superficie);
+    border: 1px solid var(--cor-borda);
+
+    box-shadow:
+        0 20px 60px rgba(0, 0, 0, .35),
+        0 0 0 1px rgba(255, 255, 255, .02);
+
+    overflow: hidden;
+
+    animation: cadastroEntrada .25s ease;
+}
+
+/* Área interna rolável do cadastro */
+#modal-registro #etapa-registro {
+    width: 100%;
+    height: 100%;
+
+    display: flex;
+    flex-direction: column;
+
+    overflow: hidden;
+
+    padding-right: 0;
+}
+
+@keyframes cadastroEntrada {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ===================================================
+   AJUSTES DOS CAMPOS DO CADASTRO
+   =================================================== */
+
+#modal-registro .input-com-icone {
+    position: relative;
+    width: 100%;
+}
+
+#modal-registro .input-com-icone input {
+    width: 100%;
+    height: 44px;
+
+    padding-top: 0 !important;
+    padding-right: 42px !important;
+    padding-bottom: 0 !important;
+    padding-left: 48px !important;
+
+    border: 1px solid var(--cor-borda);
+    border-radius: 11px;
+
+    outline: none;
+
+    background: var(--cor-fundo-secundario);
+    color: var(--cor-texto);
+
+    font-family: inherit;
+    font-size: .9rem;
+}
+
+#modal-registro .input-com-icone input::placeholder {
+    color: var(--cor-texto-fraco);
+}
+
+#modal-registro .input-com-icone input:focus {
+    border-color: var(--cor-primaria);
+
+    box-shadow:
+        0 0 0 3px rgba(241, 192, 232, .12);
+
+    background: var(--cor-superficie-hover);
+}
+
+#modal-registro .form-cadastro {
+    display: flex;
+    flex-direction: column;
+
+    gap: 11px;
+
+    min-height: 0;
+
+    flex: 1;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    padding-right: 8px;
+}
+
+/* ===================================================
+   SCROLLBAR DO FORMULÁRIO DE CADASTRO
+   =================================================== */
+
+#modal-registro .form-cadastro {
+    scrollbar-width: thin;
+    scrollbar-color: var(--cor-primaria) transparent;
+}
+
+#modal-registro .form-cadastro::-webkit-scrollbar {
+    width: 6px;
+}
+
+#modal-registro .form-cadastro::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#modal-registro .form-cadastro::-webkit-scrollbar-thumb {
+    background: var(--cor-primaria);
+    border-radius: 999px;
+}
+
+#modal-registro .form-cadastro::-webkit-scrollbar-thumb:hover {
+    background: var(--cor-secundaria);
+}
+
+/* Ícone */
+
+#modal-registro .icone-campo {
+    position: absolute;
+
+    left: 16px;
+    top: 50%;
+
+    width: 17px;
+    height: 17px;
+
+    transform: translateY(-50%);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    pointer-events: none;
+
+    color: var(--cor-texto-fraco);
+
+    z-index: 2;
+}
+
+#modal-registro .icone-campo svg {
+    display: block;
+
+    width: 17px;
+    height: 17px;
+
+    stroke: currentColor;
+    stroke-width: 1.8;
+
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+
+/* ---------------------------------------------------
+   CABEÇALHO
+   --------------------------------------------------- */
+
+#modal-registro #etapa-registro h2 {
+    flex-shrink: 0;
+
+    margin: 0 42px 14px 0;
+
+    font-size: 1.55rem;
+    line-height: 1.1;
+
+    font-weight: 800;
+
+    color: var(--cor-texto);
+
+    text-align: left;
+}
+
+
+/* ---------------------------------------------------
+   CAMPOS
+   --------------------------------------------------- */
+
+.form-cadastro {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.campo-cadastro {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.campo-cadastro > label {
+    font-size: .9rem;
+    font-weight: 700;
+
+    color: var(--cor-texto);
+}
+
+
+/* ---------------------------------------------------
+   INPUT COM ÍCONE
+   --------------------------------------------------- */
+
+.input-com-icone {
+    position: relative;
+
+    display: flex;
+    align-items: center;
+
+    width: 100%;
+}
+
+.input-com-icone input {
+    width: 100%;
+    height: 48px;
+
+    padding: 0 44px 0 46px;
+
+    border: 1px solid var(--cor-borda);
+    border-radius: 12px;
+
+    outline: none;
+
+    background: var(--cor-fundo-secundario);
+    color: var(--cor-texto);
+
+    font-size: .95rem;
+
+    transition:
+        border-color var(--transicao-rapida),
+        box-shadow var(--transicao-rapida),
+        background-color var(--transicao-rapida);
+}
+
+.input-com-icone input::placeholder {
+    color: var(--cor-texto-fraco);
+}
+
+.input-com-icone input:focus {
+    border-color: var(--cor-primaria);
+
+    box-shadow:
+        0 0 0 3px rgba(241, 192, 232, .12);
+
+    background: var(--cor-superficie-hover);
+}
+
+
+/* ---------------------------------------------------
+   ÍCONES
+   --------------------------------------------------- */
+
+.icone-campo {
+    position: absolute;
+    left: 15px;
+
+    width: 18px;
+    height: 18px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    pointer-events: none;
+
+    color: var(--cor-texto-fraco);
+}
+
+.icone-campo svg {
+    width: 18px;
+    height: 18px;
+
+    stroke: currentColor;
+
+    stroke-width: 1.8;
+
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+
+/* ---------------------------------------------------
+   OLHO DA SENHA
+   --------------------------------------------------- */
+
+.input-senha-cadastro .btn-olho {
+    position: absolute;
+    right: 8px;
+
+    width: 34px;
+    height: 34px;
+
+    padding: 0;
+
+    border: none;
+    border-radius: 9px;
+
+    background: transparent;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    color: var(--cor-texto-fraco);
+
+    transition:
+        background-color var(--transicao-rapida),
+        transform var(--transicao-rapida);
+}
+
+.input-senha-cadastro .btn-olho:hover {
+    background: var(--cor-superficie-clara);
+
+    transform: scale(1.05);
+}
+
+
+/* ---------------------------------------------------
+   LIMITE DO USUÁRIO
+   --------------------------------------------------- */
+
+.limite-usuario {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    gap: 8px;
+
+    font-size: .72rem;
+    color: var(--cor-texto-fraco);
+}
+
+.contador-usuario {
+    font-weight: 700;
+}
+
+
+/* ---------------------------------------------------
+   REGRAS DA SENHA
+   --------------------------------------------------- */
+
+#modal-registro .regras-senha {
+    display: flex;
+    flex-direction: column;
+
+    gap: 4px;
+
+    margin-top: 3px;
+    padding: 0;
+
+    list-style: none;
+}
+
+#modal-registro .regras-senha li {
+    margin: 0;
+    padding: 0;
+
+    font-size: .78rem;
+    line-height: 1.35;
+
+    font-weight: 600;
+
+    color: var(--cor-texto-fraco);
+}
+
+
+/* ---------------------------------------------------
+   TERMOS DE USO
+   --------------------------------------------------- */
+
+.termos-uso {
+    display: flex;
+    flex-direction: column;
+
+    gap: 9px;
+
+    margin-top: 2px;
+}
+
+.termos-box {
+    max-height: 105px;
+
+    overflow-y: auto;
+
+    padding: 12px 13px;
+
+    border: 1px solid var(--cor-borda);
+
+    border-radius: 11px;
+
+    background: var(--cor-fundo-secundario);
+
+    color: var(--cor-texto-secundario);
+
+    font-size: .75rem;
+
+    line-height: 1.45;
+}
+
+.termos-box strong {
+    display: block;
+
+    margin-bottom: 5px;
+
+    color: var(--cor-texto);
+
+    font-size: .82rem;
+}
+
+.termos-box p {
+    margin-bottom: 5px;
+}
+
+.termos-box p:last-child {
+    margin-bottom: 0;
+}
+
+.termos-placeholder {
+    color: var(--cor-texto-fraco);
+}
+
+.aceite-termos {
+    display: flex;
+    align-items: flex-start;
+
+    gap: 8px;
+
+    cursor: pointer;
+
+    font-size: .75rem;
+    line-height: 1.35;
+
+    color: var(--cor-texto-secundario);
+}
+
+.aceite-termos input {
+    flex-shrink: 0;
+
+    width: 15px;
+    height: 15px;
+
+    margin-top: 1px;
+
+    accent-color: var(--cor-primaria);
+
+    cursor: pointer;
+}
+
+
+/* ---------------------------------------------------
+   BOTÃO
+   --------------------------------------------------- */
+
+#modal-registro .btn-cadastrar {
+    width: 100%;
+    min-height: 48px;
+
+    margin-top: 3px;
+
+    border: none;
+    border-radius: 13px;
+
+    background:
+        linear-gradient(
+            90deg,
+            var(--pastel-rosa),
+            var(--pastel-pessego)
+        );
+
+    color: var(--texto-sobre-pastel);
+
+    font-size: .98rem;
+    font-weight: 800;
+
+    transition:
+        transform var(--transicao-rapida),
+        filter var(--transicao-rapida),
+        box-shadow var(--transicao-rapida);
+}
+
+#modal-registro .btn-cadastrar:hover {
+    transform: translateY(-1px);
+
+    filter: brightness(1.04);
+
+    box-shadow:
+        0 7px 18px rgba(241, 192, 232, .18);
+}
+
+#modal-registro .btn-cadastrar:active {
+    transform: translateY(1px) scale(.99);
+}
+
+
+/* ===================================================
+   MODAL DE LOGIN — ESTILOS MELHORADOS
+   =================================================== */
+
+#modal-login .conteudo-modal,
+#modal-esqueci-senha .conteudo-modal {
+    width: min(360px, calc(100vw - 36px));
+    max-height: calc(100vh - 56px);
+    padding: 20px;
+    border-radius: 20px;
+    background: var(--cor-superficie);
+    border: 1px solid var(--cor-borda);
+    box-shadow:
+        0 20px 60px rgba(0, 0, 0, .35),
+        0 0 0 1px rgba(255, 255, 255, .02);
+    overflow: hidden;
+    animation: cadastroEntrada .25s ease;
+}
+
+#modal-login .conteudo-modal {
+    height: auto;
+}
+
+#modal-esqueci-senha .conteudo-modal {
+    height: min(540px, calc(100vh - 56px));
+}
+
+/* Formulários com mesmo espaçamento do cadastro */
+#modal-login #form-login,
+#modal-esqueci-senha #form-esqueci-senha,
+#modal-esqueci-senha #form-esqueci-nova-senha {
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* igual .form-cadastro */
+}
+
+/* BOTÃO FECHAR — ambos modais */
+#modal-login .btn-fechar,
+#modal-esqueci-senha .btn-fechar {
+    position: absolute;
+    top: 9px;
+    right: 10px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--cor-texto);
+    font-size: 1.45rem;
+    line-height: 1;
+    font-weight: 800;
+    cursor: pointer;
+    z-index: 20;
+    transition:
+        background-color var(--transicao-rapida),
+        color var(--transicao-rapida),
+        transform var(--transicao-rapida);
+}
+
+#modal-login .btn-fechar:hover,
+#modal-esqueci-senha .btn-fechar:hover {
+    background: var(--cor-superficie-clara);
+    color: var(--cor-texto);
+    transform: scale(1.08);
+}
+
+/* CAMPOS DO LOGIN / ESQUECI SENHA */
+#modal-login .campo-login,
+#modal-esqueci-senha .campo-login {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+#modal-login .campo-login > label,
+#modal-esqueci-senha .campo-login > label {
+    font-size: .9rem;
+    font-weight: 700;
+    color: var(--cor-texto);
+}
+
+#modal-login .input-com-icone,
+#modal-esqueci-senha .input-com-icone {
+    position: relative;
+    width: 100%;
+}
+
+#modal-login .input-com-icone input,
+#modal-esqueci-senha .input-com-icone input {
+    width: 100% !important;
+    height: 48px !important;
+    padding: 0 44px 0 46px !important;
+    border: 1px solid var(--cor-borda) !important;
+    border-radius: 12px !important;
+    outline: none !important;
+    background: var(--cor-fundo-secundario) !important;
+    color: var(--cor-texto) !important;
+    font-family: inherit !important;
+    font-size: .95rem !important;
+    transition:
+        border-color var(--transicao-rapida),
+        box-shadow var(--transicao-rapida),
+        background-color var(--transicao-rapida) !important;
+}
+
+#modal-login .input-com-icone input::placeholder,
+#modal-esqueci-senha .input-com-icone input::placeholder {
+    color: var(--cor-texto-fraco) !important;
+}
+
+#modal-login .input-com-icone input:focus,
+#modal-esqueci-senha .input-com-icone input:focus {
+    border-color: var(--cor-primaria) !important;
+    box-shadow: 0 0 0 3px rgba(241, 192, 232, .12) !important;
+    background: var(--cor-superficie-hover) !important;
+}
+
+/* ÍCONES NOS INPUTS */
+#modal-login .icone-campo,
+#modal-esqueci-senha .icone-campo {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    width: 18px;
+    height: 18px;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    color: var(--cor-texto-fraco);
+    z-index: 2;
+}
+
+#modal-login .icone-campo svg,
+#modal-esqueci-senha .icone-campo svg {
+    display: block;
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* OLHO DA SENHA — LOGIN E ESQUECI */
+#modal-login .input-senha-login .btn-olho,
+#modal-esqueci-senha .input-senha-login .btn-olho {
+    position: absolute;
+    right: 8px;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: none;
+    border-radius: 9px;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--cor-texto-fraco);
+    transition:
+        background-color var(--transicao-rapida),
+        transform var(--transicao-rapida);
+}
+
+#modal-login .input-senha-login .btn-olho:hover,
+#modal-esqueci-senha .input-senha-login .btn-olho:hover {
+    background: var(--cor-superficie-clara);
+    transform: scale(1.05);
+}
+
+/* OPÇÕES DO LOGIN (lembrar + esqueci) — mais espaçamento */
+.login-opcoes {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+}
+
+#modal-login .campo-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    color: var(--cor-texto-secundario);
+}
+
+.link-esqueci {
+    font-size: 0.85rem;
+    color: var(--cor-primaria);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color var(--transicao-rapida);
+}
+
+.link-esqueci:hover {
+    color: var(--cor-primaria-hover);
+    text-decoration: underline;
+}
+
+/* BOTÃO ENTRAR DO MODAL — mesmo estilo do cadastrar */
+#modal-login .btn-entrar-modal,
+#modal-esqueci-senha .btn-entrar-modal {
+    width: 100% !important;
+    min-height: 48px !important;
+    margin-top: 3px !important;
+    border: none !important;
+    border-radius: 13px !important;
+    background: linear-gradient(90deg, var(--pastel-rosa), var(--pastel-pessego)) !important;
+    color: var(--texto-sobre-pastel) !important;
+    font-size: .98rem !important;
+    font-weight: 800 !important;
+    cursor: pointer !important;
+    transition: transform var(--transicao-rapida), filter var(--transicao-rapida), box-shadow var(--transicao-rapida) !important;
+}
+
+#modal-login .btn-entrar-modal:hover,
+#modal-esqueci-senha .btn-entrar-modal:hover {
+    transform: translateY(-1px) !important;
+    filter: brightness(1.04) !important;
+    box-shadow: 0 7px 18px rgba(241, 192, 232, .18) !important;
+}
+
+#modal-login .btn-entrar-modal:active,
+#modal-esqueci-senha .btn-entrar-modal:active {
+    transform: translateY(1px) scale(.99) !important;
+}
+
+/* LINK "NÃO POSSUI CONTA / VOLTAR" */
+.link-cadastro {
+    text-align: center;
+    margin-top: 20px;
+    font-size: .85rem;
+    color: var(--cor-texto-secundario);
+}
+
+.link-cadastro a {
+    color: var(--cor-primaria);
+    font-weight: 700;
+    text-decoration: none;
+    transition: color var(--transicao-rapida);
+}
+
+.link-cadastro a:hover {
+    color: var(--cor-primaria-hover);
+    text-decoration: underline;
+}
+
+/* TEXTO EXPLICATIVO ESQUECI SENHA */
+.texto-esqueci {
+    font-size: .85rem;
+    line-height: 1.4;
+    color: var(--cor-texto-secundario);
+    margin-top: -4px;
+}
+
+/* EMAIL MASCARADO */
+#esqueci-email-mascarado {
+    color: var(--cor-primaria);
+    font-weight: 700;
+}
+
+/* REGRAS DE SENHA — ETAPA NOVA SENHA */
+#esqueci-regras-senha {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 3px;
+    padding: 0;
+    list-style: none;
+}
+
+#esqueci-regras-senha li {
+    margin: 0;
+    padding: 0;
+    font-size: .78rem;
+    line-height: 1.35;
+    font-weight: 600;
+    color: var(--cor-texto-fraco);
+    transition: color 0.2s ease;
+}
+
+#esqueci-regras-senha li.valido {
+    color: var(--cor-sucesso);
+}
+
+/* RESPONSIVO — MODAIS LOGIN/ESQUECI */
+@media (max-width: 520px) {
+    #modal-login .conteudo-modal,
+    #modal-esqueci-senha .conteudo-modal {
+        width: calc(100vw - 24px);
+        padding: 25px 21px;
+    }
+}
+
+
+/* ---------------------------------------------------
+   RESPONSIVO
+   --------------------------------------------------- */
+
+@media (max-width: 520px) {
+
+    #modal-registro .conteudo-modal {
+        width: calc(100vw - 24px);
+
+        padding: 25px 21px;
+    }
+
+    #modal-registro #etapa-registro h2 {
+        font-size: 1.6rem;
+    }
 }
