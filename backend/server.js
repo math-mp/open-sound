@@ -1,4 +1,4 @@
-    require('dotenv').config(); // Puxa variáveis globais do .env
+require('dotenv').config(); // Puxa variáveis globais do .env
 const express = require('express');
 const nodemailer = require('nodemailer');
 const cors = require('cors');
@@ -264,6 +264,23 @@ const limitarRecuperacaoIP = rateLimit({
   legacyHeaders: false
 });
 
+// Limite de redefinições de senha pelo modal "esqueci minha senha":
+// no máximo 3 concluídas por conta dentro de uma janela de 24h.
+const LIMITE_REDEFINICOES_MODAL = 3;
+const JANELA_REDEFINICOES_MODAL_HORAS = 24;
+
+async function contarRedefinicoesModalRecentes(usuarioId) {
+  const resultado = await pool.query(
+    `SELECT COUNT(*)::int AS total
+     FROM historico_redefinicoes_senha
+     WHERE usuario_id = $1
+       AND origem = 'modal'
+       AND criado_em > CURRENT_TIMESTAMP - ($2 || ' hours')::interval`,
+    [usuarioId, String(JANELA_REDEFINICOES_MODAL_HORAS)]
+  );
+  return resultado.rows[0].total;
+}
+
 // POST /api/auth/esqueci-senha — inicia recuperação (envia código por e-mail)
 app.post('/api/auth/esqueci-senha', limitarRecuperacaoIP, async (req, res) => {
   const { email } = req.body;
@@ -280,6 +297,16 @@ app.post('/api/auth/esqueci-senha', limitarRecuperacaoIP, async (req, res) => {
     // Mas só envia e-mail se usuário existir
     if (!usuario) {
       return res.status(200).json({ status: 'sucesso', mensagem: 'Se o e-mail estiver cadastrado, enviaremos um código.', idVerificacao: null });
+    }
+
+    // Limite de redefinições pelo modal: barra antes de gerar código/enviar e-mail.
+    const redefinicoesRecentes = await contarRedefinicoesModalRecentes(usuario.id);
+    if (redefinicoesRecentes >= LIMITE_REDEFINICOES_MODAL) {
+      return res.status(429).json({
+        status: 'erro',
+        codigo: 'LIMITE_RECUPERACAO_ATINGIDO',
+        mensagem: `Você atingiu o limite de ${LIMITE_REDEFINICOES_MODAL} redefinições de senha em ${JANELA_REDEFINICOES_MODAL_HORAS}h. Tente novamente mais tarde.`
+      });
     }
 
     const codigo = Math.floor(100000 + Math.random() * 900000).toString();
@@ -364,8 +391,10 @@ app.post('/api/auth/reenviar-esqueci', limitarReenviarRecuperacaoIP, async (req,
     const novoCodigo = Math.floor(100000 + Math.random() * 900000).toString();
     const novoCodigoHash = await bcrypt.hash(novoCodigo, 10);
 
+    // CORREÇÃO: zera também a flag `verificado`. Sem isso, alguém poderia
+    // validar um código, pedir reenvio e manter a sessão já liberada.
     await pool.query(
-      'UPDATE recuperacoes_senha SET codigo_hash = $1, tentativas = 0, ultimo_envio_em = CURRENT_TIMESTAMP WHERE id = $2',
+      'UPDATE recuperacoes_senha SET codigo_hash = $1, tentativas = 0, verificado = FALSE, ultimo_envio_em = CURRENT_TIMESTAMP WHERE id = $2',
       [novoCodigoHash, idVerificacao]
     );
 
@@ -422,8 +451,10 @@ app.post('/api/auth/validar-esqueci', limitarRecuperacaoIP, async (req, res) => 
       return res.status(400).json({ status: 'erro', mensagem: 'Código incorreto.' });
     }
 
-    // Código válido — marca como verificado (pode usar uma flag ou apenas permitir próxima etapa)
-    // Aqui apenas retornamos sucesso; o frontend avança para etapa de nova senha
+    // CORREÇÃO: código correto — registra no banco. É essa flag que libera
+    // o /api/auth/confirmar-esqueci.
+    await pool.query('UPDATE recuperacoes_senha SET verificado = TRUE WHERE id = $1', [idVerificacao]);
+
     return res.status(200).json({ status: 'sucesso', mensagem: 'Código válido. Pode definir nova senha.' });
 
   } catch (erro) {
@@ -460,13 +491,48 @@ app.post('/api/auth/confirmar-esqueci', limitarRecuperacaoIP, async (req, res) =
       return res.status(400).json({ status: 'erro', mensagem: 'O tempo limite expirou. Solicite novamente.' });
     }
 
-    // Verifica se código já foi validado (tentativas não incrementadas = código correto foi dado)
-    // Como não temos flag explícita, assumimos que se chegou aqui é porque /validar-esqueci passou
-    // Em produção, ideal ter uma coluna 'verificado' boolean
+    // CORREÇÃO DE SEGURANÇA: só troca a senha se o código já foi validado
+    // de verdade em /api/auth/validar-esqueci. Antes, quem tivesse o
+    // idVerificacao podia pular direto pra cá sem digitar o código.
+    if (!recuperacao.verificado) {
+      return res.status(403).json({
+        status: 'erro',
+        mensagem: 'Código ainda não foi validado. Confirme o código enviado por e-mail primeiro.'
+      });
+    }
+
+    const resultadoUsuario = await pool.query('SELECT id FROM usuarios WHERE email = $1', [recuperacao.email]);
+    const usuarioRecuperacao = resultadoUsuario.rows[0];
+
+    if (!usuarioRecuperacao) {
+      await pool.query('DELETE FROM recuperacoes_senha WHERE id = $1', [idVerificacao]);
+      return res.status(400).json({ status: 'erro', mensagem: 'Verificação não encontrada ou expirada.' });
+    }
+
+    // Rechecagem do limite: impede burlar abrindo várias sessões de
+    // recuperação antes de concluir qualquer uma delas.
+    const redefinicoesRecentes = await contarRedefinicoesModalRecentes(usuarioRecuperacao.id);
+    if (redefinicoesRecentes >= LIMITE_REDEFINICOES_MODAL) {
+      await pool.query('DELETE FROM recuperacoes_senha WHERE id = $1', [idVerificacao]);
+      return res.status(429).json({
+        status: 'erro',
+        codigo: 'LIMITE_RECUPERACAO_ATINGIDO',
+        mensagem: `Você atingiu o limite de ${LIMITE_REDEFINICOES_MODAL} redefinições de senha em ${JANELA_REDEFINICOES_MODAL_HORAS}h. Tente novamente mais tarde.`
+      });
+    }
 
     const novaSenhaHash = await bcrypt.hash(novaSenha, 10);
 
-    await pool.query('UPDATE usuarios SET senha = $1 WHERE email = $2', [novaSenhaHash, recuperacao.email]);
+    // Grava senha_redefinida_em: é o que trava o botão de redefinir na
+    // página de config (cooldown de 24h) depois de resetar pelo modal.
+    await pool.query(
+      'UPDATE usuarios SET senha = $1, senha_redefinida_em = CURRENT_TIMESTAMP WHERE id = $2',
+      [novaSenhaHash, usuarioRecuperacao.id]
+    );
+    await pool.query(
+      `INSERT INTO historico_redefinicoes_senha (usuario_id, origem) VALUES ($1, 'modal')`,
+      [usuarioRecuperacao.id]
+    );
     await pool.query('DELETE FROM recuperacoes_senha WHERE id = $1', [idVerificacao]);
 
     return res.status(200).json({ status: 'sucesso', mensagem: 'Senha alterada com sucesso! Faça login com a nova senha.' });
@@ -567,7 +633,7 @@ function verificarAutenticacao(req, res, next) {
 app.get('/api/usuarios/eu', verificarAutenticacao, async (req, res) => {
   try {
     const resultado = await pool.query(
-      'SELECT id, email, nome_usuario, eh_artista, nome_artista, senha_redefinida_em FROM usuarios WHERE id = $1',
+      'SELECT id, email, nome_usuario, eh_artista, nome_artista, senha_redefinida_em, bio, url_avatar FROM usuarios WHERE id = $1',
       [req.usuario.id]
     );
     const usuario = resultado.rows[0];
@@ -604,6 +670,224 @@ app.post('/api/usuarios/artista', verificarAutenticacao, async (req, res) => {
   } catch (erro) {
     console.error('Erro ao salvar nome de artista:', erro);
     return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  }
+});
+
+// ============================================================
+// PERFIL (bio, avatar, música favorita, curtidas, playlists)
+// ============================================================
+
+const LIMITE_BIO = 300;
+const LIMITE_CURTIDAS_PERFIL = 4;
+const EXTENSAO_POR_MIME = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+
+const uploadAvatar = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB — é só um avatar
+  fileFilter: (req, file, cb) => {
+    if (!EXTENSAO_POR_MIME[file.mimetype]) {
+      return cb(new Error('Formato de imagem não suportado. Use JPEG, PNG ou WEBP.'));
+    }
+    cb(null, true);
+  }
+});
+
+// Tudo que a página de perfil precisa numa chamada só.
+app.get('/api/usuarios/eu/perfil', verificarAutenticacao, async (req, res) => {
+  try {
+    const resultadoUsuario = await pool.query(
+      `SELECT id, email, nome_usuario, eh_artista, nome_artista, bio, url_avatar, musica_favorita_id
+       FROM usuarios WHERE id = $1`,
+      [req.usuario.id]
+    );
+    const usuario = resultadoUsuario.rows[0];
+
+    if (!usuario) {
+      return res.status(404).json({ status: 'erro', mensagem: 'Usuário não encontrado.' });
+    }
+
+    let favorita = null;
+    if (usuario.musica_favorita_id) {
+      const resultadoFavorita = await pool.query(
+        'SELECT id, titulo, artista, url_capa FROM musicas WHERE id = $1',
+        [usuario.musica_favorita_id]
+      );
+      favorita = resultadoFavorita.rows[0] || null;
+    }
+
+    const resultadoCurtidas = await pool.query(
+      `SELECT m.id, m.titulo, m.artista, m.url_capa
+       FROM perfil_curtidas pc
+       JOIN musicas m ON m.id = pc.musica_id
+       WHERE pc.usuario_id = $1
+       ORDER BY pc.posicao ASC`,
+      [req.usuario.id]
+    );
+
+    // Favoritos fica de fora: é uma playlist do sistema, não "do perfil".
+    const resultadoPlaylists = await pool.query(
+      `SELECT id, nome, url_capa FROM playlists
+       WHERE usuario_id = $1 AND eh_favoritos = FALSE
+       ORDER BY criado_em DESC`,
+      [req.usuario.id]
+    );
+
+    return res.status(200).json({
+      status: 'sucesso',
+      usuario: {
+        id: usuario.id,
+        email: usuario.email,
+        nome_usuario: usuario.nome_usuario,
+        eh_artista: usuario.eh_artista,
+        nome_artista: usuario.nome_artista,
+        bio: usuario.bio,
+        url_avatar: usuario.url_avatar
+      },
+      favorita,
+      curtidas: resultadoCurtidas.rows,
+      playlists: resultadoPlaylists.rows
+    });
+  } catch (erro) {
+    console.error('Erro ao buscar perfil:', erro);
+    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  }
+});
+
+// Salva a biografia (vazia = apaga).
+app.put('/api/usuarios/eu/bio', verificarAutenticacao, async (req, res) => {
+  const { bio } = req.body;
+
+  if (typeof bio !== 'string') {
+    return res.status(400).json({ status: 'erro', mensagem: 'Biografia inválida.' });
+  }
+
+  const bioLimpa = bio.trim();
+  if (bioLimpa.length > LIMITE_BIO) {
+    return res.status(400).json({ status: 'erro', mensagem: `A biografia pode ter no máximo ${LIMITE_BIO} caracteres.` });
+  }
+
+  try {
+    await pool.query('UPDATE usuarios SET bio = $1 WHERE id = $2', [bioLimpa || null, req.usuario.id]);
+    return res.status(200).json({ status: 'sucesso', bio: bioLimpa });
+  } catch (erro) {
+    console.error('Erro ao salvar biografia:', erro);
+    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  }
+});
+
+// Troca o avatar: sobe a imagem nova pro Storage, atualiza o banco e só
+// então apaga a antiga (melhor-esforço, mesmo padrão das outras exclusões).
+app.post('/api/usuarios/eu/avatar', verificarAutenticacao, uploadAvatar.single('avatar'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ status: 'erro', mensagem: 'Selecione uma imagem.' });
+  }
+
+  try {
+    const resultadoAnterior = await pool.query('SELECT url_avatar FROM usuarios WHERE id = $1', [req.usuario.id]);
+    const urlAnterior = resultadoAnterior.rows[0]?.url_avatar;
+
+    // Nome gerado pelo servidor (não usa originalname do cliente).
+    const caminhoAvatar = `avatares/${req.usuario.id}-${Date.now()}.${EXTENSAO_POR_MIME[req.file.mimetype]}`;
+
+    const { error: erroUpload } = await supabase.storage
+      .from(SUPABASE_BUCKET)
+      .upload(caminhoAvatar, req.file.buffer, { contentType: req.file.mimetype });
+
+    if (erroUpload) {
+      console.error('Erro ao subir avatar pro Supabase Storage:', erroUpload);
+      return res.status(500).json({ status: 'erro', mensagem: 'Falha ao enviar a imagem.' });
+    }
+
+    const { data } = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(caminhoAvatar);
+    const urlNova = data.publicUrl;
+
+    await pool.query('UPDATE usuarios SET url_avatar = $1 WHERE id = $2', [urlNova, req.usuario.id]);
+
+    const caminhoAnterior = extrairCaminhoStorage(urlAnterior);
+    if (caminhoAnterior) {
+      const { error: erroRemocao } = await supabase.storage.from(SUPABASE_BUCKET).remove([caminhoAnterior]);
+      if (erroRemocao) {
+        console.error('Erro ao apagar avatar antigo do Storage (troca segue mesmo assim):', erroRemocao);
+      }
+    }
+
+    return res.status(200).json({ status: 'sucesso', url_avatar: urlNova });
+  } catch (erro) {
+    console.error('Erro ao salvar avatar:', erro);
+    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  }
+});
+
+// Define a música favorita do perfil (musicaId null = remove).
+app.put('/api/usuarios/eu/favorita', verificarAutenticacao, async (req, res) => {
+  const { musicaId } = req.body;
+  let idMusica = null;
+
+  try {
+    if (musicaId !== null && musicaId !== undefined) {
+      idMusica = parseInt(musicaId, 10);
+      if (!Number.isInteger(idMusica)) {
+        return res.status(400).json({ status: 'erro', mensagem: 'ID de música inválido.' });
+      }
+
+      const existe = await pool.query('SELECT id FROM musicas WHERE id = $1', [idMusica]);
+      if (!existe.rows[0]) {
+        return res.status(404).json({ status: 'erro', mensagem: 'Música não encontrada.' });
+      }
+    }
+
+    await pool.query('UPDATE usuarios SET musica_favorita_id = $1 WHERE id = $2', [idMusica, req.usuario.id]);
+    return res.status(200).json({ status: 'sucesso', musicaId: idMusica });
+  } catch (erro) {
+    console.error('Erro ao salvar música favorita:', erro);
+    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  }
+});
+
+// Substitui a lista de curtidas do perfil (até 4, na ordem enviada).
+app.put('/api/usuarios/eu/curtidas', verificarAutenticacao, async (req, res) => {
+  const { musicaIds } = req.body;
+
+  if (!Array.isArray(musicaIds)) {
+    return res.status(400).json({ status: 'erro', mensagem: 'Lista de músicas inválida.' });
+  }
+
+  const ids = [...new Set(musicaIds.map((valor) => parseInt(valor, 10)))];
+
+  if (ids.some((id) => !Number.isInteger(id))) {
+    return res.status(400).json({ status: 'erro', mensagem: 'Lista de músicas inválida.' });
+  }
+  if (ids.length > LIMITE_CURTIDAS_PERFIL) {
+    return res.status(400).json({ status: 'erro', mensagem: `Você pode escolher no máximo ${LIMITE_CURTIDAS_PERFIL} músicas curtidas.` });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    if (ids.length > 0) {
+      const existentes = await client.query('SELECT id FROM musicas WHERE id = ANY($1::int[])', [ids]);
+      if (existentes.rows.length !== ids.length) {
+        return res.status(404).json({ status: 'erro', mensagem: 'Alguma das músicas não existe mais.' });
+      }
+    }
+
+    await client.query('BEGIN');
+    await client.query('DELETE FROM perfil_curtidas WHERE usuario_id = $1', [req.usuario.id]);
+    for (let i = 0; i < ids.length; i++) {
+      await client.query(
+        'INSERT INTO perfil_curtidas (usuario_id, musica_id, posicao) VALUES ($1, $2, $3)',
+        [req.usuario.id, ids[i], i + 1]
+      );
+    }
+    await client.query('COMMIT');
+
+    return res.status(200).json({ status: 'sucesso', musicaIds: ids });
+  } catch (erro) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('Erro ao salvar curtidas do perfil:', erro);
+    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  } finally {
+    client.release();
   }
 });
 
@@ -777,7 +1061,7 @@ app.delete('/api/usuarios/eu', verificarAutenticacao, async (req, res) => {
 
   try {
     const resultadoUsuario = await client.query(
-      'SELECT email, nome_usuario FROM usuarios WHERE id = $1',
+      'SELECT email, nome_usuario, url_avatar FROM usuarios WHERE id = $1',
       [req.usuario.id]
     );
     const usuarioLogado = resultadoUsuario.rows[0];
@@ -813,6 +1097,9 @@ app.delete('/api/usuarios/eu', verificarAutenticacao, async (req, res) => {
       if (caminhoAudio) caminhosParaApagar.push(caminhoAudio);
       if (caminhoCapa) caminhosParaApagar.push(caminhoCapa);
     });
+
+    const caminhoAvatarConta = extrairCaminhoStorage(usuarioLogado.url_avatar);
+    if (caminhoAvatarConta) caminhosParaApagar.push(caminhoAvatarConta);
 
     if (caminhosParaApagar.length > 0) {
       const { error: erroStorage } = await supabase.storage.from(SUPABASE_BUCKET).remove(caminhosParaApagar);
