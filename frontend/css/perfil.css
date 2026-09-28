@@ -1,72 +1,134 @@
 /* ============================================================
-   perfil.css
-   Layout de duas janelas lado a lado (identidade + biblioteca).
-   Nenhum valor de cor é escrito aqui — tudo vem de var() já
-   definidas em root.css (espaçamento/raio/fonte) e theme.css
-   (cores). nada mocked por aqui
+   perfil.css — nenhum valor de cor escrito aqui, tudo vem de
+   var() de root.css/theme.css. Estética lo-fi: textura de grão
+   sutil, etiquetas levemente rotacionadas, cantos orgânicos —
+   tudo construído só com opacidade/transform/radius, sem cor nova.
    ============================================================ */
 
-/* centraliza tudo na tela sem depender de mais nada carregar certo:
-   como perfil.css só é importado por perfil.html, esta regra em
-   "body" não afeta o home.html de jeito nenhum. */
-body {
-    min-height: 100vh;
+.perfil-container {
     display: flex;
     justify-content: center;
+    align-items: stretch;
+    gap: var(--espaco-5);
+    max-width: 1100px;
+    width: 100%;
+    margin: 0 auto;
+    padding: var(--espaco-7) var(--espaco-5);
+    position: relative;
+}
+
+/* Textura de grão sutil por trás de tudo — pontinhos translúcidos
+   usando a MESMA cor de borda que já existe, só em opacidade baixa */
+.perfil-container::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    background-image: radial-gradient(var(--painel-borda) 1px, transparent 1px);
+    background-size: 3px 3px;
+    opacity: 0.5;
+}
+
+/* ============================================================
+   ESTADO "NÃO LOGADO"
+   ============================================================ */
+
+.perfil-bloqueado {
+    margin: 0 auto;
+    padding: var(--espaco-7);
+    text-align: center;
+    background: var(--painel-fundo);
+    border: 1px solid var(--painel-borda);
+    border-radius: var(--raio-grande);
+    box-shadow: var(--painel-sombra);
+    display: flex;
+    flex-direction: column;
+    gap: var(--espaco-3);
+    align-items: center;
+}
+
+.perfil-bloqueado-texto {
+    font-size: 1rem;
+    color: var(--cor-texto);
+}
+
+.perfil-bloqueado-link {
+    padding: var(--espaco-2) var(--espaco-4);
+    border-radius: var(--raio-pequeno);
+    background: var(--cor-primaria);
+    color: var(--texto-sobre-pastel);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.85rem;
+    transition: transform var(--transicao-rapida);
+}
+
+.perfil-bloqueado-link:hover {
+    transform: scale(1.03);
+}
+
+/* ============================================================
+   CONTEÚDO REAL
+   ============================================================ */
+
+.perfil-conteudo {
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+    gap: var(--espaco-5);
+    width: 100%;
+    flex-wrap: wrap;
 }
 
 .hidden {
     display: none !important;
 }
 
-.perfil-container {
-    display: flex;
-    justify-content: center;
-    gap: var(--espaco-5);
-    max-width: 1100px;
-    width: 100%;
-    margin: 0 auto;
-    padding: var(--espaco-7) var(--espaco-5);
-    align-items: stretch;
-    /* sem flex-wrap aqui de propósito: ou é lado a lado (acima de
-       760px) ou é empilhado (media query abaixo) — sem meio-termo
-       de quebra de linha malfeita entre os dois. */
-}
-
 /* ============================================================
-   JANELAS (moldura com aba, no mesmo padrão visual das abas
-   .secao-titulo já usadas em home.css)
+   JANELAS — etiqueta com leve rotação, estilo "colada à mão"
    ============================================================ */
 
 .perfil-janela {
     position: relative;
-    margin-top: 36px;
-    /* abre espaço pra aba, que fica posicionada acima do painel */
+    margin-top: 40px;
 }
 
 .perfil-janela-identidade {
+    flex: 1 1 240px;
+    max-width: 280px;
+}
+
+.perfil-janela-config {
     flex: 1 1 260px;
     max-width: 320px;
 }
 
 .perfil-janela-biblioteca {
-    flex: 2 1 480px;
+    flex: 1 1 340px;
+    max-width: 480px;
 }
 
 .perfil-janela-tab {
     position: absolute;
-    top: -36px;
-    left: 0;
+    top: -34px;
+    left: var(--espaco-3);
     z-index: 2;
     display: flex;
     align-items: center;
-    min-height: 36px;
-    padding: var(--espaco-2) var(--espaco-4);
-    border-radius: 12px 12px 0 0;
-    font-size: 1rem;
+    min-height: 34px;
+    padding: var(--espaco-1) var(--espaco-4);
+    border-radius: var(--raio-pequeno) var(--raio-pequeno) 0 0;
+    font-size: 0.95rem;
     font-weight: 800;
     color: var(--texto-sobre-pastel);
     white-space: nowrap;
+    transform: rotate(-1.5deg);
+    box-shadow: var(--sombra-suave);
+}
+
+.perfil-janela-biblioteca .perfil-janela-tab {
+    transform: rotate(1deg);
 }
 
 .perfil-janela-tab.aba-perfil {
@@ -75,6 +137,10 @@ body {
 
 .perfil-janela-tab.aba-biblioteca {
     background: var(--aba-biblioteca);
+}
+
+.perfil-janela-tab.aba-config {
+    background: var(--aba-config);
 }
 
 .perfil-painel {
@@ -88,32 +154,32 @@ body {
 }
 
 /* ============================================================
-   JANELA 1: IDENTIDADE
+   IDENTIDADE
    ============================================================ */
 
 .perfil-banner {
     width: 100%;
-    height: 120px;
+    height: 110px;
     background: var(--cor-superficie-clara);
+    background-image: repeating-linear-gradient(
+        135deg,
+        var(--painel-borda) 0px, var(--painel-borda) 1px,
+        transparent 1px, transparent 12px
+    );
 }
 
 .perfil-avatar-wrapper {
-    width: 80px;
-    height: 80px;
+    width: 78px;
+    height: 78px;
     border-radius: var(--raio-circular);
     overflow: hidden;
     position: absolute;
     left: var(--espaco-4);
-    top: 82px;
-    border: 4px solid var(--painel-fundo);
+    top: 78px;
+    border: 3px dashed var(--aba-perfil);
+    outline: 4px solid var(--painel-fundo);
     background: var(--cor-superficie);
     cursor: pointer;
-}
-
-.perfil-local-aviso {
-    font-size: 0.7rem;
-    color: var(--cor-texto-fraco);
-    font-style: italic;
 }
 
 .perfil-avatar {
@@ -121,6 +187,22 @@ body {
     height: 100%;
     object-fit: cover;
     display: block;
+}
+
+.perfil-avatar-remover {
+    position: absolute;
+    left: calc(var(--espaco-4) + 56px);
+    top: 78px;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--raio-circular);
+    border: none;
+    background: var(--cor-erro);
+    color: var(--texto-sobre-pastel);
+    font-size: 0.65rem;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 3;
 }
 
 .perfil-identidade {
@@ -131,28 +213,33 @@ body {
 }
 
 .perfil-nome {
-    font-size: 1.25rem;
+    font-size: 1.2rem;
     font-weight: 700;
     color: var(--cor-texto);
 }
 
-.perfil-bio {
-    font-size: 0.9rem;
+.perfil-bio-exibicao {
+    font-size: 0.88rem;
     color: var(--cor-texto-secundario);
     max-width: 60ch;
+    min-height: 1.4em;
     white-space: pre-wrap;
-    border-radius: var(--raio-pequeno);
-    cursor: text;
 }
 
-.perfil-bio:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px var(--input-borda-foco);
-    background: var(--cor-superficie-hover);
+.perfil-bio-exibicao:empty::before {
+    content: attr(data-placeholder);
+    color: var(--cor-texto-fraco);
+    font-style: italic;
+}
+
+.perfil-estatisticas {
+    font-size: 0.72rem;
+    color: var(--cor-texto-fraco);
+    margin-top: var(--espaco-1);
 }
 
 /* ============================================================
-   JANELA 2: BIBLIOTECA (três colunas)
+   BIBLIOTECA — três colunas
    ============================================================ */
 
 .perfil-biblioteca-colunas {
@@ -163,7 +250,7 @@ body {
     flex: 1;
     min-width: 0;
     padding: var(--espaco-5) var(--espaco-4);
-    border-right: 1px solid var(--painel-borda);
+    border-right: 1px dashed var(--painel-borda);
     display: flex;
     flex-direction: column;
     gap: var(--espaco-2);
@@ -176,31 +263,12 @@ body {
 .perfil-coluna-titulo {
     font-size: 0.85rem;
     font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    padding-left: var(--espaco-2);
-    border-left: 3px solid transparent;
     color: var(--cor-texto);
 }
 
-/* Cada coluna usa um dos tokens de aba já existentes em theme.css
-   como cor de destaque, sem inventar nenhum valor novo. */
-.perfil-acento-favorita {
-    border-left-color: var(--aba-musicas);
-}
-
-.perfil-acento-curtidas {
-    border-left-color: var(--aba-artistas);
-}
-
-.perfil-acento-playlists {
-    border-left-color: var(--aba-generos);
-}
-
-/* ============================================================
-   CAMPOS DE FILTRO E BOTÕES (mesma linguagem visual dos inputs
-   já usados nos modais do home.css/theme.css)
-   ============================================================ */
+.perfil-acento-favorita { color: var(--aba-musicas); }
+.perfil-acento-curtidas { color: var(--aba-artistas); }
+.perfil-acento-playlists { color: var(--aba-generos); }
 
 .perfil-filtro {
     width: 100%;
@@ -213,19 +281,9 @@ body {
     font-size: 0.85rem;
 }
 
-.perfil-filtro::placeholder {
-    color: var(--input-placeholder);
-}
-
-.perfil-filtro:focus {
-    outline: none;
-    border-color: var(--input-borda-foco);
-}
-
-.perfil-filtro:disabled {
-    cursor: not-allowed;
-    opacity: 0.6;
-}
+.perfil-filtro::placeholder { color: var(--input-placeholder); }
+.perfil-filtro:focus { outline: none; border-color: var(--input-borda-foco); }
+.perfil-filtro:disabled { cursor: not-allowed; opacity: 0.6; }
 
 .perfil-playlist-criar {
     display: flex;
@@ -237,40 +295,27 @@ body {
     border: none;
     border-radius: var(--raio-pequeno);
     font-weight: 700;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     cursor: pointer;
     background: var(--cor-primaria);
     color: var(--texto-sobre-pastel);
     transition: transform var(--transicao-rapida), filter var(--transicao-rapida);
 }
 
-.perfil-btn-salvar:hover:not(:disabled) {
-    filter: brightness(0.96);
-    transform: scale(1.02);
-}
-
-.perfil-btn-salvar:disabled {
-    cursor: not-allowed;
-    background: var(--cor-superficie-clara);
-    color: var(--cor-texto-fraco);
-}
-
-/* ============================================================
-   LISTA DE RESULTADOS (catálogo filtrado, estados de carregando/
-   vazio/erro e itens selecionáveis)
-   ============================================================ */
+.perfil-btn-salvar:hover { filter: brightness(0.96); transform: scale(1.04); }
+.perfil-btn-salvar:disabled { cursor: not-allowed; background: var(--cor-superficie-clara); color: var(--cor-texto-fraco); }
 
 .perfil-resultados {
     display: flex;
     flex-direction: column;
     gap: var(--espaco-1);
     list-style: none;
-    max-height: 220px;
+    max-height: 200px;
     overflow-y: auto;
 }
 
 .perfil-estado-mensagem {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-style: italic;
     color: var(--cor-texto-fraco);
     padding: var(--espaco-2) 0;
@@ -283,11 +328,12 @@ body {
     padding: var(--espaco-1) var(--espaco-2);
     border-radius: var(--raio-pequeno);
     cursor: pointer;
-    transition: background var(--transicao-rapida);
+    transition: background var(--transicao-rapida), transform var(--transicao-rapida);
 }
 
 .perfil-resultado-item:hover {
     background: var(--cor-superficie-hover);
+    transform: translateX(2px);
 }
 
 .perfil-resultado-item.selecionado {
@@ -296,8 +342,8 @@ body {
 }
 
 .perfil-resultado-capa {
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
     border-radius: var(--raio-pequeno);
     object-fit: cover;
     flex-shrink: 0;
@@ -307,10 +353,11 @@ body {
     display: flex;
     flex-direction: column;
     min-width: 0;
+    flex-grow: 1;
 }
 
 .perfil-resultado-titulo {
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     font-weight: 600;
     color: var(--cor-texto);
     white-space: nowrap;
@@ -318,28 +365,40 @@ body {
     text-overflow: ellipsis;
 }
 
-.perfil-resultado-artista {
-    font-size: 0.72rem;
+.perfil-resultado-artista,
+.perfil-playlist-faixas {
+    font-size: 0.7rem;
     color: var(--cor-texto-secundario);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.perfil-selecao-atual {
-    font-size: 0.78rem;
-    color: var(--cor-texto-secundario);
+.perfil-resultado-remover {
+    background: none;
+    border: none;
+    color: var(--cor-texto-fraco);
+    cursor: pointer;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    padding: 0 var(--espaco-1);
 }
 
-/* ============================================================
-   NOTA DE RODAPÉ DA BIBLIOTECA
-   ============================================================ */
+.perfil-resultado-remover:hover {
+    color: var(--cor-erro);
+}
+
+.perfil-selecao-atual {
+    font-size: 0.75rem;
+    color: var(--cor-texto-secundario);
+    min-height: 1.2em;
+}
 
 .perfil-biblioteca-nota {
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     color: var(--cor-texto-fraco);
     padding: var(--espaco-3) var(--espaco-4);
-    border-top: 1px solid var(--painel-borda);
+    border-top: 1px dashed var(--painel-borda);
     line-height: 1.5;
 }
 
@@ -352,24 +411,130 @@ body {
    ============================================================ */
 
 @media (max-width: 760px) {
-    .perfil-container {
-        flex-direction: column;
-    }
+    .perfil-conteudo { flex-direction: column; }
+    .perfil-janela-identidade,
+    .perfil-janela-config,
+    .perfil-janela-biblioteca { max-width: none; }
+    .perfil-biblioteca-colunas { flex-direction: column; }
+    .perfil-coluna { border-right: none; border-bottom: 1px dashed var(--painel-borda); }
+    .perfil-coluna:last-child { border-bottom: none; }
+}
 
-    .perfil-janela-identidade {
-        max-width: none;
-    }
+/* ============================================================
+   JANELA 2: CONFIGURAÇÕES
+   ============================================================ */
 
-    .perfil-biblioteca-colunas {
-        flex-direction: column;
-    }
+.perfil-painel-config {
+    padding: var(--espaco-5) var(--espaco-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--espaco-4);
+}
 
-    .perfil-coluna {
-        border-right: none;
-        border-bottom: 1px solid var(--painel-borda);
-    }
+.perfil-config-secao {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espaco-2);
+}
 
-    .perfil-coluna:last-child {
-        border-bottom: none;
-    }
+.perfil-config-titulo {
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: var(--cor-texto);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.perfil-config-divisor {
+    border: none;
+    border-top: 1px dashed var(--painel-borda);
+    margin: 0;
+}
+
+.perfil-config-avatar-linha {
+    display: flex;
+    align-items: center;
+    gap: var(--espaco-3);
+}
+
+.perfil-config-avatar-preview {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--raio-circular);
+    object-fit: cover;
+    border: 3px dashed var(--aba-config);
+    flex-shrink: 0;
+}
+
+.perfil-config-avatar-botoes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espaco-1);
+    align-items: flex-start;
+}
+
+.perfil-btn-secundario {
+    padding: var(--espaco-1) var(--espaco-3);
+    border: 1px solid var(--input-borda);
+    border-radius: var(--raio-pequeno);
+    background: transparent;
+    color: var(--cor-texto-secundario);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--transicao-rapida);
+}
+
+.perfil-btn-secundario:hover {
+    background: var(--cor-superficie-hover);
+}
+
+.perfil-config-textarea {
+    width: 100%;
+    resize: vertical;
+    min-height: 80px;
+    padding: var(--espaco-2) var(--espaco-3);
+    border-radius: var(--raio-pequeno);
+    border: 1px solid var(--input-borda);
+    background: var(--input-fundo);
+    color: var(--input-texto);
+    font-family: inherit;
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.perfil-config-textarea::placeholder {
+    color: var(--input-placeholder);
+}
+
+.perfil-config-textarea:focus {
+    outline: none;
+    border-color: var(--input-borda-foco);
+}
+
+.perfil-config-bio-rodape {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--espaco-2);
+}
+
+.perfil-config-contador {
+    font-size: 0.72rem;
+    color: var(--cor-texto-fraco);
+}
+
+.perfil-config-status {
+    font-size: 0.72rem;
+    color: var(--cor-texto-secundario);
+    min-height: 1.2em;
+}
+
+/* ============================================================
+   BOTÃO DE TEMA
+   ============================================================ */
+
+.perfil-btn-tema {
+    align-self: flex-start;
+    font-size: 0.8rem;
 }
