@@ -580,3 +580,183 @@
     align-self: flex-start;
     font-size: 0.8rem;
 }
+
+/* ============================================================
+   PLAYER BAR — estilos que theme.css não cobre (volume, layout)
+   ============================================================ */
+
+.player-barra {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 24px;
+    z-index: 900;
+}
+
+.player-capa {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--raio-pequeno);
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.player-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 100px;
+    max-width: 160px;
+    flex-shrink: 0;
+}
+
+.player-titulo {
+    font-weight: 700;
+    font-size: 0.85rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--cor-texto);
+}
+
+.player-artista {
+    font-size: 0.75rem;
+    color: var(--cor-texto-secundario);
+}
+
+#player-play-pause {
+    border: none;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+    background: var(--cor-primaria);
+    color: #fff8f3;
+}
+
+.player-tempo {
+    font-size: 0.75rem;
+    min-width: 35px;
+    text-align: center;
+    flex-shrink: 0;
+    color: var(--cor-texto-fraco);
+}
+
+.player-seek {
+    flex-grow: 1;
+    accent-color: var(--cor-primaria);
+}
+
+/* --- Controle de Volume --- */
+.player-volume {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.btn-volume {
+    border: none;
+    background: transparent;
+    color: var(--cor-texto);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: var(--raio-pequeno);
+    transition: color 0.2s ease, background-color 0.2s ease;
+    flex-shrink: 0;
+}
+
+.btn-volume:hover {
+    color: var(--cor-primaria);
+    background: var(--cor-superficie-clara);
+}
+
+.volume-slider {
+    width: 90px;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--cor-borda);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+    transition: width 0.3s ease;
+}
+
+.volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--cor-primaria);
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.volume-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.volume-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border: none;
+    border-radius: 50%;
+    background: var(--cor-primaria);
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.volume-slider::-moz-range-thumb:hover {
+    transform: scale(1.2);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.volume-slider::-moz-range-track {
+    height: 4px;
+    background: var(--cor-borda);
+    border-radius: 2px;
+}
+
+/* Animação de entrada/saída do slider de volume */
+.player-volume:hover .volume-slider,
+.player-volume:focus-within .volume-slider {
+    width: 90px;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.player-volume .volume-slider {
+    transition: width 0.3s ease, opacity 0.3s ease;
+}
+
+.player-barra .btn-icone {
+    background: var(--cor-superficie-clara);
+    color: var(--cor-texto);
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    font-size: 1rem;
+    flex-shrink: 0;
+    transition: background 0.2s ease;
+}
+
+.player-barra .btn-icone:hover {
+    background: var(--cor-superficie-hover);
+}
+
+.btn-icone.ativo {
+    color: #ff6b8b;
+}
