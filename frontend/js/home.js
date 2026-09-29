@@ -1,8 +1,33 @@
 // ============================================================
-// TEMA CLARO / ESCURO (salvo no localStorage por enquanto)
+// TEMA CLARO / ESCURO (salvo no localStorage e sincronizado com backend)
 // ============================================================
 const btnTema = document.getElementById('btn-tema');
-const CHAVE_TEMA = 'temaOpenSound';
+const CHAVE_TEMA = 'opensound_tema';
+const API_BASE = 'http://localhost:3000';
+const CHAVE_SESSAO = 'tokenSessao';
+
+function obterTokenSessao() {
+  return localStorage.getItem(CHAVE_SESSAO);
+}
+
+function estaLogado() {
+  return !!obterTokenSessao();
+}
+
+async function fetchComAutenticacao(url, opcoes = {}) {
+  const token = obterTokenSessao();
+  const headers = { ...(opcoes.headers || {}), Authorization: `Bearer ${token}` };
+
+  const resposta = await fetch(url, { ...opcoes, headers });
+
+  if (resposta.status === 401) {
+    localStorage.removeItem(CHAVE_SESSAO);
+    atualizarUIAutenticacao();
+    alert('Sua sessão expirou. Faça login novamente.');
+  }
+
+  return resposta;
+}
 
 function aplicarTema(tema) {
   if (tema === 'light') {
@@ -13,14 +38,46 @@ function aplicarTema(tema) {
   if (btnTema) btnTema.textContent = tema === 'light' ? '🌙' : '☀️';
 }
 
+// Aplica tema do localStorage imediatamente (evita flash)
 aplicarTema(localStorage.getItem(CHAVE_TEMA) || 'dark');
 
+async function carregarTemaDoBackend() {
+  if (!estaLogado()) return;
+  try {
+    const resposta = await fetchComAutenticacao(`${API_BASE}/api/perfil`);
+    if (resposta.ok) {
+      const { perfil } = await resposta.json();
+      if (perfil?.usuario?.tema) {
+        const tema = perfil.usuario.tema;
+        localStorage.setItem(CHAVE_TEMA, tema);
+        aplicarTema(tema);
+      }
+    }
+  } catch (erro) {
+    console.error('Erro ao carregar tema do backend:', erro);
+  }
+}
+
+async function salvarTemaNoBackend(tema) {
+  if (!estaLogado()) return;
+  try {
+    await fetchComAutenticacao(`${API_BASE}/api/perfil/tema`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tema })
+    });
+  } catch (erro) {
+    console.error('Erro ao salvar tema no backend:', erro);
+  }
+}
+
 if (btnTema) {
-  btnTema.addEventListener('click', () => {
+  btnTema.addEventListener('click', async () => {
     const temaAtual = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
     const novoTema = temaAtual === 'light' ? 'dark' : 'light';
     localStorage.setItem(CHAVE_TEMA, novoTema);
     aplicarTema(novoTema);
+    await salvarTemaNoBackend(novoTema);
   });
 }
 
@@ -396,37 +453,12 @@ if (btnReenviar2FA) {
 // LOGIN / SESSÃO
 // ============================================================
 
-const CHAVE_SESSAO = 'tokenSessao';
-
-function obterTokenSessao() {
-  return localStorage.getItem(CHAVE_SESSAO);
-}
-
-function estaLogado() {
-  return !!obterTokenSessao();
-}
-
 function atualizarUIAutenticacao() {
   const logado = estaLogado();
 
   if (btnEntrar) btnEntrar.classList.toggle('hidden', logado);
   if (btnRegister) btnRegister.classList.toggle('hidden', logado);
   if (btnSair) btnSair.classList.toggle('hidden', !logado);
-}
-
-async function fetchComAutenticacao(url, opcoes = {}) {
-  const token = obterTokenSessao();
-  const headers = { ...(opcoes.headers || {}), Authorization: `Bearer ${token}` };
-
-  const resposta = await fetch(url, { ...opcoes, headers });
-
-  if (resposta.status === 401) {
-    localStorage.removeItem(CHAVE_SESSAO);
-    atualizarUIAutenticacao();
-    alert('Sua sessão expirou. Faça login novamente.');
-  }
-
-  return resposta;
 }
 
 if (btnEntrar && modalLogin) {
@@ -468,7 +500,8 @@ if (formLogin) {
         localStorage.setItem(CHAVE_SESSAO, dados.tokenSessao);
         atualizarUIAutenticacao();
 
-        carregarFavoritos();  
+        carregarFavoritos();
+        carregarTemaDoBackend();  // Carrega tema salvo no perfil
 
         if (modalLogin) modalLogin.classList.add('hidden');
         formLogin.reset();
@@ -514,6 +547,7 @@ if (btnSair) {
 
 // Estado inicial da navbar ao carregar a página
 atualizarUIAutenticacao();
+if (estaLogado()) carregarTemaDoBackend();
 
 // ============================================================
 // MODAL DE LOGIN — MELHORIAS (olho, links, toggle modais)

@@ -68,6 +68,7 @@ const elConteudo = document.getElementById('perfil-conteudo');
 
 // Janela 1 — Perfil (só exibição)
 const elNome = document.getElementById('perfil-nome');
+const elUsuario = document.getElementById('perfil-usuario');
 const elBioExibicao = document.getElementById('perfil-bio');
 const elEstatisticas = document.getElementById('perfil-estatisticas');
 const elAvatar = document.getElementById('perfil-avatar');
@@ -89,8 +90,6 @@ const elFavoritaFiltro = document.getElementById('perfil-favorita-filtro');
 const elFavoritaResultados = document.getElementById('perfil-favorita-resultados');
 const elFavoritaSelecionada = document.getElementById('perfil-favorita-selecionada');
 
-const elPlaylistForm = document.getElementById('perfil-playlist-form');
-const elPlaylistNome = document.getElementById('perfil-playlist-nome');
 const elPlaylistsLista = document.getElementById('perfil-playlists-lista');
 
 // ================================================================
@@ -129,6 +128,15 @@ function renderizarPerfil(perfil) {
 
     const nomeExibido = usuario.eh_artista && usuario.nome_artista ? usuario.nome_artista : usuario.nome_usuario || 'Sem nome';
     elNome.textContent = nomeExibido;
+    
+    // Mostra @nome_usuario abaixo do nome
+    if (usuario.nome_usuario) {
+        elUsuario.textContent = `@${usuario.nome_usuario}`;
+        elUsuario.style.display = 'block';
+    } else {
+        elUsuario.style.display = 'none';
+    }
+    
     elBioExibicao.textContent = usuario.bio || '';
 
     const urlAvatar = usuario.avatar_url || '../assets/avatar-padrao.png';
@@ -270,13 +278,10 @@ elConfigAvatarRemover.addEventListener('click', async () => {
 });
 
 // ================================================================
-// TEMA CLARO/ESCURO
-// A mesma chave que o botão #btn-tema do home.js deveria usar quando
-// alguém acrescentar o listener que falta lá (ver observação em
-// conversas anteriores: hoje esse botão não faz nada no home.js).
+// TEMA CLARO/ESCURO — salvo no perfil do usuário (backend)
 // ================================================================
 
-const CHAVE_TEMA = 'opensound_tema';
+const CHAVE_TEMA_LOCAL = 'opensound_tema';
 const elTemaBtn = document.getElementById('config-tema-btn');
 
 function temaAtual() {
@@ -287,15 +292,32 @@ function atualizarTextoBotaoTema() {
     elTemaBtn.textContent = temaAtual() === 'light' ? '☀️ Claro' : '🌙 Escuro';
 }
 
-elTemaBtn.addEventListener('click', () => {
-    const novoTema = temaAtual() === 'light' ? 'dark' : 'light';
-    if (novoTema === 'light') {
+function aplicarTema(tema) {
+    if (tema === 'light') {
         document.documentElement.dataset.theme = 'light';
     } else {
-        delete document.documentElement.dataset.theme; // ausência = escuro (padrão do theme.css)
+        delete document.documentElement.dataset.theme;
     }
-    localStorage.setItem(CHAVE_TEMA, novoTema);
     atualizarTextoBotaoTema();
+}
+
+async function salvarTemaNoBackend(tema) {
+    try {
+        await fetchComAutenticacao(`${API_BASE}/api/perfil/tema`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tema })
+        });
+    } catch (erro) {
+        console.error('Erro ao salvar tema no backend:', erro);
+    }
+}
+
+elTemaBtn.addEventListener('click', async () => {
+    const novoTema = temaAtual() === 'light' ? 'dark' : 'light';
+    aplicarTema(novoTema);
+    localStorage.setItem(CHAVE_TEMA_LOCAL, novoTema);
+    await salvarTemaNoBackend(novoTema);
 });
 
 // ================================================================
@@ -436,29 +458,6 @@ function renderizarPlaylists(playlists) {
     });
 }
 
-elPlaylistForm.addEventListener('submit', async (evento) => {
-    evento.preventDefault();
-    const nome = elPlaylistNome.value.trim();
-    if (!nome) return;
-
-    try {
-        const resposta = await fetchComAutenticacao(`${API_BASE}/api/perfil/playlists`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nome })
-        });
-        const dados = await resposta.json().catch(() => null);
-        if (!resposta.ok) { alert(dados?.mensagem || 'Não foi possível criar a playlist.'); return; }
-
-        elPlaylistNome.value = '';
-        invalidarCachePerfil();
-        await carregarPerfil({ usarCache: false });
-    } catch (erro) {
-        alert('Erro de conexão ao criar a playlist.');
-        console.error(erro);
-    }
-});
-
 async function excluirPlaylist(id) {
     try {
         const resposta = await fetchComAutenticacao(`${API_BASE}/api/perfil/playlists/${id}`, { method: 'DELETE' });
@@ -478,7 +477,11 @@ async function excluirPlaylist(id) {
 document.addEventListener('DOMContentLoaded', () => {
     if (!estaLogado()) { mostrarBloqueado(); return; }
     mostrarConteudo();
-    atualizarTextoBotaoTema();
+    
+    // Carrega tema do localStorage primeiro (rápido), depois sincroniza com backend
+    const temaLocal = localStorage.getItem(CHAVE_TEMA_LOCAL);
+    if (temaLocal) aplicarTema(temaLocal);
+    
     atualizarContadorBio();
     carregarPerfil();
     carregarCatalogo();

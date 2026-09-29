@@ -56,6 +56,7 @@
 
                     <div class="perfil-identidade">
                         <h1 id="perfil-nome" class="perfil-nome">Carregando perfil...</h1>
+                        <p id="perfil-usuario" class="perfil-usuario"></p>
                         <p id="perfil-bio" class="perfil-bio-exibicao" data-placeholder="Nenhuma biografia ainda."></p>
                         <p id="perfil-estatisticas" class="perfil-estatisticas"></p>
                     </div>
@@ -134,11 +135,6 @@
 
                         <div class="perfil-coluna" aria-labelledby="titulo-playlists">
                             <h2 id="titulo-playlists" class="perfil-coluna-titulo perfil-acento-playlists">♫ Playlists</h2>
-                            <form id="perfil-playlist-form" class="perfil-playlist-criar">
-                                <input type="text" id="perfil-playlist-nome" class="perfil-filtro"
-                                    placeholder="Nome da nova playlist" maxlength="60">
-                                <button type="submit" class="perfil-btn-salvar">+</button>
-                            </form>
                             <ul id="perfil-playlists-lista" class="perfil-resultados" data-estado="carregando">
                                 <li class="perfil-estado-mensagem">Carregando playlists...</li>
                             </ul>

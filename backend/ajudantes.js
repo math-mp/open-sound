@@ -1,101 +1,81 @@
 // ============================================================
 // ajudantes.js
 //
-// Funções pequenas e isoladas que são reutilizadas pelo server.js.
-// NÃO é um segundo server.js: aqui mora apenas lógica sem rota,
-// sem regra de negócio e sem estado. As rotas continuam todas no
-// server.js.
-//
-// Helpers:
-//   tamanhoEmCaracteres  -> conta texto como o Postgres conta
-//   detectarTipoImagem   -> valida a imagem pelos bytes, não pelo MIME
-//   comTravaDoUsuario    -> transação com trava de linha por usuário
-//   removerArquivoDoStorage -> apaga um arquivo do bucket (melhor-esforço)
-//   ehViolacaoDeChave   -> identifica erro de integridade do Postgres
+// Funções pequenas e reutilizáveis pelo server.js. Sem rotas e sem estado.
 // ============================================================
 
-// ---------- contagem de caracteres ----------
+// ---------- erros de regra de negócio ----------
+// Lançados dentro de transações; as rotas traduzem cada um para o status certo.
+class UsuarioInexistente extends Error {}
+class MusicaInexistente extends Error {}
+class LimiteDePlaylists extends Error {}
 
-// O `.length` do JavaScript conta unidades UTF-16, então um emoji conta 2
-// (o par substituto) enquanto o Postgres (que conta pontos de código) conta
-// 1. Espalhar as duas contagens faz o limite aceito pelo servidor divergir do
-// que o usuário vê no contador do front. O spread converte em pontos de
-// código, que é exatamente a unidade que o banco usa.
+// ---------- contagem de caracteres ----------
+// `.length` conta unidades UTF-16 (emoji = 2); o Postgres conta pontos de
+// código (emoji = 1). O spread converte em pontos de código.
 const tamanhoEmCaracteres = (texto) => [...texto].length;
 
-// ---------- validação real de imagem ----------
+// Aceita só inteiros positivos "de verdade" (nada de "12abc", 1.5 ou "").
+function paraIdValido(valor) {
+  const numero = typeof valor === 'string' && /^\d+$/.test(valor) ? Number(valor) : valor;
+  return Number.isSafeInteger(numero) && numero > 0 ? numero : null;
+}
 
-// Formatos que o projeto aceita, por assinatura real de arquivo.
-// Chaveado pelo mime detectado, e não pelo que o cliente declarou.
+// ---------- validação real de arquivos (pelos bytes, não pelo MIME) ----------
+
 const TIPOS_IMAGEM = {
   'image/png': { extensao: 'png' },
   'image/jpeg': { extensao: 'jpg' },
   'image/webp': { extensao: 'webp' }
 };
 
-// O `file.mimetype` do Multer vem do cabeçalho Content-Type enviado pelo
-// cliente: é uma declaração, não uma prova, e é trivial de forjar
-// ("declare image/png, envie qualquer coisa"). Como o bucket do Storage é
-// público, aceitar isso na confiança significaria hospedar arquivo arbitrário
-// sob uma URL de imagem. Aqui a decisão é tomada pelos primeiros bytes, que
-// o cliente não consegue forjar sem produzir um arquivo de verdade.
-//
-// Cada formato tem um cabeçalho fixo e conhecido:
-//   PNG  -> 89 50 4E 47 0D 0A 1A 0A
-//   JPEG -> FF D8 FF
-//   WEBP -> "RIFF" .... "WEBP"
+// O mimetype enviado pelo cliente é só uma declaração e é trivial de forjar.
+// Como o bucket é público, decidimos pelos primeiros bytes.
 function detectarTipoImagem(buffer) {
   if (!buffer || buffer.length < 12) return null;
 
-  const assinaturaPng = buffer.subarray(0, 8);
-  if (assinaturaPng.equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+  if (buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
     return { mime: 'image/png', ...TIPOS_IMAGEM['image/png'] };
   }
-
   if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
     return { mime: 'image/jpeg', ...TIPOS_IMAGEM['image/jpeg'] };
   }
-
-  // Só os 4 primeiros bytes cabem no WebP; o `length < 12` acima já
-  // garante que ler os bytes 8..12 é seguro.
-  const ehRiff = buffer.subarray(0, 4).toString('ascii') === 'RIFF';
-  const ehWebp = buffer.subarray(8, 12).toString('ascii') === 'WEBP';
-  if (ehRiff && ehWebp) {
+  if (buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP') {
     return { mime: 'image/webp', ...TIPOS_IMAGEM['image/webp'] };
   }
+  return null;
+}
 
+// MP3 (com ou sem tag ID3), WAV e OGG.
+function detectarTipoAudio(buffer) {
+  if (!buffer || buffer.length < 12) return null;
+
+  const inicio = buffer.subarray(0, 4).toString('ascii');
+  if (buffer.subarray(0, 3).toString('ascii') === 'ID3' || (buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0)) {
+    return { mime: 'audio/mpeg', extensao: 'mp3' };
+  }
+  if (inicio === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WAVE') {
+    return { mime: 'audio/wav', extensao: 'wav' };
+  }
+  if (inicio === 'OggS') {
+    return { mime: 'audio/ogg', extensao: 'ogg' };
+  }
   return null;
 }
 
 // ---------- integridade referencial ----------
-
-// Códigos do Postgres que o projeto encontra de verdade:
-//   23503 -> violação de chave estrangeira (a linha referenciada sumiu)
-//   23505 -> violação de restrição única (duplicata)
-//   23514 -> violação de check
+//   23503 -> chave estrangeira (a linha referenciada sumiu)
+//   23505 -> restrição única (duplicata)
 const ehViolacaoDeChave = (erro, codigos = ['23503', '23505']) =>
   Boolean(erro) && codigos.includes(erro.code);
 
-// ---------- transação com trava de linha ----------
+const ehMusicaSumida = (erro) =>
+  erro instanceof MusicaInexistente || ehViolacaoDeChave(erro, ['23503']);
 
-// Executa `trabalho` numa transação que antes TRAVA a linha do próprio usuário.
-// Duas requisições do mesmo usuário passam a rodar em fila (a segunda espera a
-// primeira terminar); usuários diferentes continuam totalmente paralelos.
-//
-// Sem isso, PUT /api/usuarios/eu/curtidas tinha uma corrida real: cada
-// requisição faz DELETE da lista inteira e depois reinsere. Duas requisições
-// simultâneas do MESMO usuário podiam intercalar o INSERT de uma dentro da
-// lista da outra, violando o UNIQUE(usuario_id, musica_id) e devolvendo 500 —
-// ou, sem violação, gravando uma lista misturada das duas.
-//
-// "FOR NO KEY UPDATE" em vez de "FOR UPDATE": ambos travam a linha, mas o
-// primeiro NÃO conflita com o lock de FOR KEY SHARE que o próprio Postgres
-// toma na linha de `usuarios` para validar a chave estrangeira quando os
-// INSERTs em perfil_curtidas acontecem. "FOR UPDATE" conflitaria com essa
-// validação e criaria risco de deadlock sem ganhar nada aqui, já que só a
-// própria transação insere filhos.
-class UsuarioInexistente extends Error {}
-
+// ---------- transação com trava de linha por usuário ----------
+// Requisições do MESMO usuário rodam em fila; usuários diferentes seguem em
+// paralelo. FOR NO KEY UPDATE (e não FOR UPDATE) para não conflitar com o
+// FOR KEY SHARE que o Postgres toma ao validar chaves estrangeiras.
 async function comTravaDoUsuario(pool, usuarioId, trabalho) {
   const client = await pool.connect();
 
@@ -120,35 +100,53 @@ async function comTravaDoUsuario(pool, usuarioId, trabalho) {
   }
 }
 
-// ---------- limpeza de arquivos no Storage ----------
+// ---------- limpeza de arquivos no Storage (melhor-esforço) ----------
 
-// Apaga um arquivo do bucket a partir da URL pública. É "melhor-esforço":
-// um arquivo órfão não pode impedir a operação que chamou isso (trocar
-// avatar, excluir conta/música). Retorna true se apagou, false se não havia
-// caminho reconhecível ou se o Storage recusou.
-async function removerArquivoDoStorage(supabase, bucket, urlPublica) {
-  if (!urlPublica) return false;
-
+// Transforma a URL pública de volta no caminho dentro do bucket.
+function extrairCaminhoNoBucket(urlPublica, bucket) {
+  if (!urlPublica) return null;
   const marcador = `/storage/v1/object/public/${bucket}/`;
   const indice = urlPublica.indexOf(marcador);
-  if (indice === -1) return false;
-
-  const caminho = urlPublica.slice(indice + marcador.length);
-
-  const { error } = await supabase.storage.from(bucket).remove([caminho]);
-  if (error) {
-    console.error('Não foi possível apagar o arquivo do Storage:', error);
-    return false;
-  }
-  return true;
+  if (indice === -1) return null;
+  return urlPublica.slice(indice + marcador.length);
 }
 
+// Apaga vários arquivos de uma vez. Nunca lança: um arquivo órfão não pode
+// impedir a operação que chamou isto.
+async function removerArquivosDoStorage(supabase, bucket, urlsPublicas) {
+  const caminhos = urlsPublicas
+    .map((url) => extrairCaminhoNoBucket(url, bucket))
+    .filter(Boolean);
+
+  if (caminhos.length === 0) return false;
+
+  let tudoCerto = true;
+  for (let i = 0; i < caminhos.length; i += 100) {
+    const { error } = await supabase.storage.from(bucket).remove(caminhos.slice(i, i + 100));
+    if (error) {
+      console.error('Não foi possível apagar arquivos do Storage:', error);
+      tudoCerto = false;
+    }
+  }
+  return tudoCerto;
+}
+
+const removerArquivoDoStorage = (supabase, bucket, urlPublica) =>
+  removerArquivosDoStorage(supabase, bucket, [urlPublica]);
+
 module.exports = {
-  tamanhoEmCaracteres,
-  detectarTipoImagem,
-  TIPOS_IMAGEM,
-  comTravaDoUsuario,
   UsuarioInexistente,
-  removerArquivoDoStorage,
-  ehViolacaoDeChave
+  MusicaInexistente,
+  LimiteDePlaylists,
+  tamanhoEmCaracteres,
+  paraIdValido,
+  TIPOS_IMAGEM,
+  detectarTipoImagem,
+  detectarTipoAudio,
+  ehViolacaoDeChave,
+  ehMusicaSumida,
+  comTravaDoUsuario,
+  extrairCaminhoNoBucket,
+  removerArquivosDoStorage,
+  removerArquivoDoStorage
 };

@@ -1,233 +1,274 @@
-require('dotenv').config(); // Puxa variáveis globais do .env
+require('dotenv').config();
 const express = require('express');
 const nodemailer = require('nodemailer');
 const cors = require('cors');
-const pool = require('./database'); // Importa a conexão com o PostgreSQL
 const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const multer = require('multer');
 const crypto = require('crypto');
+const pool = require('./database');
 const { supabase, SUPABASE_BUCKET, garantirBucket } = require('./storage');
 const {
-  tamanhoEmCaracteres,
-  detectarTipoImagem,
-  comTravaDoUsuario,
   UsuarioInexistente,
-  removerArquivoDoStorage,
-  ehViolacaoDeChave
+  MusicaInexistente,
+  LimiteDePlaylists,
+  tamanhoEmCaracteres,
+  paraIdValido,
+  detectarTipoImagem,
+  detectarTipoAudio,
+  ehViolacaoDeChave,
+  ehMusicaSumida,
+  comTravaDoUsuario,
+  removerArquivosDoStorage,
+  removerArquivoDoStorage
 } = require('./ajudantes');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// CORREÇÃO: sem fallback fraco hardcoded. Se a variável não existir,
-// o servidor para na inicialização em vez de rodar com um segredo previsível.
+// Sem fallback fraco: se a variável não existir, o servidor não sobe.
 const JWT_SECRET_SESSAO = process.env.JWT_SECRET_SESSAO;
 if (!JWT_SECRET_SESSAO) {
   throw new Error('JWT_SECRET_SESSAO precisa estar definido no .env. Defina um valor forte antes de subir o servidor.');
 }
 
+// Só desative a verificação de certificado se sua rede/antivírus interceptar
+// TLS: coloque SMTP_INSECURE_TLS=true no .env (apenas em desenvolvimento).
 const transporter = nodemailer.createTransport({
   service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS
-  },
-  tls: { rejectUnauthorized: false }
+  auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_PASS },
+  tls: { rejectUnauthorized: process.env.SMTP_INSECURE_TLS !== 'true' }
 });
 
-// Funções de validação via RegEx
+// ============================================================
+// CONSTANTES E HELPERS GERAIS
+// ============================================================
+
+const EM_PRODUCAO = process.env.NODE_ENV === 'production';
+
+const MSG_SENHA_FRACA = 'A senha deve ter no mínimo 8 caracteres, incluindo pelo menos uma letra maiúscula, uma minúscula, um número e um caractere especial (@$!%*?&#).';
+const EXPIRACAO_CODIGO_MS = 10 * 60 * 1000;
+const ESPERA_REENVIO_S = 60;
+const MAX_TENTATIVAS_CODIGO = 5;
+
+const LIMITE_REDEFINICOES_MODAL = 3;
+const JANELA_REDEFINICOES_MODAL_HORAS = 24;
+const COOLDOWN_REDEFINICAO_MS = 24 * 60 * 60 * 1000;
+const COOLDOWN_EXCLUSAO_MUSICA_MS = 24 * 60 * 60 * 1000;
+
+const NOME_USUARIO_MAX = 28;
+const NOME_ARTISTA_MAX = 60;
+const TITULO_MUSICA_MAX = 255;
+const BIO_MAX = 220;
+const CURTIDAS_MAX = 4;
+const PLAYLIST_NOME_MAX = 60;
+const PLAYLISTS_MAX_POR_USUARIO = 20;
+const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+const CAPA_MAX_BYTES = 5 * 1024 * 1024;
+const AUDIO_MAX_BYTES = 25 * 1024 * 1024;
+const TEMAS_VALIDOS = ['light', 'dark'];
+const COLUNAS_MUSICA = 'm.id, m.titulo, m.artista, m.url_audio, m.url_capa';
+
+const falha = (res, status, mensagem, extra = {}) =>
+  res.status(status).json({ status: 'erro', mensagem, ...extra });
+
+const sucesso = (res, corpo = {}, status = 200) =>
+  res.status(status).json({ status: 'sucesso', ...corpo });
+
+const falhaInterna = (res, contexto, erro) => {
+  console.error(`Erro em ${contexto}:`, erro);
+  return falha(res, 500, 'Erro interno no servidor.');
+};
+
+const ehTexto = (valor) => typeof valor === 'string';
+const gerarCodigo = () => crypto.randomInt(100000, 1000000).toString();
+const expirado = (data) => new Date(data).getTime() < Date.now();
+
 function validarEmail(email) {
-  const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return regexEmail.test(email);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 function validarSenhaForte(senha) {
-  const regexSenha = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@()!%*?&#])[A-Za-z\d@()!%*?&#]{8,}$/;
-  return regexSenha.test(senha);
+  return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@()!%*?&#])[A-Za-z\d@()!%*?&#]{8,}$/.test(senha);
 }
 
-const limitarRegistroIP = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  message: {
-    status: 'erro',
-    mensagem: 'Muitas tentativas de registro a partir deste IP. Tente novamente mais tarde.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false
-});
+async function enviarEmail(para, assunto, texto) {
+  try {
+    await transporter.sendMail({
+      from: `"Open sound" <${process.env.GMAIL_USER}>`,
+      to: para,
+      subject: assunto,
+      text: texto
+    });
+    return true;
+  } catch (erro) {
+    console.error('Erro ao enviar e-mail pelo Nodemailer:', erro);
+    return false;
+  }
+}
+
+// O código nunca é logado em produção.
+const logarCodigoEmDev = (rotulo, codigo) => {
+  if (!EM_PRODUCAO) console.log(`[DEV] ${rotulo}: ${codigo}`);
+};
+
+const criarLimitador = (windowMs, max, mensagem) =>
+  rateLimit({
+    windowMs,
+    max,
+    message: { status: 'erro', mensagem },
+    standardHeaders: true,
+    legacyHeaders: false
+  });
+
+// Traduz erros do Multer para JSON em português.
+function tratarMulter(middleware, limiteTexto) {
+  return (req, res, next) => {
+    middleware(req, res, (erro) => {
+      if (!erro) return next();
+      if (erro instanceof multer.MulterError) {
+        if (erro.code === 'LIMIT_FILE_SIZE') {
+          return falha(res, 413, `O arquivo passa do limite de ${limiteTexto}. Escolha um menor.`);
+        }
+        return falha(res, 400, 'Não foi possível ler o arquivo enviado.');
+      }
+      return next(erro);
+    });
+  };
+}
+
+// ============================================================
+// AUTENTICAÇÃO (cadastro com 2FA, login, sessão)
+// ============================================================
+
+const limitarRegistroIP = criarLimitador(15 * 60 * 1000, 5, 'Muitas tentativas de registro a partir deste IP. Tente novamente mais tarde.');
+const limitarValidacaoIP = criarLimitador(15 * 60 * 1000, 10, 'Muitas tentativas de verificação. Tente novamente mais tarde.');
+const limitarReenvioIP = criarLimitador(60 * 60 * 1000, 5, 'Você excedeu o limite de 5 tentativas por hora. Tente novamente mais tarde.');
+const limitarLoginIP = criarLimitador(15 * 60 * 1000, 10, 'Muitas tentativas de login a partir deste IP. Tente novamente mais tarde.');
 
 app.post('/api/registro', limitarRegistroIP, async (req, res) => {
-  const { email, password, nomeUsuario } = req.body;
+  const { email: emailBruto, password, nomeUsuario: nomeBruto } = req.body || {};
 
-  if (!email || !password || !nomeUsuario || !nomeUsuario.trim()) {
-    return res.status(400).json({ status: 'erro', mensagem: 'E-mail, senha e nome de usuário são obrigatórios.' });
+  if (!ehTexto(emailBruto) || !ehTexto(password) || !ehTexto(nomeBruto) || !emailBruto.trim() || !password || !nomeBruto.trim()) {
+    return falha(res, 400, 'E-mail, senha e nome de usuário são obrigatórios.');
   }
 
-  if (!validarEmail(email)) {
-    return res.status(400).json({ status: 'erro', mensagem: 'Por favor, insira um e-mail válido.' });
-  }
+  const email = emailBruto.trim();
+  const nomeUsuario = nomeBruto.trim();
 
-  if (!validarSenhaForte(password)) {
-    return res.status(400).json({
-      status: 'erro',
-      mensagem: 'A senha deve ter no mínimo 8 caracteres, incluindo pelo menos uma letra maiúscula, uma minúscula, um número e um caractere especial (@$!%*?&#).'
-    });
+  if (!validarEmail(email)) return falha(res, 400, 'Por favor, insira um e-mail válido.');
+  if (tamanhoEmCaracteres(nomeUsuario) > NOME_USUARIO_MAX) {
+    return falha(res, 400, `O nome de usuário pode ter no máximo ${NOME_USUARIO_MAX} caracteres.`);
   }
+  if (!validarSenhaForte(password)) return falha(res, 400, MSG_SENHA_FRACA);
 
   try {
-    const usuarioExistente = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email]);
-    if (usuarioExistente.rows.length > 0) {
-      return res.status(400).json({
-        status: 'erro',
-        codigo: 'EMAIL_JA_CADASTRADO',
-        mensagem: 'Este e-mail já está cadastrado. Por favor, faça login.'
-      });
+    const existente = await pool.query('SELECT 1 FROM usuarios WHERE email = $1', [email]);
+    if (existente.rows.length > 0) {
+      return falha(res, 400, 'Este e-mail já está cadastrado. Por favor, faça login.', { codigo: 'EMAIL_JA_CADASTRADO' });
     }
 
-    const codigo = crypto.randomInt(100000, 1000000).toString();
-    console.log(`codigo 2fa ${codigo}`);
+    const codigo = gerarCodigo();
+    logarCodigoEmDev('código 2FA (cadastro)', codigo);
+
     const senhaHash = await bcrypt.hash(password, 10);
     const codigoHash = await bcrypt.hash(codigo, 10);
     const idVerificacao = crypto.randomUUID();
-    const expiraEm = new Date(Date.now() + 10 * 60 * 1000);
+    const expiraEm = new Date(Date.now() + EXPIRACAO_CODIGO_MS);
 
-    const queryInsertVerificacao = `
-      INSERT INTO verificacoes_2fa (id, email, senha_hash, nome_usuario, codigo_hash, tentativas, expira_em, ultimo_envio_em)
-      VALUES ($1, $2, $3, $4, $5, 0, $6, CURRENT_TIMESTAMP)
-    `;
-    await pool.query(queryInsertVerificacao, [idVerificacao, email, senhaHash, nomeUsuario.trim(), codigoHash, expiraEm]);
+    await pool.query(
+      `INSERT INTO verificacoes_2fa (id, email, senha_hash, nome_usuario, codigo_hash, tentativas, expira_em, ultimo_envio_em)
+       VALUES ($1, $2, $3, $4, $5, 0, $6, CURRENT_TIMESTAMP)`,
+      [idVerificacao, email, senhaHash, nomeUsuario, codigoHash, expiraEm]
+    );
 
-    try {
-      await transporter.sendMail({
-        from: `"Open sound" <${process.env.GMAIL_USER}>`,
-        to: email,
-        subject: 'Seu código de verificação 2FA',
-        text: `Seu código de confirmação é: ${codigo}`
-      });
-    } catch (erroMail) {
-      console.error('Erro ao enviar e-mail pelo Nodemailer:', erroMail);
+    const enviado = await enviarEmail(email, 'Seu código de verificação 2FA', `Seu código de confirmação é: ${codigo}`);
+    if (!enviado) {
       await pool.query('DELETE FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
-      return res.status(500).json({ status: 'erro', mensagem: 'Falha ao enviar o e-mail com o código de verificação.' });
+      return falha(res, 500, 'Falha ao enviar o e-mail com o código de verificação.');
     }
 
-    return res.status(200).json({
-      status: 'sucesso',
-      mensagem: 'Código enviado com sucesso!',
-      idVerificacao
-    });
-
+    return sucesso(res, { mensagem: 'Código enviado com sucesso!', idVerificacao });
   } catch (erro) {
-    console.error('Erro no servidor durante o registro:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+    return falhaInterna(res, 'POST /api/registro', erro);
   }
-});
-
-const limitarValidacaoIP = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: {
-    status: 'erro',
-    mensagem: 'Muitas tentativas de verificação. Tente novamente mais tarde.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false
 });
 
 app.post('/api/validar-2fa', limitarValidacaoIP, async (req, res) => {
-  const { codigo, idVerificacao } = req.body;
+  const { codigo, idVerificacao } = req.body || {};
 
-  if (!codigo || !idVerificacao) {
-    return res.status(400).json({ status: 'erro', mensagem: 'Dados incompletos.' });
+  if (!ehTexto(codigo) || !ehTexto(idVerificacao) || !codigo || !idVerificacao) {
+    return falha(res, 400, 'Dados incompletos.');
   }
 
   try {
     const resultado = await pool.query('SELECT * FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
     const verificacao = resultado.rows[0];
 
-    if (!verificacao) {
-      return res.status(400).json({ status: 'erro', mensagem: 'Verificação não encontrada ou expirada.' });
+    if (!verificacao) return falha(res, 400, 'Verificação não encontrada ou expirada.');
+
+    if (expirado(verificacao.expira_em)) {
+      await pool.query('DELETE FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
+      return falha(res, 400, 'O tempo limite do código expirou. Solicite um novo cadastro.');
     }
 
-    if (new Date(verificacao.expira_em) < new Date()) {
+    if (verificacao.tentativas >= MAX_TENTATIVAS_CODIGO) {
       await pool.query('DELETE FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
-      return res.status(400).json({ status: 'erro', mensagem: 'O tempo limite do código expirou. Solicite um novo cadastro.' });
-    }
-
-    if (verificacao.tentativas >= 5) {
-      await pool.query('DELETE FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
-      return res.status(429).json({ status: 'erro', mensagem: 'Número máximo de tentativas excedido. Solicite um novo cadastro.' });
+      return falha(res, 429, 'Número máximo de tentativas excedido. Solicite um novo cadastro.');
     }
 
     const codigoConfere = await bcrypt.compare(codigo.trim(), verificacao.codigo_hash);
-
     if (!codigoConfere) {
       await pool.query('UPDATE verificacoes_2fa SET tentativas = tentativas + 1 WHERE id = $1', [idVerificacao]);
-      return res.status(400).json({ status: 'erro', mensagem: 'Código 2FA incorreto.' });
+      return falha(res, 400, 'Código 2FA incorreto.');
     }
 
-    const queryInsert = `
-      INSERT INTO usuarios (email, senha, nome_usuario, verificado)
-      VALUES ($1, $2, $3, TRUE)
-    `;
-    await pool.query(queryInsert, [verificacao.email, verificacao.senha_hash, verificacao.nome_usuario]);
+    try {
+      await pool.query(
+        'INSERT INTO usuarios (email, senha, nome_usuario, verificado) VALUES ($1, $2, $3, TRUE)',
+        [verificacao.email, verificacao.senha_hash, verificacao.nome_usuario]
+      );
+    } catch (erroInsert) {
+      // Alguém cadastrou o mesmo e-mail entre o registro e a validação.
+      if (ehViolacaoDeChave(erroInsert, ['23505'])) {
+        await pool.query('DELETE FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
+        return falha(res, 400, 'Este e-mail já está cadastrado. Por favor, faça login.', { codigo: 'EMAIL_JA_CADASTRADO' });
+      }
+      throw erroInsert;
+    }
 
     await pool.query('DELETE FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
-
-    return res.status(200).json({ status: 'sucesso', mensagem: 'Conta registrada e ativada com sucesso!' });
-
+    return sucesso(res, { mensagem: 'Conta registrada e ativada com sucesso!' });
   } catch (erro) {
-    console.error('Erro na validação 2FA:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+    return falhaInterna(res, 'POST /api/validar-2fa', erro);
   }
-});
-
-const limitarReenvioIP = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 5,
-  message: {
-    status: 'erro',
-    mensagem: 'Você excedeu o limite de 5 tentativas por hora. Tente novamente mais tarde.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false
 });
 
 app.post('/api/reenviar-2fa', limitarReenvioIP, async (req, res) => {
-  const { idVerificacao } = req.body;
+  const { idVerificacao } = req.body || {};
 
-  if (!idVerificacao) {
-    return res.status(400).json({ status: 'erro', mensagem: 'Sessão inválida ou expirada.' });
-  }
+  if (!ehTexto(idVerificacao) || !idVerificacao) return falha(res, 400, 'Sessão inválida ou expirada.');
 
   try {
     const resultado = await pool.query('SELECT * FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
     const verificacao = resultado.rows[0];
 
-    if (!verificacao) {
-      return res.status(400).json({ status: 'erro', mensagem: 'Sessão inválida ou expirada.' });
-    }
+    if (!verificacao) return falha(res, 400, 'Sessão inválida ou expirada.');
 
-    if (new Date(verificacao.expira_em) < new Date()) {
+    if (expirado(verificacao.expira_em)) {
       await pool.query('DELETE FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
-      return res.status(400).json({ status: 'erro', mensagem: 'O tempo limite expirou. Solicite um novo cadastro.' });
+      return falha(res, 400, 'O tempo limite expirou. Solicite um novo cadastro.');
     }
 
-    const agora = Date.now();
-    const tempoDecorrido = Math.floor((agora - new Date(verificacao.ultimo_envio_em).getTime()) / 1000);
-
-    if (tempoDecorrido < 60) {
-      const segundosRestantes = 60 - tempoDecorrido;
-      return res.status(429).json({
-        status: 'erro',
-        mensagem: `Aguarde ${segundosRestantes}s para solicitar um novo código.`
-      });
+    const decorrido = Math.floor((Date.now() - new Date(verificacao.ultimo_envio_em).getTime()) / 1000);
+    if (decorrido < ESPERA_REENVIO_S) {
+      return falha(res, 429, `Aguarde ${ESPERA_REENVIO_S - decorrido}s para solicitar um novo código.`);
     }
 
-    const novoCodigo = Math.floor(100000 + Math.random() * 900000).toString();
+    const novoCodigo = gerarCodigo();
+    logarCodigoEmDev('novo código 2FA (cadastro)', novoCodigo);
     const novoCodigoHash = await bcrypt.hash(novoCodigo, 10);
 
     await pool.query(
@@ -235,93 +276,134 @@ app.post('/api/reenviar-2fa', limitarReenvioIP, async (req, res) => {
       [novoCodigoHash, idVerificacao]
     );
 
-    try {
-      await transporter.sendMail({
-        from: `"Open sound" <${process.env.GMAIL_USER}>`,
-        to: verificacao.email,
-        subject: 'Seu novo código de verificação 2FA',
-        text: `Seu novo código de confirmação é: ${novoCodigo}`
-      });
-    } catch (erroMail) {
-      console.error('Erro no Nodemailer durante reenvio:', erroMail);
-      return res.status(500).json({ status: 'erro', mensagem: 'Falha ao reenviar o e-mail de verificação.' });
-    }
+    const enviado = await enviarEmail(verificacao.email, 'Seu novo código de verificação 2FA', `Seu novo código de confirmação é: ${novoCodigo}`);
+    if (!enviado) return falha(res, 500, 'Falha ao reenviar o e-mail de verificação.');
 
-    return res.status(200).json({
-      status: 'sucesso',
-      mensagem: 'Novo código enviado com sucesso!'
-    });
-
+    return sucesso(res, { mensagem: 'Novo código enviado com sucesso!' });
   } catch (erro) {
-    console.error('Erro ao reenviar código:', erro);
-    return res.status(400).json({ status: 'erro', mensagem: 'Sessão inválida ou token corrompido.' });
+    return falhaInterna(res, 'POST /api/reenviar-2fa', erro);
   }
 });
+
+app.post('/api/login', limitarLoginIP, async (req, res) => {
+  const { email, password, lembrarDeMim } = req.body || {};
+
+  if (!ehTexto(email) || !ehTexto(password) || !email || !password) {
+    return falha(res, 400, 'E-mail e senha são obrigatórios.');
+  }
+
+  try {
+    const resultado = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email.trim()]);
+    const usuario = resultado.rows[0];
+
+    if (!usuario) {
+      return falha(res, 404, 'E-mail não cadastrado. Por favor, faça cadastro.', { codigo: 'EMAIL_NAO_CADASTRADO' });
+    }
+    if (!usuario.verificado) {
+      return falha(res, 403, 'Conta ainda não verificada. Conclua o cadastro com o código 2FA.');
+    }
+
+    const senhaConfere = await bcrypt.compare(password, usuario.senha);
+    if (!senhaConfere) return falha(res, 401, 'Senha incorreta.');
+
+    const tokenSessao = jwt.sign(
+      { id: usuario.id, email: usuario.email },
+      JWT_SECRET_SESSAO,
+      { expiresIn: lembrarDeMim === true ? '30d' : '7d', algorithm: 'HS256' }
+    );
+
+    return sucesso(res, { mensagem: 'Login realizado com sucesso!', tokenSessao });
+  } catch (erro) {
+    return falhaInterna(res, 'POST /api/login', erro);
+  }
+});
+
+// Confere o token E se a conta ainda existe. Token de conta apagada (banco
+// recriado, conta excluída) vira 401 e o front desloga sozinho, em vez de
+// cada rota devolver 404 "Usuário não encontrado".
+async function verificarAutenticacao(req, res, next) {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return falha(res, 401, 'Faça login para acessar este recurso.');
+  }
+
+  let payload;
+  try {
+    payload = jwt.verify(authHeader.split(' ')[1], JWT_SECRET_SESSAO, { algorithms: ['HS256'] });
+  } catch (erro) {
+    return falha(res, 401, 'Sessão inválida ou expirada. Faça login novamente.');
+  }
+
+  try {
+    const resultado = await pool.query(
+      'SELECT id, email FROM usuarios WHERE id = $1 AND verificado = TRUE',
+      [payload.id]
+    );
+    if (!resultado.rows[0]) {
+      return falha(res, 401, 'Sessão inválida ou expirada. Faça login novamente.');
+    }
+    req.usuario = { id: resultado.rows[0].id, email: resultado.rows[0].email };
+    return next();
+  } catch (erro) {
+    return falhaInterna(res, 'verificarAutenticacao', erro);
+  }
+}
 
 // ============================================================
 // RECUPERAÇÃO DE SENHA — "ESQUECI MINHA SENHA" (público, sem auth)
 // ============================================================
 
-const limitarRecuperacaoIP = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  message: {
-    status: 'erro',
-    mensagem: 'Muitas tentativas de recuperação a partir deste IP. Tente novamente mais tarde.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false
-});
+const limitarRecuperacaoSolicitarIP = criarLimitador(15 * 60 * 1000, 5, 'Muitas tentativas de recuperação a partir deste IP. Tente novamente mais tarde.');
+const limitarRecuperacaoEtapasIP = criarLimitador(15 * 60 * 1000, 15, 'Muitas tentativas de recuperação a partir deste IP. Tente novamente mais tarde.');
+const limitarReenviarRecuperacaoIP = criarLimitador(60 * 60 * 1000, 5, 'Você excedeu o limite de 5 reenvios por hora. Tente novamente mais tarde.');
 
-// Limite de redefinições de senha pelo modal "esqueci minha senha":
-// no máximo 3 concluídas por conta dentro de uma janela de 24h.
-const LIMITE_REDEFINICOES_MODAL = 3;
-const JANELA_REDEFINICOES_MODAL_HORAS = 24;
+const respostaLimiteRecuperacao = (res) =>
+  falha(
+    res,
+    429,
+    `Você atingiu o limite de ${LIMITE_REDEFINICOES_MODAL} redefinições de senha em ${JANELA_REDEFINICOES_MODAL_HORAS}h. Tente novamente mais tarde.`,
+    { codigo: 'LIMITE_RECUPERACAO_ATINGIDO' }
+  );
 
-async function contarRedefinicoesModalRecentes(usuarioId) {
-  const resultado = await pool.query(
+async function contarRedefinicoesModalRecentes(executor, usuarioId) {
+  const resultado = await executor.query(
     `SELECT COUNT(*)::int AS total
-     FROM historico_redefinicoes_senha
-     WHERE usuario_id = $1
-       AND origem = 'modal'
-       AND criado_em > CURRENT_TIMESTAMP - ($2 || ' hours')::interval`,
+       FROM historico_redefinicoes_senha
+      WHERE usuario_id = $1
+        AND origem = 'modal'
+        AND criado_em > CURRENT_TIMESTAMP - ($2 || ' hours')::interval`,
     [usuarioId, String(JANELA_REDEFINICOES_MODAL_HORAS)]
   );
   return resultado.rows[0].total;
 }
 
-// POST /api/auth/esqueci-senha — inicia recuperação (envia código por e-mail)
-app.post('/api/auth/esqueci-senha', limitarRecuperacaoIP, async (req, res) => {
-  const { email } = req.body;
+app.post('/api/auth/esqueci-senha', limitarRecuperacaoSolicitarIP, async (req, res) => {
+  const { email: emailBruto } = req.body || {};
 
-  if (!email || !validarEmail(email)) {
-    return res.status(400).json({ status: 'erro', mensagem: 'E-mail válido é obrigatório.' });
+  if (!ehTexto(emailBruto) || !validarEmail(emailBruto.trim())) {
+    return falha(res, 400, 'E-mail válido é obrigatório.');
   }
+  const email = emailBruto.trim();
 
   try {
-    const resultadoUsuario = await pool.query('SELECT id, email FROM usuarios WHERE email = $1', [email]);
+    const resultadoUsuario = await pool.query('SELECT id FROM usuarios WHERE email = $1', [email]);
     const usuario = resultadoUsuario.rows[0];
 
-    // Sempre retorna sucesso para não revelar se e-mail existe (segurança)
-    // Mas só envia e-mail se usuário existir
+    // Não revela se o e-mail existe.
     if (!usuario) {
-      return res.status(200).json({ status: 'sucesso', mensagem: 'Se o e-mail estiver cadastrado, enviaremos um código.', idVerificacao: null });
+      return sucesso(res, { mensagem: 'Se o e-mail estiver cadastrado, enviaremos um código.', idVerificacao: null });
     }
 
-    // Limite de redefinições pelo modal: barra antes de gerar código/enviar e-mail.
-    const redefinicoesRecentes = await contarRedefinicoesModalRecentes(usuario.id);
-    if (redefinicoesRecentes >= LIMITE_REDEFINICOES_MODAL) {
-      return res.status(429).json({
-        status: 'erro',
-        codigo: 'LIMITE_RECUPERACAO_ATINGIDO',
-        mensagem: `Você atingiu o limite de ${LIMITE_REDEFINICOES_MODAL} redefinições de senha em ${JANELA_REDEFINICOES_MODAL_HORAS}h. Tente novamente mais tarde.`
-      });
+    if ((await contarRedefinicoesModalRecentes(pool, usuario.id)) >= LIMITE_REDEFINICOES_MODAL) {
+      return respostaLimiteRecuperacao(res);
     }
 
-    const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+    const codigo = gerarCodigo();
+    logarCodigoEmDev('código de recuperação', codigo);
     const codigoHash = await bcrypt.hash(codigo, 10);
     const idRecuperacao = crypto.randomUUID();
-    const expiraEm = new Date(Date.now() + 10 * 60 * 1000);
+    const expiraEm = new Date(Date.now() + EXPIRACAO_CODIGO_MS);
 
     await pool.query(
       `INSERT INTO recuperacoes_senha (id, email, codigo_hash, tentativas, expira_em, ultimo_envio_em)
@@ -329,185 +411,118 @@ app.post('/api/auth/esqueci-senha', limitarRecuperacaoIP, async (req, res) => {
       [idRecuperacao, email, codigoHash, expiraEm]
     );
 
-    try {
-      await transporter.sendMail({
-        from: `"Open sound" <${process.env.GMAIL_USER}>`,
-        to: email,
-        subject: 'Código para recuperar sua senha',
-        text: `Seu código de recuperação é: ${codigo}`
-      });
-    } catch (erroMail) {
-      console.error('Erro ao enviar e-mail de recuperação:', erroMail);
+    const enviado = await enviarEmail(email, 'Código para recuperar sua senha', `Seu código de recuperação é: ${codigo}`);
+    if (!enviado) {
       await pool.query('DELETE FROM recuperacoes_senha WHERE id = $1', [idRecuperacao]);
-      return res.status(500).json({ status: 'erro', mensagem: 'Falha ao enviar o e-mail com o código.' });
+      return falha(res, 500, 'Falha ao enviar o e-mail com o código.');
     }
 
-    return res.status(200).json({
-      status: 'sucesso',
-      mensagem: 'Código enviado com sucesso!',
-      idVerificacao: idRecuperacao
-    });
-
+    return sucesso(res, { mensagem: 'Código enviado com sucesso!', idVerificacao: idRecuperacao });
   } catch (erro) {
-    console.error('Erro ao solicitar recuperação de senha:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+    return falhaInterna(res, 'POST /api/auth/esqueci-senha', erro);
   }
-});
-
-// POST /api/auth/reenviar-esqueci — reenvia código
-const limitarReenviarRecuperacaoIP = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 5,
-  message: {
-    status: 'erro',
-    mensagem: 'Você excedeu o limite de 5 reenvios por hora. Tente novamente mais tarde.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false
 });
 
 app.post('/api/auth/reenviar-esqueci', limitarReenviarRecuperacaoIP, async (req, res) => {
-  const { idVerificacao } = req.body;
+  const { idVerificacao } = req.body || {};
 
-  if (!idVerificacao) {
-    return res.status(400).json({ status: 'erro', mensagem: 'Sessão inválida ou expirada.' });
-  }
+  if (!ehTexto(idVerificacao) || !idVerificacao) return falha(res, 400, 'Sessão inválida ou expirada.');
 
   try {
     const resultado = await pool.query('SELECT * FROM recuperacoes_senha WHERE id = $1', [idVerificacao]);
     const recuperacao = resultado.rows[0];
 
-    if (!recuperacao) {
-      return res.status(400).json({ status: 'erro', mensagem: 'Sessão inválida ou expirada.' });
-    }
+    if (!recuperacao) return falha(res, 400, 'Sessão inválida ou expirada.');
 
-    if (new Date(recuperacao.expira_em) < new Date()) {
+    if (expirado(recuperacao.expira_em)) {
       await pool.query('DELETE FROM recuperacoes_senha WHERE id = $1', [idVerificacao]);
-      return res.status(400).json({ status: 'erro', mensagem: 'O tempo limite expirou. Solicite uma nova recuperação.' });
+      return falha(res, 400, 'O tempo limite expirou. Solicite uma nova recuperação.');
     }
 
-    const agora = Date.now();
-    const tempoDecorrido = Math.floor((agora - new Date(recuperacao.ultimo_envio_em).getTime()) / 1000);
-
-    if (tempoDecorrido < 60) {
-      const segundosRestantes = 60 - tempoDecorrido;
-      return res.status(429).json({
-        status: 'erro',
-        mensagem: `Aguarde ${segundosRestantes}s para solicitar um novo código.`
-      });
+    const decorrido = Math.floor((Date.now() - new Date(recuperacao.ultimo_envio_em).getTime()) / 1000);
+    if (decorrido < ESPERA_REENVIO_S) {
+      return falha(res, 429, `Aguarde ${ESPERA_REENVIO_S - decorrido}s para solicitar um novo código.`);
     }
 
-    const novoCodigo = Math.floor(100000 + Math.random() * 900000).toString();
+    const novoCodigo = gerarCodigo();
+    logarCodigoEmDev('novo código de recuperação', novoCodigo);
     const novoCodigoHash = await bcrypt.hash(novoCodigo, 10);
 
-    // CORREÇÃO: zera também a flag `verificado`. Sem isso, alguém poderia
-    // validar um código, pedir reenvio e manter a sessão já liberada.
+    // Zera também `verificado`: sem isso dava para validar um código, pedir
+    // reenvio e manter a sessão já liberada.
     await pool.query(
       'UPDATE recuperacoes_senha SET codigo_hash = $1, tentativas = 0, verificado = FALSE, ultimo_envio_em = CURRENT_TIMESTAMP WHERE id = $2',
       [novoCodigoHash, idVerificacao]
     );
 
-    try {
-      await transporter.sendMail({
-        from: `"Open sound" <${process.env.GMAIL_USER}>`,
-        to: recuperacao.email,
-        subject: 'Seu novo código de recuperação',
-        text: `Seu novo código de recuperação é: ${novoCodigo}`
-      });
-    } catch (erroMail) {
-      console.error('Erro no Nodemailer durante reenvio de recuperação:', erroMail);
-      return res.status(500).json({ status: 'erro', mensagem: 'Falha ao reenviar o e-mail.' });
-    }
+    const enviado = await enviarEmail(recuperacao.email, 'Seu novo código de recuperação', `Seu novo código de recuperação é: ${novoCodigo}`);
+    if (!enviado) return falha(res, 500, 'Falha ao reenviar o e-mail.');
 
-    return res.status(200).json({ status: 'sucesso', mensagem: 'Novo código enviado com sucesso!' });
-
+    return sucesso(res, { mensagem: 'Novo código enviado com sucesso!' });
   } catch (erro) {
-    console.error('Erro ao reenviar código de recuperação:', erro);
-    return res.status(400).json({ status: 'erro', mensagem: 'Sessão inválida ou token corrompido.' });
+    return falhaInterna(res, 'POST /api/auth/reenviar-esqueci', erro);
   }
 });
 
-// POST /api/auth/validar-esqueci — valida código OTP
-app.post('/api/auth/validar-esqueci', limitarRecuperacaoIP, async (req, res) => {
-  const { codigo, idVerificacao } = req.body;
+app.post('/api/auth/validar-esqueci', limitarRecuperacaoEtapasIP, async (req, res) => {
+  const { codigo, idVerificacao } = req.body || {};
 
-  if (!codigo || !idVerificacao) {
-    return res.status(400).json({ status: 'erro', mensagem: 'Dados incompletos.' });
+  if (!ehTexto(codigo) || !ehTexto(idVerificacao) || !codigo || !idVerificacao) {
+    return falha(res, 400, 'Dados incompletos.');
   }
 
   try {
     const resultado = await pool.query('SELECT * FROM recuperacoes_senha WHERE id = $1', [idVerificacao]);
     const recuperacao = resultado.rows[0];
 
-    if (!recuperacao) {
-      return res.status(400).json({ status: 'erro', mensagem: 'Verificação não encontrada ou expirada.' });
+    if (!recuperacao) return falha(res, 400, 'Verificação não encontrada ou expirada.');
+
+    if (expirado(recuperacao.expira_em)) {
+      await pool.query('DELETE FROM recuperacoes_senha WHERE id = $1', [idVerificacao]);
+      return falha(res, 400, 'O tempo limite do código expirou. Solicite novamente.');
     }
 
-    if (new Date(recuperacao.expira_em) < new Date()) {
+    if (recuperacao.tentativas >= MAX_TENTATIVAS_CODIGO) {
       await pool.query('DELETE FROM recuperacoes_senha WHERE id = $1', [idVerificacao]);
-      return res.status(400).json({ status: 'erro', mensagem: 'O tempo limite do código expirou. Solicite novamente.' });
-    }
-
-    if (recuperacao.tentativas >= 5) {
-      await pool.query('DELETE FROM recuperacoes_senha WHERE id = $1', [idVerificacao]);
-      return res.status(429).json({ status: 'erro', mensagem: 'Número máximo de tentativas excedido. Solicite novamente.' });
+      return falha(res, 429, 'Número máximo de tentativas excedido. Solicite novamente.');
     }
 
     const codigoConfere = await bcrypt.compare(codigo.trim(), recuperacao.codigo_hash);
-
     if (!codigoConfere) {
       await pool.query('UPDATE recuperacoes_senha SET tentativas = tentativas + 1 WHERE id = $1', [idVerificacao]);
-      return res.status(400).json({ status: 'erro', mensagem: 'Código incorreto.' });
+      return falha(res, 400, 'Código incorreto.');
     }
 
-    // CORREÇÃO: código correto — registra no banco. É essa flag que libera
-    // o /api/auth/confirmar-esqueci.
+    // Esta flag é o que libera /api/auth/confirmar-esqueci.
     await pool.query('UPDATE recuperacoes_senha SET verificado = TRUE WHERE id = $1', [idVerificacao]);
-
-    return res.status(200).json({ status: 'sucesso', mensagem: 'Código válido. Pode definir nova senha.' });
-
+    return sucesso(res, { mensagem: 'Código válido. Pode definir nova senha.' });
   } catch (erro) {
-    console.error('Erro ao validar código de recuperação:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+    return falhaInterna(res, 'POST /api/auth/validar-esqueci', erro);
   }
 });
 
-// POST /api/auth/confirmar-esqueci — salva nova senha
-app.post('/api/auth/confirmar-esqueci', limitarRecuperacaoIP, async (req, res) => {
-  const { novaSenha, idVerificacao } = req.body;
+app.post('/api/auth/confirmar-esqueci', limitarRecuperacaoEtapasIP, async (req, res) => {
+  const { novaSenha, idVerificacao } = req.body || {};
 
-  if (!novaSenha || !idVerificacao) {
-    return res.status(400).json({ status: 'erro', mensagem: 'Dados incompletos.' });
+  if (!ehTexto(novaSenha) || !ehTexto(idVerificacao) || !novaSenha || !idVerificacao) {
+    return falha(res, 400, 'Dados incompletos.');
   }
-
-  if (!validarSenhaForte(novaSenha)) {
-    return res.status(400).json({
-      status: 'erro',
-      mensagem: 'A senha deve ter no mínimo 8 caracteres, incluindo pelo menos uma letra maiúscula, uma minúscula, um número e um caractere especial (@$!%*?&#).'
-    });
-  }
+  if (!validarSenhaForte(novaSenha)) return falha(res, 400, MSG_SENHA_FRACA);
 
   try {
     const resultado = await pool.query('SELECT * FROM recuperacoes_senha WHERE id = $1', [idVerificacao]);
     const recuperacao = resultado.rows[0];
 
-    if (!recuperacao) {
-      return res.status(400).json({ status: 'erro', mensagem: 'Verificação não encontrada ou expirada.' });
-    }
+    if (!recuperacao) return falha(res, 400, 'Verificação não encontrada ou expirada.');
 
-    if (new Date(recuperacao.expira_em) < new Date()) {
+    if (expirado(recuperacao.expira_em)) {
       await pool.query('DELETE FROM recuperacoes_senha WHERE id = $1', [idVerificacao]);
-      return res.status(400).json({ status: 'erro', mensagem: 'O tempo limite expirou. Solicite novamente.' });
+      return falha(res, 400, 'O tempo limite expirou. Solicite novamente.');
     }
 
-    // CORREÇÃO DE SEGURANÇA: só troca a senha se o código já foi validado
-    // de verdade em /api/auth/validar-esqueci. Antes, quem tivesse o
-    // idVerificacao podia pular direto pra cá sem digitar o código.
+    // Só troca a senha se o código já foi validado em /validar-esqueci.
     if (!recuperacao.verificado) {
-      return res.status(403).json({
-        status: 'erro',
-        mensagem: 'Código ainda não foi validado. Confirme o código enviado por e-mail primeiro.'
-      });
+      return falha(res, 403, 'Código ainda não foi validado. Confirme o código enviado por e-mail primeiro.');
     }
 
     const resultadoUsuario = await pool.query('SELECT id FROM usuarios WHERE email = $1', [recuperacao.email]);
@@ -515,517 +530,104 @@ app.post('/api/auth/confirmar-esqueci', limitarRecuperacaoIP, async (req, res) =
 
     if (!usuarioRecuperacao) {
       await pool.query('DELETE FROM recuperacoes_senha WHERE id = $1', [idVerificacao]);
-      return res.status(400).json({ status: 'erro', mensagem: 'Verificação não encontrada ou expirada.' });
-    }
-
-    // Rechecagem do limite: impede burlar abrindo várias sessões de
-    // recuperação antes de concluir qualquer uma delas.
-    const redefinicoesRecentes = await contarRedefinicoesModalRecentes(usuarioRecuperacao.id);
-    if (redefinicoesRecentes >= LIMITE_REDEFINICOES_MODAL) {
-      await pool.query('DELETE FROM recuperacoes_senha WHERE id = $1', [idVerificacao]);
-      return res.status(429).json({
-        status: 'erro',
-        codigo: 'LIMITE_RECUPERACAO_ATINGIDO',
-        mensagem: `Você atingiu o limite de ${LIMITE_REDEFINICOES_MODAL} redefinições de senha em ${JANELA_REDEFINICOES_MODAL_HORAS}h. Tente novamente mais tarde.`
-      });
+      return falha(res, 400, 'Verificação não encontrada ou expirada.');
     }
 
     const novaSenhaHash = await bcrypt.hash(novaSenha, 10);
 
-    // Grava senha_redefinida_em: é o que trava o botão de redefinir na
-    // página de config (cooldown de 24h) depois de resetar pelo modal.
-    await pool.query(
-      'UPDATE usuarios SET senha = $1, senha_redefinida_em = CURRENT_TIMESTAMP WHERE id = $2',
-      [novaSenhaHash, usuarioRecuperacao.id]
-    );
-    await pool.query(
-      `INSERT INTO historico_redefinicoes_senha (usuario_id, origem) VALUES ($1, 'modal')`,
-      [usuarioRecuperacao.id]
-    );
-    await pool.query('DELETE FROM recuperacoes_senha WHERE id = $1', [idVerificacao]);
+    // Conferência do limite + troca na mesma transação (com trava do
+    // usuário): impede burlar o limite abrindo várias sessões em paralelo.
+    const limiteAtingido = await comTravaDoUsuario(pool, usuarioRecuperacao.id, async (client) => {
+      if ((await contarRedefinicoesModalRecentes(client, usuarioRecuperacao.id)) >= LIMITE_REDEFINICOES_MODAL) {
+        await client.query('DELETE FROM recuperacoes_senha WHERE id = $1', [idVerificacao]);
+        return true;
+      }
 
-    return res.status(200).json({ status: 'sucesso', mensagem: 'Senha alterada com sucesso! Faça login com a nova senha.' });
-
-  } catch (erro) {
-    console.error('Erro ao confirmar recuperação de senha:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
-  }
-});
-
-app.listen(process.env.PORT || 3000, () => {
-  console.log(`Servidor rodando na porta ${process.env.PORT || 3000} com PostgreSQL`);
-  garantirBucket();
-});
-
-const limitarLoginIP = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: {
-    status: 'erro',
-    mensagem: 'Muitas tentativas de login a partir deste IP. Tente novamente mais tarde.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false
-});
-
-app.post('/api/login', limitarLoginIP, async (req, res) => {
-  const { email, password, lembrarDeMim } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).json({ status: 'erro', mensagem: 'E-mail e senha são obrigatórios.' });
-  }
-
-  try {
-    const resultado = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email]);
-    const usuario = resultado.rows[0];
-
-    if (!usuario) {
-      return res.status(404).json({
-        status: 'erro',
-        codigo: 'EMAIL_NAO_CADASTRADO',
-        mensagem: 'E-mail não cadastrado. Por favor, faça cadastro.'
-      });
-    }
-
-    if (!usuario.verificado) {
-      return res.status(403).json({ status: 'erro', mensagem: 'Conta ainda não verificada. Conclua o cadastro com o código 2FA.' });
-    }
-
-    const senhaConfere = await bcrypt.compare(password, usuario.senha);
-    if (!senhaConfere) {
-      return res.status(401).json({ status: 'erro', mensagem: 'Senha incorreta.' });
-    }
-
-    const duracaoToken = lembrarDeMim === true ? '30d' : '7d';
-    const tokenSessao = jwt.sign(
-      { id: usuario.id, email: usuario.email },
-      JWT_SECRET_SESSAO,
-      { expiresIn: duracaoToken }
-    );
-
-    return res.status(200).json({
-      status: 'sucesso',
-      mensagem: 'Login realizado com sucesso!',
-      tokenSessao
+      // senha_redefinida_em trava o botão de redefinir da página de config (cooldown de 24h).
+      await client.query(
+        'UPDATE usuarios SET senha = $1, senha_redefinida_em = CURRENT_TIMESTAMP WHERE id = $2',
+        [novaSenhaHash, usuarioRecuperacao.id]
+      );
+      await client.query(
+        `INSERT INTO historico_redefinicoes_senha (usuario_id, origem) VALUES ($1, 'modal')`,
+        [usuarioRecuperacao.id]
+      );
+      await client.query('DELETE FROM recuperacoes_senha WHERE id = $1', [idVerificacao]);
+      return false;
     });
 
+    if (limiteAtingido) return respostaLimiteRecuperacao(res);
+
+    return sucesso(res, { mensagem: 'Senha alterada com sucesso! Faça login com a nova senha.' });
   } catch (erro) {
-    console.error('Erro no servidor durante o login:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+    return falhaInterna(res, 'POST /api/auth/confirmar-esqueci', erro);
   }
 });
 
-function verificarAutenticacao(req, res, next) {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ status: 'erro', mensagem: 'Faça login para acessar este recurso.' });
-  }
-
-  const token = authHeader.split(' ')[1];
-
-  try {
-    const payload = jwt.verify(token, JWT_SECRET_SESSAO);
-    req.usuario = payload;
-    next();
-  } catch (erro) {
-    return res.status(401).json({ status: 'erro', mensagem: 'Sessão inválida ou expirada. Faça login novamente.' });
-  }
-}
-
 // ============================================================
-// PERFIL DE ARTISTA
+// CONTA DO USUÁRIO / ARTISTA
 // ============================================================
 
-// Rota 7: dados do usuário logado — usada pelo frontend pra decidir se
-// mostra o popup de "vire artista" antes de liberar o upload.
+// Usada pelo front pra decidir se mostra o popup de "vire artista".
 app.get('/api/usuarios/eu', verificarAutenticacao, async (req, res) => {
   try {
     const resultado = await pool.query(
-      'SELECT id, email, nome_usuario, eh_artista, nome_artista, senha_redefinida_em, bio, url_avatar FROM usuarios WHERE id = $1',
+      `SELECT id, email, nome_usuario, eh_artista, nome_artista, senha_redefinida_em, bio, url_avatar
+         FROM usuarios WHERE id = $1`,
       [req.usuario.id]
     );
     const usuario = resultado.rows[0];
+    if (!usuario) return falha(res, 404, 'Usuário não encontrado.');
 
-    if (!usuario) {
-      return res.status(404).json({ status: 'erro', mensagem: 'Usuário não encontrado.' });
-    }
-
-    return res.status(200).json({ status: 'sucesso', usuario });
+    return sucesso(res, { usuario });
   } catch (erro) {
-    console.error('Erro ao buscar usuário:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+    return falhaInterna(res, 'GET /api/usuarios/eu', erro);
   }
 });
 
-// Rota 8: define/atualiza o nome de artista da conta. Uma vez definido,
-// todo upload futuro usa esse nome automaticamente (ver POST /api/musicas).
+// Define/atualiza o nome de artista. Todo upload futuro usa esse nome.
 app.post('/api/usuarios/artista', verificarAutenticacao, async (req, res) => {
-  const { nomeArtista } = req.body;
+  const { nomeArtista } = req.body || {};
 
-  if (!nomeArtista || !nomeArtista.trim()) {
-    return res.status(400).json({ status: 'erro', mensagem: 'Nome de artista é obrigatório.' });
+  if (!ehTexto(nomeArtista) || !nomeArtista.trim()) {
+    return falha(res, 400, 'Nome de artista é obrigatório.');
+  }
+  const nome = nomeArtista.trim();
+  if (tamanhoEmCaracteres(nome) > NOME_ARTISTA_MAX) {
+    return falha(res, 400, `O nome de artista pode ter no máximo ${NOME_ARTISTA_MAX} caracteres.`);
   }
 
   try {
-    const resultado = await pool.query(
-      `UPDATE usuarios SET eh_artista = TRUE, nome_artista = $1
-       WHERE id = $2
-       RETURNING id, email, eh_artista, nome_artista`,
-      [nomeArtista.trim(), req.usuario.id]
-    );
-
-    return res.status(200).json({ status: 'sucesso', usuario: resultado.rows[0] });
-  } catch (erro) {
-    console.error('Erro ao salvar nome de artista:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
-  }
-});
-
-// ============================================================
-// PERFIL (bio, avatar, música favorita, curtidas, playlists)
-// ============================================================
-
-const LIMITE_BIO = 300;
-const LIMITE_CURTIDAS_PERFIL = 4;
-const EXTENSAO_POR_MIME = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
-const TAMANHO_MAX_AVATAR_BYTES = 2 * 1024 * 1024;
-
-// Sinaliza, dentro das transações, que uma das músicas enviadas para as
-// curtidas não existe. Vira 404 na rota em vez de 500.
-class MusicaInexistente extends Error {}
-
-// O filtro abaixo só checa o Content-Type declarado pelo cliente. A checagem
-// que decide de verdade é a detectarTipoImagem, feita no corpo da rota: aqui
-// o limite de tamanho é que precisa ser preservado exatamente como estava, e o
-// erro de tamanho específico fica para o tratador global devolver 413.
-const uploadAvatar = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: TAMANHO_MAX_AVATAR_BYTES },
-  fileFilter: (req, file, cb) => {
-    if (!EXTENSAO_POR_MIME[file.mimetype]) {
-      return cb(new Error('Formato de imagem não suportado. Use JPEG, PNG ou WEBP.'));
-    }
-    cb(null, true);
-  }
-});
-
-// Tudo que a página de perfil precisa numa chamada só.
-app.get('/api/usuarios/eu/perfil', verificarAutenticacao, async (req, res) => {
-  try {
-    const resultadoUsuario = await pool.query(
-      `SELECT id, email, nome_usuario, eh_artista, nome_artista, bio, url_avatar, musica_favorita_id
-       FROM usuarios WHERE id = $1`,
-      [req.usuario.id]
-    );
-    const usuario = resultadoUsuario.rows[0];
-
-    if (!usuario) {
-      return res.status(404).json({ status: 'erro', mensagem: 'Usuário não encontrado.' });
-    }
-
-    let favorita = null;
-    if (usuario.musica_favorita_id) {
-      const resultadoFavorita = await pool.query(
-        'SELECT id, titulo, artista, url_capa FROM musicas WHERE id = $1',
-        [usuario.musica_favorita_id]
+    const usuario = await comTravaDoUsuario(pool, req.usuario.id, async (client) => {
+      const resultado = await client.query(
+        `UPDATE usuarios SET eh_artista = TRUE, nome_artista = $1
+          WHERE id = $2
+          RETURNING id, email, eh_artista, nome_artista`,
+        [nome, req.usuario.id]
       );
-      favorita = resultadoFavorita.rows[0] || null;
-    }
-
-    const resultadoCurtidas = await pool.query(
-      `SELECT m.id, m.titulo, m.artista, m.url_capa
-       FROM perfil_curtidas pc
-       JOIN musicas m ON m.id = pc.musica_id
-       WHERE pc.usuario_id = $1
-       ORDER BY pc.posicao ASC`,
-      [req.usuario.id]
-    );
-
-    // Favoritos fica de fora: é uma playlist do sistema, não "do perfil".
-    const resultadoPlaylists = await pool.query(
-      `SELECT id, nome, url_capa FROM playlists
-       WHERE usuario_id = $1 AND eh_favoritos = FALSE
-       ORDER BY criado_em DESC`,
-      [req.usuario.id]
-    );
-
-    return res.status(200).json({
-      status: 'sucesso',
-      usuario: {
-        id: usuario.id,
-        email: usuario.email,
-        nome_usuario: usuario.nome_usuario,
-        eh_artista: usuario.eh_artista,
-        nome_artista: usuario.nome_artista,
-        bio: usuario.bio,
-        url_avatar: usuario.url_avatar
-      },
-      favorita,
-      curtidas: resultadoCurtidas.rows,
-      playlists: resultadoPlaylists.rows
-    });
-  } catch (erro) {
-    console.error('Erro ao buscar perfil:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
-  }
-});
-
-// Salva a biografia (vazia = apaga).
-app.put('/api/usuarios/eu/bio', verificarAutenticacao, async (req, res) => {
-  const { bio } = req.body;
-
-  if (typeof bio !== 'string') {
-    return res.status(400).json({ status: 'erro', mensagem: 'Biografia inválida.' });
-  }
-
-  const bioLimpa = bio.trim();
-  if (tamanhoEmCaracteres(bioLimpa) > LIMITE_BIO) {
-    return res.status(400).json({ status: 'erro', mensagem: `A biografia pode ter no máximo ${LIMITE_BIO} caracteres.` });
-  }
-
-  try {
-    await pool.query('UPDATE usuarios SET bio = $1 WHERE id = $2', [bioLimpa || null, req.usuario.id]);
-    return res.status(200).json({ status: 'sucesso', bio: bioLimpa });
-  } catch (erro) {
-    console.error('Erro ao salvar biografia:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
-  }
-});
-
-// Troca o avatar: sobe a imagem nova pro Storage, atualiza o banco e só
-// então apaga a antiga (melhor-esforço, mesmo padrão das outras exclusões).
-app.post('/api/usuarios/eu/avatar', verificarAutenticacao, uploadAvatarComErroAmigavel, async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ status: 'erro', mensagem: 'Selecione uma imagem.' });
-  }
-
-  // O Content-Type declarado pelo cliente não é prova de nada. Quem decide o
-  // formato é a assinatura real dos primeiros bytes; a extensão do arquivo
-  // também sai daqui, e não do que o navegador alegou.
-  const tipo = detectarTipoImagem(req.file.buffer);
-  if (!tipo) {
-    return res.status(400).json({ status: 'erro', mensagem: 'Formato de imagem não suportado. Use JPEG, PNG ou WEBP.' });
-  }
-
-  try {
-    const resultadoAnterior = await pool.query('SELECT url_avatar FROM usuarios WHERE id = $1', [req.usuario.id]);
-    if (resultadoAnterior.rows.length === 0) {
-      return res.status(404).json({ status: 'erro', mensagem: 'Usuário não encontrado.' });
-    }
-    const urlAnterior = resultadoAnterior.rows[0].url_avatar;
-
-    // Nome gerado pelo servidor (não usa originalname do cliente).
-    const caminhoAvatar = `avatares/${req.usuario.id}-${Date.now()}.${tipo.extensao}`;
-
-    const { error: erroUpload } = await supabase.storage
-      .from(SUPABASE_BUCKET)
-      .upload(caminhoAvatar, req.file.buffer, { contentType: tipo.mime });
-
-    if (erroUpload) {
-      console.error('Erro ao subir avatar pro Supabase Storage:', erroUpload);
-      return res.status(500).json({ status: 'erro', mensagem: 'Falha ao enviar a imagem.' });
-    }
-
-    const { data } = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(caminhoAvatar);
-    const urlNova = data.publicUrl;
-
-    try {
-      await pool.query('UPDATE usuarios SET url_avatar = $1 WHERE id = $2', [urlNova, req.usuario.id]);
-    } catch (erroBanco) {
-      // A imagem subiu, mas o banco não registrou. Sem isto sobraria um
-      // arquivo órfão no bucket que ninguém mais vai referenciar. O avatar
-      // antigo continua intacto, porque a coluna nunca foi sobrescrita.
-      await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, urlNova);
-      throw erroBanco;
-    }
-
-    // Só agora que a nova está confirmada no banco é seguro descartar a
-    // antiga. Falhar aqui é o melhor-esforço: a troca já valeu.
-    await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, urlAnterior);
-
-    return res.status(200).json({ status: 'sucesso', url_avatar: urlNova });
-  } catch (erro) {
-    console.error('Erro ao salvar avatar:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
-  }
-});
-
-// O Multer interrompe o stream e solta o erro antes do body ser lido. Esta
-// camada traduz o "passou do tamanho" para 413 com o limite exato desta rota
-// (o erro do Multer não carrega esse número, e a mensagem precisa ser útil).
-// Sem ela, um 2MB e um 25MB dariam a mesma resposta genérica.
-function uploadAvatarComErroAmigavel(req, res, next) {
-  uploadAvatar.single('avatar')(req, res, (erro) => {
-    if (!erro) return next();
-    if (erro instanceof multer.MulterError && erro.code === 'LIMIT_FILE_SIZE') {
-      return res.status(413).json({
-        status: 'erro',
-        mensagem: `A imagem passa do limite de ${TAMANHO_MAX_AVATAR_BYTES / (1024 * 1024)} MB. Escolha uma menor.`
-      });
-    }
-    if (erro instanceof multer.MulterError || erro.message?.includes('suportado')) {
-      return res.status(400).json({ status: 'erro', mensagem: erro.message });
-    }
-    next(erro);
-  });
-}
-
-// Remove o avatar do perfil: apaga o arquivo do Storage e devolve a coluna
-// url_avatar para NULL. A mesma verificação de bytes não se aplica aqui (não
-// entra arquivo novo), mas o usuário continua vindo sempre do token.
-app.delete('/api/usuarios/eu/avatar', verificarAutenticacao, async (req, res) => {
-  try {
-    const resultado = await pool.query('SELECT url_avatar FROM usuarios WHERE id = $1', [req.usuario.id]);
-    if (resultado.rows.length === 0) {
-      return res.status(404).json({ status: 'erro', mensagem: 'Usuário não encontrado.' });
-    }
-
-    const urlAnterior = resultado.rows[0].url_avatar;
-    // O banco é a fonte da verdade: zerar a coluna primeiro garante que,
-    // mesmo que a remoção do arquivo falhe, o perfil não continue apontando
-    // para uma imagem que o usuário pediu para tirar.
-    await pool.query('UPDATE usuarios SET url_avatar = NULL WHERE id = $1', [req.usuario.id]);
-
-    // Arquivo já ausente no Storage é o caso normal de quem nunca trocou o
-    // avatar duas vezes: removerArquivoDoStorage devolve false sem quebrar.
-    await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, urlAnterior);
-
-    return res.status(200).json({ status: 'sucesso', url_avatar: null });
-  } catch (erro) {
-    console.error('Erro ao remover avatar:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
-  }
-});
-
-// Define a música favorita do perfil (musicaId null = remove).
-app.put('/api/usuarios/eu/favorita', verificarAutenticacao, async (req, res) => {
-  const { musicaId } = req.body;
-  let idMusica = null;
-
-  try {
-    if (musicaId !== null && musicaId !== undefined) {
-      idMusica = parseInt(musicaId, 10);
-      if (!Number.isInteger(idMusica)) {
-        return res.status(400).json({ status: 'erro', mensagem: 'ID de música inválido.' });
-      }
-
-      const existe = await pool.query('SELECT id FROM musicas WHERE id = $1', [idMusica]);
-      if (!existe.rows[0]) {
-        return res.status(404).json({ status: 'erro', mensagem: 'Música não encontrada.' });
-      }
-    }
-
-    await pool.query('UPDATE usuarios SET musica_favorita_id = $1 WHERE id = $2', [idMusica, req.usuario.id]);
-    return res.status(200).json({ status: 'sucesso', musicaId: idMusica });
-  } catch (erro) {
-    // A música pode ter sido apagada entre o SELECT e o UPDATE. A coluna é
-    // REFERENCES musicas(id), então o banco recusa o UPDATE com 23503; sem
-    // isto a usuário receberia 500 por causa de algo que é, na verdade,
-    // "essa música não existe mais".
-    if (ehViolacaoDeChave(erro, ['23503'])) {
-      return res.status(404).json({ status: 'erro', mensagem: 'Música não encontrada.' });
-    }
-    console.error('Erro ao salvar música favorita:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
-  }
-});
-
-// Substitui a lista de curtidas do perfil (até 4, na ordem enviada).
-app.put('/api/usuarios/eu/curtidas', verificarAutenticacao, async (req, res) => {
-  const { musicaIds } = req.body;
-
-  if (!Array.isArray(musicaIds)) {
-    return res.status(400).json({ status: 'erro', mensagem: 'Lista de músicas inválida.' });
-  }
-
-  const ids = [...new Set(musicaIds.map((valor) => parseInt(valor, 10)))];
-
-  if (ids.some((id) => !Number.isInteger(id))) {
-    return res.status(400).json({ status: 'erro', mensagem: 'Lista de músicas inválida.' });
-  }
-  if (ids.length > LIMITE_CURTIDAS_PERFIL) {
-    return res.status(400).json({ status: 'erro', mensagem: `Você pode escolher no máximo ${LIMITE_CURTIDAS_PERFIL} músicas curtidas.` });
-  }
-
-  try {
-    // A trava de linha (comTravaDoUsuario) serializa requisições do MESMO
-    // usuário. Sem ela, dois "salvar" simultâneos faziam DELETE e depois
-    // reinseriam por cima um do outro: ou violavam o UNIQUE(usuario_id,
-    // musica_id) e devolviam 500, ou gravavam uma lista misturada das duas.
-    // Usuários diferentes continuam rodando em paralelo.
-    const gravadas = await comTravaDoUsuario(pool, req.usuario.id, async (client) => {
-      if (ids.length > 0) {
-        const existentes = await client.query('SELECT id FROM musicas WHERE id = ANY($1::int[])', [ids]);
-        if (existentes.rows.length !== ids.length) {
-          throw new MusicaInexistente();
-        }
-      }
-
-      // "Tudo ou nada": a transação aberta em comTravaDoUsuario garante que
-      // uma falha no meio não deixe metade da lista antiga e metade da nova.
-      await client.query('DELETE FROM perfil_curtidas WHERE usuario_id = $1', [req.usuario.id]);
-
-      for (let i = 0; i < ids.length; i++) {
-        await client.query(
-          'INSERT INTO perfil_curtidas (usuario_id, musica_id, posicao) VALUES ($1, $2, $3)',
-          [req.usuario.id, ids[i], i + 1]
-        );
-      }
-
-      const leitura = await client.query(
-        `SELECT m.id, m.titulo, m.artista, m.url_audio, m.url_capa
-         FROM perfil_curtidas pc
-         JOIN musicas m ON m.id = pc.musica_id
-         WHERE pc.usuario_id = $1
-         ORDER BY pc.posicao ASC`,
-        [req.usuario.id]
-      );
-      return leitura.rows;
+      // musicas.artista é uma cópia do nome: mantém as músicas antigas em dia.
+      await client.query('UPDATE musicas SET artista = $1 WHERE usuario_id = $2', [nome, req.usuario.id]);
+      return resultado.rows[0];
     });
 
-    return res.status(200).json({ status: 'sucesso', musicaIds: ids, curtidas: gravadas });
+    return sucesso(res, { usuario });
   } catch (erro) {
-    if (erro instanceof UsuarioInexistente) {
-      return res.status(404).json({ status: 'erro', mensagem: 'Usuário não encontrado.' });
-    }
-    if (erro instanceof MusicaInexistente || ehViolacaoDeChave(erro, ['23503', '23505'])) {
-      return res.status(404).json({ status: 'erro', mensagem: 'Alguma das músicas não existe mais.' });
-    }
-    console.error('Erro ao salvar curtidas do perfil:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+    if (erro instanceof UsuarioInexistente) return falha(res, 404, 'Usuário não encontrado.');
+    return falhaInterna(res, 'POST /api/usuarios/artista', erro);
   }
 });
 
 // ============================================================
-// REDEFINIÇÃO DE SENHA (via 2FA) — cooldown de 24h entre redefinições
+// REDEFINIÇÃO DE SENHA (logado, via 2FA) — cooldown de 24h
 // ============================================================
 
-const COOLDOWN_REDEFINICAO_MS = 24 * 60 * 60 * 1000; // 24 horas
+const limitarRedefinicaoIP = criarLimitador(15 * 60 * 1000, 10, 'Muitas tentativas a partir deste IP. Tente novamente mais tarde.');
 
-const limitarRedefinicaoIP = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: {
-    status: 'erro',
-    mensagem: 'Muitas tentativas a partir deste IP. Tente novamente mais tarde.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false
-});
-
-// Rota 9: solicita a redefinição — valida a nova senha, confere o cooldown
-// de 24h no servidor (nunca confiar só na checagem do frontend), gera o
-// código e envia por e-mail. Mesmo padrão de verificacoes_2fa, só que
-// vinculado a um usuario_id já existente em vez de um cadastro novo.
 app.post('/api/usuarios/redefinir-senha/solicitar', verificarAutenticacao, limitarRedefinicaoIP, async (req, res) => {
-  const { novaSenha } = req.body;
+  const { novaSenha } = req.body || {};
 
-  if (!novaSenha || !validarSenhaForte(novaSenha)) {
-    return res.status(400).json({
-      status: 'erro',
-      mensagem: 'A nova senha deve ter no mínimo 8 caracteres, incluindo pelo menos uma letra maiúscula, uma minúscula, um número e um caractere especial (@$!%*?&#).'
-    });
+  if (!ehTexto(novaSenha) || !validarSenhaForte(novaSenha)) {
+    return falha(res, 400, 'A nova senha deve ter no mínimo 8 caracteres, incluindo pelo menos uma letra maiúscula, uma minúscula, um número e um caractere especial (@$!%*?&#).');
   }
 
   try {
@@ -1034,29 +636,25 @@ app.post('/api/usuarios/redefinir-senha/solicitar', verificarAutenticacao, limit
       [req.usuario.id]
     );
     const usuarioLogado = resultadoUsuario.rows[0];
+    if (!usuarioLogado) return falha(res, 404, 'Usuário não encontrado.');
 
-    if (!usuarioLogado) {
-      return res.status(404).json({ status: 'erro', mensagem: 'Usuário não encontrado.' });
-    }
-
+    // Cooldown conferido no servidor (nunca confiar só no front).
     if (usuarioLogado.senha_redefinida_em) {
-      const tempoDesdeUltimoReset = Date.now() - new Date(usuarioLogado.senha_redefinida_em).getTime();
-      if (tempoDesdeUltimoReset < COOLDOWN_REDEFINICAO_MS) {
-        const restanteMs = COOLDOWN_REDEFINICAO_MS - tempoDesdeUltimoReset;
-        return res.status(429).json({
-          status: 'erro',
+      const desdeUltimoReset = Date.now() - new Date(usuarioLogado.senha_redefinida_em).getTime();
+      if (desdeUltimoReset < COOLDOWN_REDEFINICAO_MS) {
+        return falha(res, 429, 'Você já redefiniu sua senha recentemente. Aguarde o cooldown de 24h.', {
           codigo: 'COOLDOWN_REDEFINICAO_ATIVO',
-          mensagem: 'Você já redefiniu sua senha recentemente. Aguarde o cooldown de 24h.',
-          restanteMs
+          restanteMs: COOLDOWN_REDEFINICAO_MS - desdeUltimoReset
         });
       }
     }
 
-    const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+    const codigo = gerarCodigo();
+    logarCodigoEmDev('código de redefinição', codigo);
     const novaSenhaHash = await bcrypt.hash(novaSenha, 10);
     const codigoHash = await bcrypt.hash(codigo, 10);
     const idRedefinicao = crypto.randomUUID();
-    const expiraEm = new Date(Date.now() + 10 * 60 * 1000);
+    const expiraEm = new Date(Date.now() + EXPIRACAO_CODIGO_MS);
 
     await pool.query(
       `INSERT INTO redefinicoes_senha (id, usuario_id, nova_senha_hash, codigo_hash, tentativas, expira_em, ultimo_envio_em)
@@ -1064,77 +662,71 @@ app.post('/api/usuarios/redefinir-senha/solicitar', verificarAutenticacao, limit
       [idRedefinicao, req.usuario.id, novaSenhaHash, codigoHash, expiraEm]
     );
 
-    try {
-      await transporter.sendMail({
-        from: `"Open sound" <${process.env.GMAIL_USER}>`,
-        to: usuarioLogado.email,
-        subject: 'Código para redefinir sua senha',
-        text: `Seu código de confirmação para redefinir a senha é: ${codigo}`
-      });
-    } catch (erroMail) {
-      console.error('Erro ao enviar e-mail de redefinição de senha:', erroMail);
+    const enviado = await enviarEmail(
+      usuarioLogado.email,
+      'Código para redefinir sua senha',
+      `Seu código de confirmação para redefinir a senha é: ${codigo}`
+    );
+    if (!enviado) {
       await pool.query('DELETE FROM redefinicoes_senha WHERE id = $1', [idRedefinicao]);
-      return res.status(500).json({ status: 'erro', mensagem: 'Falha ao enviar o e-mail com o código de verificação.' });
+      return falha(res, 500, 'Falha ao enviar o e-mail com o código de verificação.');
     }
 
-    return res.status(200).json({ status: 'sucesso', mensagem: 'Código enviado com sucesso!', idRedefinicao });
-
+    return sucesso(res, { mensagem: 'Código enviado com sucesso!', idRedefinicao });
   } catch (erro) {
-    console.error('Erro ao solicitar redefinição de senha:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+    return falhaInterna(res, 'POST /api/usuarios/redefinir-senha/solicitar', erro);
   }
 });
 
-// Rota 10: confirma o código e efetiva a troca de senha.
 app.post('/api/usuarios/redefinir-senha/confirmar', verificarAutenticacao, limitarRedefinicaoIP, async (req, res) => {
-  const { codigo, idRedefinicao } = req.body;
+  const { codigo, idRedefinicao } = req.body || {};
 
-  if (!codigo || !idRedefinicao) {
-    return res.status(400).json({ status: 'erro', mensagem: 'Dados incompletos.' });
+  if (!ehTexto(codigo) || !ehTexto(idRedefinicao) || !codigo || !idRedefinicao) {
+    return falha(res, 400, 'Dados incompletos.');
   }
 
   try {
     const resultado = await pool.query('SELECT * FROM redefinicoes_senha WHERE id = $1', [idRedefinicao]);
     const redefinicao = resultado.rows[0];
 
-    if (!redefinicao) {
-      return res.status(400).json({ status: 'erro', mensagem: 'Verificação não encontrada ou expirada.' });
-    }
+    if (!redefinicao) return falha(res, 400, 'Verificação não encontrada ou expirada.');
 
-    // Garante que a verificação pertence ao mesmo usuário logado — impede
-    // usar o idRedefinicao de outra pessoa mesmo que alguém consiga adivinhar o UUID.
+    // A verificação precisa pertencer ao usuário logado.
     if (redefinicao.usuario_id !== req.usuario.id) {
-      return res.status(403).json({ status: 'erro', mensagem: 'Verificação não pertence a este usuário.' });
+      return falha(res, 403, 'Verificação não pertence a este usuário.');
     }
 
-    if (new Date(redefinicao.expira_em) < new Date()) {
+    if (expirado(redefinicao.expira_em)) {
       await pool.query('DELETE FROM redefinicoes_senha WHERE id = $1', [idRedefinicao]);
-      return res.status(400).json({ status: 'erro', mensagem: 'O tempo limite do código expirou. Solicite novamente.' });
+      return falha(res, 400, 'O tempo limite do código expirou. Solicite novamente.');
     }
 
-    if (redefinicao.tentativas >= 5) {
+    if (redefinicao.tentativas >= MAX_TENTATIVAS_CODIGO) {
       await pool.query('DELETE FROM redefinicoes_senha WHERE id = $1', [idRedefinicao]);
-      return res.status(429).json({ status: 'erro', mensagem: 'Número máximo de tentativas excedido. Solicite novamente.' });
+      return falha(res, 429, 'Número máximo de tentativas excedido. Solicite novamente.');
     }
 
     const codigoConfere = await bcrypt.compare(codigo.trim(), redefinicao.codigo_hash);
-
     if (!codigoConfere) {
       await pool.query('UPDATE redefinicoes_senha SET tentativas = tentativas + 1 WHERE id = $1', [idRedefinicao]);
-      return res.status(400).json({ status: 'erro', mensagem: 'Código incorreto.' });
+      return falha(res, 400, 'Código incorreto.');
     }
 
-    await pool.query(
-      'UPDATE usuarios SET senha = $1, senha_redefinida_em = CURRENT_TIMESTAMP WHERE id = $2',
-      [redefinicao.nova_senha_hash, req.usuario.id]
-    );
-    await pool.query('DELETE FROM redefinicoes_senha WHERE id = $1', [idRedefinicao]);
+    await comTravaDoUsuario(pool, req.usuario.id, async (client) => {
+      await client.query(
+        'UPDATE usuarios SET senha = $1, senha_redefinida_em = CURRENT_TIMESTAMP WHERE id = $2',
+        [redefinicao.nova_senha_hash, req.usuario.id]
+      );
+      await client.query(
+        `INSERT INTO historico_redefinicoes_senha (usuario_id, origem) VALUES ($1, 'config')`,
+        [req.usuario.id]
+      );
+      await client.query('DELETE FROM redefinicoes_senha WHERE id = $1', [idRedefinicao]);
+    });
 
-    return res.status(200).json({ status: 'sucesso', mensagem: 'Senha redefinida com sucesso!' });
-
+    return sucesso(res, { mensagem: 'Senha redefinida com sucesso!' });
   } catch (erro) {
-    console.error('Erro ao confirmar redefinição de senha:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+    return falhaInterna(res, 'POST /api/usuarios/redefinir-senha/confirmar', erro);
   }
 });
 
@@ -1142,149 +734,105 @@ app.post('/api/usuarios/redefinir-senha/confirmar', verificarAutenticacao, limit
 // EXCLUSÃO DE CONTA (com frase de segurança)
 // ============================================================
 
-// Extrai o caminho relativo dentro do bucket a partir de uma URL pública do
-// Supabase Storage, pra poder apagar o arquivo de verdade (não só o registro
-// no banco). Retorna null se a URL não bater com o padrão esperado.
-function extrairCaminhoStorage(urlPublica) {
-  if (!urlPublica) return null;
-  const marcador = `/storage/v1/object/public/${SUPABASE_BUCKET}/`;
-  const indice = urlPublica.indexOf(marcador);
-  if (indice === -1) return null;
-  return urlPublica.slice(indice + marcador.length);
-}
-
-// Rota 11: deleta a conta e todas as músicas dela — irreversível.
-// Exige a frase de segurança exata: "eu desejo deletar <nome de usuário>"
-// (ou o e-mail, pra contas antigas sem nome de usuário cadastrado).
+// Deleta a conta, as músicas e as playlists — irreversível. Frase exata:
+// "eu desejo deletar <nome de usuário>" (ou e-mail, em contas sem nome).
 app.delete('/api/usuarios/eu', verificarAutenticacao, async (req, res) => {
-  const { fraseConfirmacao } = req.body;
+  const { fraseConfirmacao } = req.body || {};
 
-  if (!fraseConfirmacao) {
-    return res.status(400).json({ status: 'erro', mensagem: 'Frase de confirmação é obrigatória.' });
+  if (!ehTexto(fraseConfirmacao) || !fraseConfirmacao.trim()) {
+    return falha(res, 400, 'Frase de confirmação é obrigatória.');
   }
 
-  const client = await pool.connect();
-
   try {
-    const resultadoUsuario = await client.query(
+    const resultadoUsuario = await pool.query(
       'SELECT email, nome_usuario, url_avatar FROM usuarios WHERE id = $1',
       [req.usuario.id]
     );
     const usuarioLogado = resultadoUsuario.rows[0];
-
-    if (!usuarioLogado) {
-      client.release();
-      return res.status(404).json({ status: 'erro', mensagem: 'Usuário não encontrado.' });
-    }
+    if (!usuarioLogado) return falha(res, 404, 'Usuário não encontrado.');
 
     const identificador = usuarioLogado.nome_usuario || usuarioLogado.email;
     const fraseEsperada = `eu desejo deletar ${identificador}`;
 
     if (fraseConfirmacao.trim().toLowerCase() !== fraseEsperada.toLowerCase()) {
-      client.release();
-      return res.status(400).json({
-        status: 'erro',
-        mensagem: `Frase de confirmação incorreta. Digite exatamente: "eu desejo deletar ${identificador}"`
-      });
+      return falha(res, 400, `Frase de confirmação incorreta. Digite exatamente: "${fraseEsperada}"`);
     }
 
-    // Busca as URLs das músicas ANTES de apagar, pra poder limpar o Storage.
-    const resultadoMusicas = await client.query(
-      'SELECT url_audio, url_capa FROM musicas WHERE usuario_id = $1',
-      [req.usuario.id]
-    );
+    // URLs coletadas ANTES de apagar as linhas; os arquivos só são removidos
+    // DEPOIS do commit (se a transação falhar, nada some do Storage).
+    const [musicas, capasPlaylists] = await Promise.all([
+      pool.query('SELECT url_audio, url_capa FROM musicas WHERE usuario_id = $1', [req.usuario.id]),
+      pool.query('SELECT url_capa FROM playlists WHERE usuario_id = $1 AND url_capa IS NOT NULL', [req.usuario.id])
+    ]);
 
-    // Limpeza do Storage é melhor-esforço: se falhar, não impede a exclusão
-    // da conta (evita deixar o usuário "preso" por causa de um arquivo órfão).
-    const caminhosParaApagar = [];
-    resultadoMusicas.rows.forEach((musica) => {
-      const caminhoAudio = extrairCaminhoStorage(musica.url_audio);
-      const caminhoCapa = extrairCaminhoStorage(musica.url_capa);
-      if (caminhoAudio) caminhosParaApagar.push(caminhoAudio);
-      if (caminhoCapa) caminhosParaApagar.push(caminhoCapa);
+    const urlsParaApagar = [
+      usuarioLogado.url_avatar,
+      ...musicas.rows.flatMap((m) => [m.url_audio, m.url_capa]),
+      ...capasPlaylists.rows.map((p) => p.url_capa)
+    ].filter(Boolean);
+
+    await comTravaDoUsuario(pool, req.usuario.id, async (client) => {
+      // musicas.usuario_id não tem CASCADE: apagar as músicas primeiro.
+      // Curtidas/favoritas/playlists (de qualquer usuário) que apontam para
+      // elas caem por CASCADE.
+      await client.query('DELETE FROM musicas WHERE usuario_id = $1', [req.usuario.id]);
+      await client.query('DELETE FROM playlists WHERE usuario_id = $1', [req.usuario.id]);
+      await client.query('DELETE FROM redefinicoes_senha WHERE usuario_id = $1', [req.usuario.id]);
+      await client.query('DELETE FROM recuperacoes_senha WHERE email = $1', [usuarioLogado.email]);
+      await client.query('DELETE FROM usuarios WHERE id = $1', [req.usuario.id]);
     });
 
-    const caminhoAvatarConta = extrairCaminhoStorage(usuarioLogado.url_avatar);
-    if (caminhoAvatarConta) caminhosParaApagar.push(caminhoAvatarConta);
+    await removerArquivosDoStorage(supabase, SUPABASE_BUCKET, urlsParaApagar);
 
-    if (caminhosParaApagar.length > 0) {
-      const { error: erroStorage } = await supabase.storage.from(SUPABASE_BUCKET).remove(caminhosParaApagar);
-      if (erroStorage) {
-        console.error('Erro ao apagar arquivos do Storage (exclusão da conta segue mesmo assim):', erroStorage);
-      }
-    }
-
-    // Transação: apaga músicas + verificações pendentes + a conta em si,
-    // tudo ou nada. Deletar as músicas primeiro satisfaz a foreign key
-    // antes de deletar o usuário, sem precisar mexer na constraint.
-    await client.query('BEGIN');
-    await client.query('DELETE FROM musicas WHERE usuario_id = $1', [req.usuario.id]);
-    await client.query('DELETE FROM playlists WHERE usuario_id = $1', [req.usuario.id]);   // <-- NOVA
-    await client.query('DELETE FROM redefinicoes_senha WHERE usuario_id = $1', [req.usuario.id]);
-    await client.query('DELETE FROM usuarios WHERE id = $1', [req.usuario.id]);
-    await client.query('COMMIT');
-
-    return res.status(200).json({ status: 'sucesso', mensagem: 'Conta e músicas excluídas com sucesso.' });
-
+    return sucesso(res, { mensagem: 'Conta e músicas excluídas com sucesso.' });
   } catch (erro) {
-    await client.query('ROLLBACK');
-    console.error('Erro ao excluir conta:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
-  } finally {
-    client.release();
+    if (erro instanceof UsuarioInexistente) return falha(res, 404, 'Usuário não encontrado.');
+    return falhaInterna(res, 'DELETE /api/usuarios/eu', erro);
   }
 });
 
-const upload = multer({
+// ============================================================
+// MÚSICAS
+// ============================================================
+
+const uploadMusica = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 25 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const tiposAudio = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg'];
-    const tiposImagem = ['image/jpeg', 'image/png', 'image/webp'];
-
-    if (file.fieldname === 'audio' && !tiposAudio.includes(file.mimetype)) {
-      return cb(new Error('Formato de áudio não suportado. Use MP3, WAV ou OGG.'));
-    }
-    if (file.fieldname === 'capa' && !tiposImagem.includes(file.mimetype)) {
-      return cb(new Error('Formato de imagem não suportado. Use JPEG, PNG ou WEBP.'));
-    }
-    cb(null, true);
-  }
+  limits: { fileSize: AUDIO_MAX_BYTES, files: 2 }
 });
 
-const limitarUploadIP = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 20,
-  message: {
-    status: 'erro',
-    mensagem: 'Muitos uploads a partir deste IP. Tente novamente mais tarde.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false
-});
+const limitarUploadIP = criarLimitador(60 * 60 * 1000, 20, 'Muitos uploads a partir deste IP. Tente novamente mais tarde.');
 
 app.post(
   '/api/musicas',
   verificarAutenticacao,
   limitarUploadIP,
-  upload.fields([{ name: 'audio', maxCount: 1 }, { name: 'capa', maxCount: 1 }]),
+  tratarMulter(uploadMusica.fields([{ name: 'audio', maxCount: 1 }, { name: 'capa', maxCount: 1 }]), '25 MB'),
   async (req, res) => {
+    const caminhosEnviados = [];
+
     try {
-      const { titulo } = req.body;
+      const titulo = ehTexto(req.body?.titulo) ? req.body.titulo.trim() : '';
       const arquivoAudio = req.files?.audio?.[0];
       const arquivoCapa = req.files?.capa?.[0];
 
-      if (!titulo) {
-        return res.status(400).json({ status: 'erro', mensagem: 'Título é obrigatório.' });
+      if (!titulo) return falha(res, 400, 'Título é obrigatório.');
+      if (tamanhoEmCaracteres(titulo) > TITULO_MUSICA_MAX) {
+        return falha(res, 400, `O título pode ter no máximo ${TITULO_MUSICA_MAX} caracteres.`);
       }
-      if (!arquivoAudio) {
-        return res.status(400).json({ status: 'erro', mensagem: 'O arquivo de áudio é obrigatório.' });
+      if (!arquivoAudio) return falha(res, 400, 'O arquivo de áudio é obrigatório.');
+
+      // O formato vem dos bytes reais, não do Content-Type declarado.
+      const tipoAudio = detectarTipoAudio(arquivoAudio.buffer);
+      if (!tipoAudio) return falha(res, 400, 'Formato de áudio não suportado. Use MP3, WAV ou OGG.');
+
+      let tipoCapa = null;
+      if (arquivoCapa) {
+        tipoCapa = detectarTipoImagem(arquivoCapa.buffer);
+        if (!tipoCapa) return falha(res, 400, 'Formato de imagem não suportado. Use JPEG, PNG ou WEBP.');
+        if (arquivoCapa.size > CAPA_MAX_BYTES) return falha(res, 413, 'A capa passa do limite de 5 MB. Escolha uma menor.');
       }
 
-      // O nome de artista não vem mais do cliente — é puxado da conta.
-      // Isso é o que garante que TODO upload dessa conta usa o mesmo nome,
-      // e também bloqueia quem tentar chamar a rota direto sem ter
-      // passado pelo cadastro de artista (POST /api/usuarios/artista).
+      // O nome de artista vem da conta, nunca do cliente.
       const resultadoUsuario = await pool.query(
         'SELECT eh_artista, nome_artista FROM usuarios WHERE id = $1',
         [req.usuario.id]
@@ -1292,502 +840,392 @@ app.post(
       const usuarioLogado = resultadoUsuario.rows[0];
 
       if (!usuarioLogado || !usuarioLogado.eh_artista || !usuarioLogado.nome_artista) {
-        return res.status(403).json({
-          status: 'erro',
-          codigo: 'ARTISTA_NAO_CADASTRADO',
-          mensagem: 'Cadastre um nome de artista antes de enviar músicas.'
-        });
+        return falha(res, 403, 'Cadastre um nome de artista antes de enviar músicas.', { codigo: 'ARTISTA_NAO_CADASTRADO' });
       }
 
-      const artista = usuarioLogado.nome_artista;
-
-      const idUnico = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-      const caminhoAudio = `audio/${idUnico}-${arquivoAudio.originalname}`;
+      // Nomes gerados pelo servidor: nada de originalname (acentos/espaços
+      // quebram a chave do Storage).
+      const idUnico = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}`;
+      const caminhoAudio = `audio/${idUnico}.${tipoAudio.extensao}`;
 
       const { error: erroUploadAudio } = await supabase.storage
         .from(SUPABASE_BUCKET)
-        .upload(caminhoAudio, arquivoAudio.buffer, { contentType: arquivoAudio.mimetype });
+        .upload(caminhoAudio, arquivoAudio.buffer, { contentType: tipoAudio.mime });
 
       if (erroUploadAudio) {
         console.error('Erro ao subir áudio pro Supabase Storage:', erroUploadAudio);
-        return res.status(500).json({ status: 'erro', mensagem: 'Falha ao enviar o arquivo de áudio.' });
+        return falha(res, 500, 'Falha ao enviar o arquivo de áudio.');
       }
+      caminhosEnviados.push(caminhoAudio);
 
-      const { data: dadosUrlAudio } = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(caminhoAudio);
-      const urlAudio = dadosUrlAudio.publicUrl;
+      const urlAudio = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(caminhoAudio).data.publicUrl;
 
       let urlCapa = null;
       if (arquivoCapa) {
-        const caminhoCapa = `capas/${idUnico}-${arquivoCapa.originalname}`;
+        const caminhoCapa = `capas/${idUnico}.${tipoCapa.extensao}`;
         const { error: erroUploadCapa } = await supabase.storage
           .from(SUPABASE_BUCKET)
-          .upload(caminhoCapa, arquivoCapa.buffer, { contentType: arquivoCapa.mimetype });
+          .upload(caminhoCapa, arquivoCapa.buffer, { contentType: tipoCapa.mime });
 
         if (erroUploadCapa) {
-          console.error('Erro ao subir capa pro Supabase Storage (música seguirá sem capa):', erroUploadCapa);
+          console.error('Erro ao subir capa (a música seguirá sem capa):', erroUploadCapa);
         } else {
-          const { data: dadosUrlCapa } = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(caminhoCapa);
-          urlCapa = dadosUrlCapa.publicUrl;
+          caminhosEnviados.push(caminhoCapa);
+          urlCapa = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(caminhoCapa).data.publicUrl;
         }
       }
 
       const resultado = await pool.query(
         `INSERT INTO musicas (titulo, artista, url_audio, url_capa, usuario_id)
          VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [titulo, artista, urlAudio, urlCapa, req.usuario.id]
+        [titulo, usuarioLogado.nome_artista, urlAudio, urlCapa, req.usuario.id]
       );
 
-      return res.status(201).json({ status: 'sucesso', musica: resultado.rows[0] });
-
+      return sucesso(res, { musica: resultado.rows[0] }, 201);
     } catch (erro) {
-      console.error('Erro no upload de música:', erro);
-      return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+      // Não deixa arquivo órfão no bucket se o banco falhou.
+      if (caminhosEnviados.length > 0) {
+        await supabase.storage.from(SUPABASE_BUCKET).remove(caminhosEnviados).catch(() => {});
+      }
+      return falhaInterna(res, 'POST /api/musicas', erro);
     }
   }
 );
 
-// ============================================================
-// CONTAGEM DE REPRODUÇÕES
-// ============================================================
-
-// Rota 14: registra UMA reprodução de uma música.
-//
-// Chamar só quando o áudio começa a tocar de verdade (o frontend chama a
-// partir do evento 'play' do player), nunca no clique do botão.
-//
-// Exige sessão pelo mesmo motivo de ouvir música exigir login no frontend.
-// Sem token válido a reprodução nem é contada, o que evita que um visitante
-// anônimo infle o ranking chamando a rota direto.
-//
-// O incremento acontece inteiro dentro do Postgres ("SET x = x + 1"), sem
-// ler o valor antes: se dois usuários towcarem a mesma música no mesmo
-// instante, o banco serializa os dois incrementos e nenhum se perde.
+// Registra UMA reprodução (o front chama no evento 'play' do áudio).
+// Exige sessão para visitante anônimo não inflar o ranking. O incremento é
+// atômico dentro do Postgres.
 app.post('/api/musicas/:id/reproduzir', verificarAutenticacao, async (req, res) => {
-  const idMusica = parseInt(req.params.id, 10);
-
-  if (!Number.isInteger(idMusica)) {
-    return res.status(400).json({ 
-      status: 'erro', 
-      mensagem: 'ID de música inválido.' 
-    });
-  }
+  const idMusica = paraIdValido(req.params.id);
+  if (!idMusica) return falha(res, 400, 'ID de música inválido.');
 
   try {
-    // === LOG DE DIAGNÓSTICO (temporário) ===
-    const antes = await pool.query('SELECT titulo, reproducoes FROM musicas WHERE id = $1', [idMusica]);
-    console.log(`[PLAY] servidor recebeu POST /api/musicas/${idMusica}/reproduzir | usuario ${req.usuario.id}` +
-      (antes.rows[0] ? ` | "${antes.rows[0].titulo}" tinha ${antes.rows[0].reproducoes}` : ' | música não encontrada'));
-
-    // COALESCE só protege contra uma linha antiga com reproducoes NULL
-    // (somar em cima de NULL daria NULL). O incremento continua sendo
-    // atômico, feito em uma única instrução.
     const resultado = await pool.query(
-      'UPDATE musicas SET reproducoes = COALESCE(reproducoes, 0) + 1 WHERE id = $1 RETURNING id, reproducoes',
+      'UPDATE musicas SET reproducoes = reproducoes + 1 WHERE id = $1 RETURNING id, reproducoes',
       [idMusica]
     );
+    if (resultado.rows.length === 0) return falha(res, 404, 'Música não encontrada.');
 
-    if (resultado.rows.length === 0) {
-      console.log(`[PLAY] servidor: música ${idMusica} não existe -> 404 (nada foi contabilizado)`);
-      return res.status(404).json({ 
-        status: 'erro', 
-        mensagem: 'Música não encontrada.' 
-      });
-    }
-
-    console.log(`[PLAY] servidor: música ${idMusica} -> ${resultado.rows[0].reproducoes} reproduções (gravado no PostgreSQL)`);
-
-    return res.status(200).json({
-      status: 'sucesso',
-      musica: resultado.rows[0]
-    });
-
+    return sucesso(res, { musica: resultado.rows[0] });
   } catch (erro) {
-    console.error('Erro ao registrar reprodução:', erro);
-    return res.status(500).json({ 
-      status: 'erro', 
-      mensagem: 'Erro interno no servidor.' 
-    });
+    return falhaInterna(res, 'POST /api/musicas/:id/reproduzir', erro);
   }
 });
 
 app.get('/api/musicas', async (req, res) => {
   try {
     const resultado = await pool.query('SELECT * FROM musicas ORDER BY criado_em DESC LIMIT 50');
-    return res.status(200).json({ status: 'sucesso', musicas: resultado.rows });
+    return sucesso(res, { musicas: resultado.rows });
   } catch (erro) {
-    console.error('Erro ao listar músicas:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+    return falhaInterna(res, 'GET /api/musicas', erro);
   }
 });
 
-// Ranking público das músicas mais tocadas — ranking geral por total de
-// reproduções acumuladas. NÃO é ranking mensal: não existe histórico de
-// data/hora por reprodução, então não há como filtrar por período. A
-// ordenação é feita pelo próprio Postgres.
-//
-// Colunas explícitas em vez de SELECT * porque esta resposta só alimenta o
-// carrossel da home; não há motivo para expor tudo da linha.
+// Ranking geral por reproduções acumuladas (não é mensal: não há histórico por data).
 app.get('/api/musicas/mais-tocadas', async (req, res) => {
   try {
     const resultado = await pool.query(
-      `SELECT
-         id,
-         titulo,
-         artista,
-         url_audio,
-         url_capa,
-         reproducoes,
-         usuario_id,
-         criado_em
-       FROM musicas
-       ORDER BY reproducoes DESC NULLS LAST, criado_em DESC
-       LIMIT 10`
+      `SELECT id, titulo, artista, url_audio, url_capa, reproducoes, usuario_id, criado_em
+         FROM musicas
+        ORDER BY reproducoes DESC, criado_em DESC
+        LIMIT 10`
     );
-
-    return res.status(200).json({ status: 'sucesso', musicas: resultado.rows });
+    return sucesso(res, { musicas: resultado.rows });
   } catch (erro) {
-    console.error('Erro ao listar músicas mais tocadas:', erro);
-    return res.status(500).json({ 
-      status: 'erro', 
-      mensagem: 'Erro interno no servidor.' 
-    });
+    return falhaInterna(res, 'GET /api/musicas/mais-tocadas', erro);
   }
 });
 
-// Ranking público dos artistas mais ouvidos: a soma das reproduções de
-// todas as músicas enviadas pela conta.
-//
-// O agrupamento é por u.id (o mesmo usuario_id de musicas) e NÃO pelo texto
-// musicas.artista. Aquele campo é só uma cópia do nome artístico feita no
-// momento do upload, sem chave: se duas contas diferentes escolherem o
-// mesmo nome artisticamente, agrupar pelo texto fundiria dois artistas
-// distintos num só. Agrupando pelo usuário, isso não acontece.
+// Agrupa por usuário (u.id) e NÃO pelo texto de musicas.artista: dois
+// artistas com o mesmo nome artístico não podem se fundir num só.
 app.get('/api/artistas/mais-ouvidos', async (req, res) => {
   try {
     const resultado = await pool.query(
-      `SELECT
-         u.id AS usuario_id,
-         u.nome_artista AS artista,
-         CAST(COUNT(m.id) AS INTEGER) AS musicas,
-         CAST(COALESCE(SUM(m.reproducoes), 0) AS INTEGER) AS reproducoes
-       FROM usuarios u
-       JOIN musicas m
-         ON m.usuario_id = u.id
-       WHERE u.eh_artista = TRUE
-         AND u.nome_artista IS NOT NULL
-         AND u.nome_artista <> ''
-       GROUP BY u.id, u.nome_artista
-       ORDER BY reproducoes DESC, u.nome_artista ASC
-       LIMIT 10`
+      `SELECT u.id AS usuario_id,
+              u.nome_artista AS artista,
+              COUNT(m.id)::int AS musicas,
+              COALESCE(SUM(m.reproducoes), 0)::int AS reproducoes
+         FROM usuarios u
+         JOIN musicas m ON m.usuario_id = u.id
+        WHERE u.eh_artista = TRUE
+          AND u.nome_artista IS NOT NULL
+          AND u.nome_artista <> ''
+        GROUP BY u.id, u.nome_artista
+        ORDER BY reproducoes DESC, u.nome_artista ASC
+        LIMIT 10`
     );
-
-    return res.status(200).json({ status: 'sucesso', artistas: resultado.rows });
+    return sucesso(res, { artistas: resultado.rows });
   } catch (erro) {
-    console.error('Erro ao listar artistas mais ouvidos:', erro);
-    return res.status(500).json({ 
-      status: 'erro', 
-      mensagem: 'Erro interno no servidor.' 
-    });
+    return falhaInterna(res, 'GET /api/artistas/mais-ouvidos', erro);
   }
 });
 
-// Busca por título OU artista, correspondência parcial (case-insensitive)
-// — cobre "parecidas" e "exatamente iguais" na mesma query. Pública,
-// igual à listagem geral: buscar não exige login.
+// Busca parcial e case-insensitive por título OU artista. Pública.
 app.get('/api/musicas/buscar', async (req, res) => {
-  const termo = req.query.q;
-
-  if (!termo || !termo.trim()) {
-    return res.status(400).json({ status: 'erro', mensagem: 'Digite um termo de busca.' });
-  }
+  const termo = ehTexto(req.query.q) ? req.query.q.trim() : '';
+  if (!termo) return falha(res, 400, 'Digite um termo de busca.');
 
   try {
-    const padrao = `%${termo.trim()}%`;
+    // Escapa % _ \ para o usuário não montar curingas próprios.
+    const padrao = `%${termo.slice(0, 100).replace(/[\\%_]/g, '\\$&')}%`;
     const resultado = await pool.query(
       'SELECT * FROM musicas WHERE titulo ILIKE $1 OR artista ILIKE $1 ORDER BY criado_em DESC LIMIT 50',
       [padrao]
     );
-    return res.status(200).json({ status: 'sucesso', musicas: resultado.rows });
+    return sucesso(res, { musicas: resultado.rows });
   } catch (erro) {
-    console.error('Erro ao buscar músicas:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+    return falhaInterna(res, 'GET /api/musicas/buscar', erro);
   }
 });
 
-// ============================================================
-// "MINHAS MÚSICAS" — listar e excluir (com cooldown de 24h)
-// ============================================================
-
-const COOLDOWN_EXCLUSAO_MUSICA_MS = 24 * 60 * 60 * 1000; // 24 horas
-
-// Rota 12: lista só as músicas do usuário logado — usada na página
-// "Minhas Músicas" do menu hamburguer.
+// "Minhas Músicas"
 app.get('/api/musicas/minhas', verificarAutenticacao, async (req, res) => {
   try {
     const resultado = await pool.query(
       'SELECT * FROM musicas WHERE usuario_id = $1 ORDER BY criado_em DESC',
       [req.usuario.id]
     );
-    return res.status(200).json({ status: 'sucesso', musicas: resultado.rows });
+    return sucesso(res, { musicas: resultado.rows });
   } catch (erro) {
-    console.error('Erro ao listar músicas do usuário:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+    return falhaInterna(res, 'GET /api/musicas/minhas', erro);
   }
 });
 
-// Rota 13: exclui uma música — só o dono pode, e só depois de 24h do
-// momento em que foi postada (usa musicas.criado_em, sem coluna nova).
+// Só o dono exclui, e só 24h depois da postagem.
 app.delete('/api/musicas/:id', verificarAutenticacao, async (req, res) => {
-  const idMusica = parseInt(req.params.id, 10);
-
-  if (!Number.isInteger(idMusica)) {
-    return res.status(400).json({ status: 'erro', mensagem: 'ID de música inválido.' });
-  }
+  const idMusica = paraIdValido(req.params.id);
+  if (!idMusica) return falha(res, 400, 'ID de música inválido.');
 
   try {
     const resultado = await pool.query('SELECT * FROM musicas WHERE id = $1', [idMusica]);
     const musica = resultado.rows[0];
 
-    if (!musica) {
-      return res.status(404).json({ status: 'erro', mensagem: 'Música não encontrada.' });
-    }
-
+    if (!musica) return falha(res, 404, 'Música não encontrada.');
     if (musica.usuario_id !== req.usuario.id) {
-      return res.status(403).json({ status: 'erro', mensagem: 'Você só pode excluir suas próprias músicas.' });
+      return falha(res, 403, 'Você só pode excluir suas próprias músicas.');
     }
 
-    const tempoDesdePostagem = Date.now() - new Date(musica.criado_em).getTime();
-    if (tempoDesdePostagem < COOLDOWN_EXCLUSAO_MUSICA_MS) {
-      const restanteMs = COOLDOWN_EXCLUSAO_MUSICA_MS - tempoDesdePostagem;
-      return res.status(429).json({
-        status: 'erro',
+    const desdePostagem = Date.now() - new Date(musica.criado_em).getTime();
+    if (desdePostagem < COOLDOWN_EXCLUSAO_MUSICA_MS) {
+      return falha(res, 429, 'Aguarde 24h após a postagem para poder excluir esta música.', {
         codigo: 'COOLDOWN_EXCLUSAO_ATIVO',
-        mensagem: 'Aguarde 24h após a postagem para poder excluir esta música.',
-        restanteMs
+        restanteMs: COOLDOWN_EXCLUSAO_MUSICA_MS - desdePostagem
       });
     }
 
-    // Limpeza do Storage é melhor-esforço — mesmo padrão da exclusão de conta.
-    const caminhosParaApagar = [];
-    const caminhoAudio = extrairCaminhoStorage(musica.url_audio);
-    const caminhoCapa = extrairCaminhoStorage(musica.url_capa);
-    if (caminhoAudio) caminhosParaApagar.push(caminhoAudio);
-    if (caminhoCapa) caminhosParaApagar.push(caminhoCapa);
+    // Banco primeiro; arquivos depois (melhor-esforço).
+    await pool.query('DELETE FROM musicas WHERE id = $1 AND usuario_id = $2', [idMusica, req.usuario.id]);
+    await removerArquivosDoStorage(supabase, SUPABASE_BUCKET, [musica.url_audio, musica.url_capa]);
 
-    if (caminhosParaApagar.length > 0) {
-      const { error: erroStorage } = await supabase.storage.from(SUPABASE_BUCKET).remove(caminhosParaApagar);
-      if (erroStorage) {
-        console.error('Erro ao apagar arquivos do Storage (exclusão da música segue mesmo assim):', erroStorage);
-      }
-    }
-
-    await pool.query('DELETE FROM musicas WHERE id = $1', [idMusica]);
-
-    return res.status(200).json({ status: 'sucesso', mensagem: 'Música excluída com sucesso.' });
-
+    return sucesso(res, { mensagem: 'Música excluída com sucesso.' });
   } catch (erro) {
-    console.error('Erro ao excluir música:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+    return falhaInterna(res, 'DELETE /api/musicas/:id', erro);
   }
 });
 
 // ============================================================
-// PLAYLISTS (criar, listar, adicionar/remover músicas) + FAVORITOS
+// PLAYLISTS + FAVORITOS
 // ============================================================
 
-// "Favoritos" é criada sob demanda (lazy) — assim, contas criadas antes
-// dessa funcionalidade existir também ganham a playlist automaticamente
-// na primeira vez que precisarem dela, sem precisar de migração manual.
+// "Favoritos" é criada sob demanda. O índice único parcial (database.js)
+// garante uma só por usuário mesmo com requisições simultâneas.
 async function obterOuCriarPlaylistFavoritos(usuarioId) {
-  const existente = await pool.query(
-    'SELECT * FROM playlists WHERE usuario_id = $1 AND eh_favoritos = TRUE',
+  const buscar = () => pool.query(
+    'SELECT * FROM playlists WHERE usuario_id = $1 AND eh_favoritos = TRUE ORDER BY id LIMIT 1',
     [usuarioId]
   );
+
+  const existente = await buscar();
   if (existente.rows[0]) return existente.rows[0];
 
-  const criada = await pool.query(
-    `INSERT INTO playlists (nome, usuario_id, eh_favoritos)
-     VALUES ('Favoritos', $1, TRUE) RETURNING *`,
+  await pool.query(
+    `INSERT INTO playlists (nome, usuario_id, eh_favoritos, publica)
+     VALUES ('Favoritos', $1, TRUE, FALSE)
+     ON CONFLICT DO NOTHING`,
     [usuarioId]
   );
-  return criada.rows[0];
+  return (await buscar()).rows[0];
 }
 
 const uploadCapaPlaylist = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB — é só uma capa, não precisa do limite de 25MB do áudio
-  fileFilter: (req, file, cb) => {
-    const tiposImagem = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!tiposImagem.includes(file.mimetype)) {
-      return cb(new Error('Formato de imagem não suportado. Use JPEG, PNG ou WEBP.'));
-    }
-    cb(null, true);
-  }
+  limits: { fileSize: CAPA_MAX_BYTES, files: 1 }
 });
 
-// Lista as playlists do usuário logado. Favoritos sempre aparece primeiro
-// (ORDER BY eh_favoritos DESC) e é garantida a existir antes de listar.
+// Valida e normaliza o nome de uma playlist. Retorna { nome } ou { erro }.
+function normalizarNomePlaylist(nomeBruto) {
+  if (!ehTexto(nomeBruto)) return { erro: 'Dê um nome para a playlist.' };
+  const nome = nomeBruto.trim().replace(/\s+/g, ' ');
+  if (!nome) return { erro: 'Dê um nome para a playlist.' };
+  if (tamanhoEmCaracteres(nome) > PLAYLIST_NOME_MAX) {
+    return { erro: `O nome pode ter no máximo ${PLAYLIST_NOME_MAX} caracteres.` };
+  }
+  return { nome };
+}
+
+// Cria a playlist respeitando o limite por usuário (dentro da trava, pra
+// várias criações simultâneas não passarem do limite). Favoritos não conta.
+function criarPlaylist(usuarioId, nome, urlCapa) {
+  return comTravaDoUsuario(pool, usuarioId, async (client) => {
+    const total = await client.query(
+      'SELECT COUNT(*)::int AS total FROM playlists WHERE usuario_id = $1 AND eh_favoritos = FALSE',
+      [usuarioId]
+    );
+    if (total.rows[0].total >= PLAYLISTS_MAX_POR_USUARIO) throw new LimiteDePlaylists();
+
+    const resultado = await client.query(
+      `INSERT INTO playlists (nome, url_capa, usuario_id, eh_favoritos, publica)
+       VALUES ($1, $2, $3, FALSE, TRUE) RETURNING *`,
+      [nome, urlCapa, usuarioId]
+    );
+    return resultado.rows[0];
+  });
+}
+
+const respostaLimitePlaylists = (res) =>
+  falha(res, 409, `Você já tem ${PLAYLISTS_MAX_POR_USUARIO} playlists. Exclua uma antes de criar outra.`);
+
+// Lista as playlists do usuário; Favoritos sempre primeiro.
 app.get('/api/playlists', verificarAutenticacao, async (req, res) => {
   try {
     await obterOuCriarPlaylistFavoritos(req.usuario.id);
 
-    // ?musicaId=X é opcional: quando vem, cada playlist informa se já contém a música.
-    const idMusica = parseInt(req.query.musicaId, 10);
-    const musicaId = Number.isInteger(idMusica) ? idMusica : null;
+    // ?musicaId=X é opcional: cada playlist informa se já contém a música.
+    const musicaId = paraIdValido(req.query.musicaId);
 
     const resultado = await pool.query(
-      `SELECT
-         p.*,
-         CAST((SELECT COUNT(*) FROM playlist_musicas pm WHERE pm.playlist_id = p.id) AS INTEGER) AS total_musicas,
-         EXISTS (
-           SELECT 1 FROM playlist_musicas pm
-           WHERE pm.playlist_id = p.id AND pm.musica_id = $2
-         ) AS contem_musica
-       FROM playlists p
-       WHERE p.usuario_id = $1
-       ORDER BY p.eh_favoritos DESC, p.criado_em ASC`,
+      `SELECT p.*,
+              (SELECT COUNT(*)::int FROM playlist_musicas pm WHERE pm.playlist_id = p.id) AS total_musicas,
+              EXISTS (
+                SELECT 1 FROM playlist_musicas pm
+                 WHERE pm.playlist_id = p.id AND pm.musica_id = $2
+              ) AS contem_musica
+         FROM playlists p
+        WHERE p.usuario_id = $1
+        ORDER BY p.eh_favoritos DESC, p.criado_em ASC`,
       [req.usuario.id, musicaId]
     );
-    return res.status(200).json({ status: 'sucesso', playlists: resultado.rows });
+    return sucesso(res, { playlists: resultado.rows });
   } catch (erro) {
-    console.error('Erro ao listar playlists:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+    return falhaInterna(res, 'GET /api/playlists', erro);
   }
 });
 
-// Cria uma playlist nova (nome obrigatório, capa opcional).
-app.post('/api/playlists', verificarAutenticacao, uploadCapaPlaylist.single('capa'), async (req, res) => {
-  const { nome } = req.body;
+// Cria uma playlist (nome obrigatório, capa opcional).
+app.post('/api/playlists', verificarAutenticacao, tratarMulter(uploadCapaPlaylist.single('capa'), '5 MB'), async (req, res) => {
+  const { nome, erro: erroNome } = normalizarNomePlaylist(req.body?.nome);
+  if (erroNome) return falha(res, 400, erroNome);
 
-  if (!nome || !nome.trim()) {
-    return res.status(400).json({ status: 'erro', mensagem: 'Nome da playlist é obrigatório.' });
-  }
+  let caminhoCapa = null;
 
   try {
     let urlCapa = null;
 
     if (req.file) {
-      const caminhoCapa = `capas-playlist/${Date.now()}-${Math.round(Math.random() * 1e9)}-${req.file.originalname}`;
+      const tipo = detectarTipoImagem(req.file.buffer);
+      if (!tipo) return falha(res, 400, 'Formato de imagem não suportado. Use JPEG, PNG ou WEBP.');
+
+      const caminho = `capas-playlist/${Date.now()}-${crypto.randomBytes(6).toString('hex')}.${tipo.extensao}`;
       const { error: erroUpload } = await supabase.storage
         .from(SUPABASE_BUCKET)
-        .upload(caminhoCapa, req.file.buffer, { contentType: req.file.mimetype });
+        .upload(caminho, req.file.buffer, { contentType: tipo.mime });
 
       if (erroUpload) {
-        console.error('Erro ao subir capa da playlist (playlist seguirá sem capa):', erroUpload);
+        console.error('Erro ao subir capa da playlist (seguirá sem capa):', erroUpload);
       } else {
-        const { data } = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(caminhoCapa);
-        urlCapa = data.publicUrl;
+        caminhoCapa = caminho;
+        urlCapa = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(caminho).data.publicUrl;
       }
     }
 
-    const resultado = await pool.query(
-      `INSERT INTO playlists (nome, url_capa, usuario_id, eh_favoritos)
-       VALUES ($1, $2, $3, FALSE) RETURNING *`,
-      [nome.trim(), urlCapa, req.usuario.id]
-    );
-
-    return res.status(201).json({ status: 'sucesso', playlist: resultado.rows[0] });
+    const playlist = await criarPlaylist(req.usuario.id, nome, urlCapa);
+    return sucesso(res, { playlist }, 201);
   } catch (erro) {
-    console.error('Erro ao criar playlist:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+    if (caminhoCapa) await supabase.storage.from(SUPABASE_BUCKET).remove([caminhoCapa]).catch(() => {});
+    if (erro instanceof UsuarioInexistente) return falha(res, 404, 'Usuário não encontrado.');
+    if (erro instanceof LimiteDePlaylists) return respostaLimitePlaylists(res);
+    return falhaInterna(res, 'POST /api/playlists', erro);
   }
 });
 
-// Detalhe de uma playlist + suas músicas — só o dono pode ver.
+// Detalhe + músicas — só o dono. Playlist de outra pessoa responde 404
+// (igual a "não existe"), sem confirmar que o id existe.
 app.get('/api/playlists/:id', verificarAutenticacao, async (req, res) => {
-  const idPlaylist = parseInt(req.params.id, 10);
-  if (!Number.isInteger(idPlaylist)) {
-    return res.status(400).json({ status: 'erro', mensagem: 'ID de playlist inválido.' });
-  }
+  const idPlaylist = paraIdValido(req.params.id);
+  if (!idPlaylist) return falha(res, 400, 'ID de playlist inválido.');
 
   try {
-    const resultadoPlaylist = await pool.query('SELECT * FROM playlists WHERE id = $1', [idPlaylist]);
+    const resultadoPlaylist = await pool.query(
+      'SELECT * FROM playlists WHERE id = $1 AND usuario_id = $2',
+      [idPlaylist, req.usuario.id]
+    );
     const playlist = resultadoPlaylist.rows[0];
-
-    if (!playlist) {
-      return res.status(404).json({ status: 'erro', mensagem: 'Playlist não encontrada.' });
-    }
-    if (playlist.usuario_id !== req.usuario.id) {
-      return res.status(403).json({ status: 'erro', mensagem: 'Você não tem acesso a esta playlist.' });
-    }
+    if (!playlist) return falha(res, 404, 'Playlist não encontrada.');
 
     const resultadoMusicas = await pool.query(
       `SELECT m.* FROM musicas m
-       JOIN playlist_musicas pm ON pm.musica_id = m.id
-       WHERE pm.playlist_id = $1
-       ORDER BY pm.adicionado_em DESC`,
+         JOIN playlist_musicas pm ON pm.musica_id = m.id
+        WHERE pm.playlist_id = $1
+        ORDER BY pm.adicionado_em DESC`,
       [idPlaylist]
     );
 
-    return res.status(200).json({ status: 'sucesso', playlist, musicas: resultadoMusicas.rows });
+    return sucesso(res, { playlist, musicas: resultadoMusicas.rows });
   } catch (erro) {
-    console.error('Erro ao buscar playlist:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+    return falhaInterna(res, 'GET /api/playlists/:id', erro);
   }
 });
 
-// Exclui uma playlist — a de Favoritos é protegida e nunca pode ser excluída.
-app.delete('/api/playlists/:id', verificarAutenticacao, async (req, res) => {
-  const idPlaylist = parseInt(req.params.id, 10);
-  if (!Number.isInteger(idPlaylist)) {
-    return res.status(400).json({ status: 'erro', mensagem: 'ID de playlist inválido.' });
-  }
+// Exclusão compartilhada por DELETE /api/playlists/:id e
+// DELETE /api/perfil/playlists/:id. Só o dono apaga; Favoritos é protegida.
+async function excluirPlaylistDoUsuario(req, res) {
+  const idPlaylist = paraIdValido(req.params.id);
+  if (!idPlaylist) return falha(res, 400, 'ID de playlist inválido.');
 
   try {
-    // "AND usuario_id" na própria cláusula do DELETE: só o dono apaga, e a
-    // resposta para "não existe" e "é de outra pessoa" é a mesma (404).
-    // Antes, um 403 para playlist de outro usuário confirmava que aquele ID
-    // existia, o que permite sondar IDs alheios.
     const resultado = await pool.query(
-      'DELETE FROM playlists WHERE id = $1 AND usuario_id = $2 AND eh_favoritos = FALSE RETURNING id',
+      `DELETE FROM playlists
+        WHERE id = $1 AND usuario_id = $2 AND eh_favoritos = FALSE
+        RETURNING id, url_capa`,
       [idPlaylist, req.usuario.id]
     );
 
     if (resultado.rows.length === 0) {
-      // Ainda pode ser a de Favoritos do próprio usuário — a única distinção
-      // que pode ser revelada sem vazar nada, porque a busca também é
-      // filtrada por usuario_id.
       const propria = await pool.query(
         'SELECT eh_favoritos FROM playlists WHERE id = $1 AND usuario_id = $2',
         [idPlaylist, req.usuario.id]
       );
-
-      if (propria.rows[0] && propria.rows[0].eh_favoritos) {
-        return res.status(400).json({ status: 'erro', mensagem: 'A playlist de Favoritos não pode ser excluída.' });
+      if (propria.rows[0]?.eh_favoritos) {
+        return falha(res, 400, 'A playlist de Favoritos não pode ser excluída.');
       }
-      return res.status(404).json({ status: 'erro', mensagem: 'Playlist não encontrada.' });
+      return falha(res, 404, 'Playlist não encontrada.');
     }
-    return res.status(200).json({ status: 'sucesso', mensagem: 'Playlist excluída.' });
+
+    await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, resultado.rows[0].url_capa);
+    return sucesso(res, { mensagem: 'Playlist excluída.', id: idPlaylist });
   } catch (erro) {
-    console.error('Erro ao excluir playlist:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+    return falhaInterna(res, 'DELETE playlist', erro);
   }
-});
+}
 
-// Adiciona uma música a uma playlist — ON CONFLICT evita duplicar.
+app.delete('/api/playlists/:id', verificarAutenticacao, excluirPlaylistDoUsuario);
+
+// Adiciona música à playlist (ON CONFLICT evita duplicar).
 app.post('/api/playlists/:id/musicas', verificarAutenticacao, async (req, res) => {
-  const idPlaylist = parseInt(req.params.id, 10);
-  const idMusica = parseInt(req.body.musicaId, 10);
+  const idPlaylist = paraIdValido(req.params.id);
+  const idMusica = paraIdValido((req.body || {}).musicaId);
 
-  if (!Number.isInteger(idPlaylist) || !Number.isInteger(idMusica)) {
-    return res.status(400).json({ status: 'erro', mensagem: 'Dados inválidos.' });
-  }
-
-  if (!Number.isInteger(idPlaylist) || !musicaId) {
-    return res.status(400).json({ status: 'erro', mensagem: 'Dados inválidos.' });
-  }
+  if (!idPlaylist || !idMusica) return falha(res, 400, 'Dados inválidos.');
 
   try {
-    const resultadoPlaylist = await pool.query('SELECT * FROM playlists WHERE id = $1', [idPlaylist]);
-    const playlist = resultadoPlaylist.rows[0];
+    const playlist = await pool.query(
+      'SELECT id FROM playlists WHERE id = $1 AND usuario_id = $2',
+      [idPlaylist, req.usuario.id]
+    );
+    if (!playlist.rows[0]) return falha(res, 404, 'Playlist não encontrada.');
 
-    if (!playlist || playlist.usuario_id !== req.usuario.id) {
-      return res.status(403).json({ status: 'erro', mensagem: 'Você não tem acesso a esta playlist.' });
-    }
-        const musicaExiste = await pool.query('SELECT 1 FROM musicas WHERE id = $1', [idMusica]);
-    if (!musicaExiste.rows[0]) {
-      return res.status(404).json({ status: 'erro', mensagem: 'Música não encontrada.' });
-    }
+    const musicaExiste = await pool.query('SELECT 1 FROM musicas WHERE id = $1', [idMusica]);
+    if (!musicaExiste.rows[0]) return falha(res, 404, 'Música não encontrada.');
 
     await pool.query(
       `INSERT INTO playlist_musicas (playlist_id, musica_id) VALUES ($1, $2)
@@ -1795,55 +1233,46 @@ app.post('/api/playlists/:id/musicas', verificarAutenticacao, async (req, res) =
       [idPlaylist, idMusica]
     );
 
-    return res.status(200).json({ status: 'sucesso', mensagem: 'Música adicionada à playlist.' });
+    return sucesso(res, { mensagem: 'Música adicionada à playlist.' });
   } catch (erro) {
-    console.error('Erro ao adicionar música à playlist:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+    if (ehMusicaSumida(erro)) return falha(res, 404, 'Música não encontrada.');
+    return falhaInterna(res, 'POST /api/playlists/:id/musicas', erro);
   }
 });
 
-// Remove uma música de uma playlist.
 app.delete('/api/playlists/:id/musicas/:musicaId', verificarAutenticacao, async (req, res) => {
-  const idPlaylist = parseInt(req.params.id, 10);
-  const idMusica = parseInt(req.params.musicaId, 10);
+  const idPlaylist = paraIdValido(req.params.id);
+  const idMusica = paraIdValido(req.params.musicaId);
 
-  if (!Number.isInteger(idPlaylist) || !Number.isInteger(idMusica)) {
-    return res.status(400).json({ status: 'erro', mensagem: 'Dados inválidos.' });
-  }
+  if (!idPlaylist || !idMusica) return falha(res, 400, 'Dados inválidos.');
 
   try {
-    const resultadoPlaylist = await pool.query('SELECT * FROM playlists WHERE id = $1', [idPlaylist]);
-    const playlist = resultadoPlaylist.rows[0];
-
-    if (!playlist || playlist.usuario_id !== req.usuario.id) {
-      return res.status(403).json({ status: 'erro', mensagem: 'Você não tem acesso a esta playlist.' });
-    }
+    const playlist = await pool.query(
+      'SELECT id FROM playlists WHERE id = $1 AND usuario_id = $2',
+      [idPlaylist, req.usuario.id]
+    );
+    if (!playlist.rows[0]) return falha(res, 404, 'Playlist não encontrada.');
 
     await pool.query(
       'DELETE FROM playlist_musicas WHERE playlist_id = $1 AND musica_id = $2',
       [idPlaylist, idMusica]
     );
 
-    return res.status(200).json({ status: 'sucesso', mensagem: 'Música removida da playlist.' });
+    return sucesso(res, { mensagem: 'Música removida da playlist.' });
   } catch (erro) {
-    console.error('Erro ao remover música da playlist:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+    return falhaInterna(res, 'DELETE /api/playlists/:id/musicas/:musicaId', erro);
   }
 });
 
-// Atalhos de favoritar/desfavoritar — por baixo dos panos usam a playlist
-// Favoritos, mas o frontend não precisa saber o ID dela pra isso.
+// Atalhos de favoritar/desfavoritar (usam a playlist Favoritos por baixo).
 app.post('/api/musicas/:id/favoritar', verificarAutenticacao, async (req, res) => {
-  const idMusica = parseInt(req.params.id, 10);
-  if (!Number.isInteger(idMusica)) {
-    return res.status(400).json({ status: 'erro', mensagem: 'ID de música inválido.' });
-  }
-    const musicaExiste = await pool.query('SELECT 1 FROM musicas WHERE id = $1', [idMusica]);
-  if (!musicaExiste.rows[0]) {
-    return res.status(404).json({ status: 'erro', mensagem: 'Música não encontrada.' });
-  }
+  const idMusica = paraIdValido(req.params.id);
+  if (!idMusica) return falha(res, 400, 'ID de música inválido.');
 
   try {
+    const musicaExiste = await pool.query('SELECT 1 FROM musicas WHERE id = $1', [idMusica]);
+    if (!musicaExiste.rows[0]) return falha(res, 404, 'Música não encontrada.');
+
     const favoritos = await obterOuCriarPlaylistFavoritos(req.usuario.id);
 
     await pool.query(
@@ -1852,18 +1281,16 @@ app.post('/api/musicas/:id/favoritar', verificarAutenticacao, async (req, res) =
       [favoritos.id, idMusica]
     );
 
-    return res.status(200).json({ status: 'sucesso', mensagem: 'Música favoritada.' });
+    return sucesso(res, { mensagem: 'Música favoritada.' });
   } catch (erro) {
-    console.error('Erro ao favoritar música:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+    if (ehMusicaSumida(erro)) return falha(res, 404, 'Música não encontrada.');
+    return falhaInterna(res, 'POST /api/musicas/:id/favoritar', erro);
   }
 });
 
 app.delete('/api/musicas/:id/favoritar', verificarAutenticacao, async (req, res) => {
-  const idMusica = parseInt(req.params.id, 10);
-  if (!Number.isInteger(idMusica)) {
-    return res.status(400).json({ status: 'erro', mensagem: 'ID de música inválido.' });
-  }
+  const idMusica = paraIdValido(req.params.id);
+  if (!idMusica) return falha(res, 400, 'ID de música inválido.');
 
   try {
     const favoritos = await obterOuCriarPlaylistFavoritos(req.usuario.id);
@@ -1873,15 +1300,13 @@ app.delete('/api/musicas/:id/favoritar', verificarAutenticacao, async (req, res)
       [favoritos.id, idMusica]
     );
 
-    return res.status(200).json({ status: 'sucesso', mensagem: 'Música removida dos favoritos.' });
+    return sucesso(res, { mensagem: 'Música removida dos favoritos.' });
   } catch (erro) {
-    console.error('Erro ao desfavoritar música:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+    return falhaInterna(res, 'DELETE /api/musicas/:id/favoritar', erro);
   }
 });
 
-// IDs das músicas favoritadas pelo usuário logado — o frontend busca isso
-// uma vez e usa pra decidir qual coração pintar de preenchido nos cards.
+// IDs favoritados pelo usuário — o front usa pra pintar os corações.
 app.get('/api/musicas/favoritos/ids', verificarAutenticacao, async (req, res) => {
   try {
     const favoritos = await obterOuCriarPlaylistFavoritos(req.usuario.id);
@@ -1891,28 +1316,358 @@ app.get('/api/musicas/favoritos/ids', verificarAutenticacao, async (req, res) =>
       [favoritos.id]
     );
 
-    return res.status(200).json({ status: 'sucesso', ids: resultado.rows.map((r) => r.musica_id) });
+    return sucesso(res, { ids: resultado.rows.map((r) => r.musica_id) });
   } catch (erro) {
-    console.error('Erro ao buscar favoritos:', erro);
-    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+    return falhaInterna(res, 'GET /api/musicas/favoritos/ids', erro);
   }
 });
 
-app.use((erro, req, res, next) => {
-  // Arquivo acima do limite do Multer é 413 (Payload Too Large), não um 400
-  // genérico: o pedido é sintaticamente válido, o corpo é que não cabe. As
-  // rotas com limite próprio (avatar, capa de playlist) já traduzem antes
-  // com a mensagem exata; aqui fica o resto dos uploads, sem número, porque
-  // o MulterError não carrega o limite que foi estourado.
-  if (erro instanceof multer.MulterError && erro.code === 'LIMIT_FILE_SIZE') {
-    return res.status(413).json({
-      status: 'erro',
-      mensagem: 'O arquivo enviado é grande demais. Escolha um arquivo menor.'
+// ============================================================
+// PERFIL (bio, avatar, tema, música favorita, destaques, playlists)
+// O usuário SEMPRE vem do token (req.usuario.id), nunca do corpo.
+// ============================================================
+
+async function lerFavorita(executor, usuarioId) {
+  const resultado = await executor.query(
+    `SELECT ${COLUNAS_MUSICA}
+       FROM perfil_favorita f
+       JOIN musicas m ON m.id = f.musica_id
+      WHERE f.usuario_id = $1`,
+    [usuarioId]
+  );
+  return resultado.rows[0] || null;
+}
+
+async function lerCurtidas(executor, usuarioId) {
+  const resultado = await executor.query(
+    `SELECT ${COLUNAS_MUSICA}
+       FROM perfil_curtidas c
+       JOIN musicas m ON m.id = c.musica_id
+      WHERE c.usuario_id = $1
+      ORDER BY c.posicao ASC`,
+    [usuarioId]
+  );
+  return resultado.rows;
+}
+
+// Perfil completo numa resposta só.
+app.get('/api/perfil', verificarAutenticacao, async (req, res) => {
+  const usuarioId = req.usuario.id;
+
+  try {
+    const [usuarioRes, favorita, curtidas, playlistsRes, estatisticasRes] = await Promise.all([
+      pool.query(
+        `SELECT id, nome_usuario, eh_artista, nome_artista, bio, url_avatar AS avatar_url, tema, criado_em
+           FROM usuarios WHERE id = $1`,
+        [usuarioId]
+      ),
+      lerFavorita(pool, usuarioId),
+      lerCurtidas(pool, usuarioId),
+      // Favoritos é playlist do sistema: não aparece no perfil.
+      pool.query(
+        `SELECT p.id, p.nome, p.criado_em, COUNT(pm.musica_id)::int AS total_faixas
+           FROM playlists p
+           LEFT JOIN playlist_musicas pm ON pm.playlist_id = p.id
+          WHERE p.usuario_id = $1 AND p.publica = TRUE AND p.eh_favoritos = FALSE
+          GROUP BY p.id, p.nome, p.criado_em
+          ORDER BY p.criado_em DESC, p.id DESC`,
+        [usuarioId]
+      ),
+      pool.query(
+        `SELECT COUNT(*)::int AS musicas_enviadas,
+                COALESCE(SUM(reproducoes), 0)::int AS reproducoes
+           FROM musicas WHERE usuario_id = $1`,
+        [usuarioId]
+      )
+    ]);
+
+    const usuario = usuarioRes.rows[0];
+    if (!usuario) return falha(res, 404, 'Usuário não encontrado.');
+
+    return sucesso(res, {
+      perfil: {
+        usuario,
+        favorita,
+        curtidas,
+        playlists: playlistsRes.rows,
+        estatisticas: estatisticasRes.rows[0]
+      }
     });
+  } catch (erro) {
+    return falhaInterna(res, 'GET /api/perfil', erro);
   }
-  if (erro instanceof multer.MulterError || erro.message?.includes('suportado')) {
-    return res.status(400).json({ status: 'erro', mensagem: erro.message });
+});
+
+app.put('/api/perfil/bio', verificarAutenticacao, async (req, res) => {
+  const { bio } = req.body || {};
+
+  if (bio !== null && !ehTexto(bio)) return falha(res, 400, 'A bio precisa ser um texto.');
+
+  // Normaliza quebra de linha do Windows; texto vazio vira NULL.
+  const limpa = bio === null ? '' : bio.replace(/\r\n/g, '\n').trim();
+
+  if (tamanhoEmCaracteres(limpa) > BIO_MAX) {
+    return falha(res, 400, `A bio pode ter no máximo ${BIO_MAX} caracteres.`);
+  }
+
+  try {
+    const resultado = await pool.query(
+      'UPDATE usuarios SET bio = $1 WHERE id = $2 RETURNING bio',
+      [limpa === '' ? null : limpa, req.usuario.id]
+    );
+    if (resultado.rows.length === 0) return falha(res, 404, 'Usuário não encontrado.');
+
+    return sucesso(res, { bio: resultado.rows[0].bio });
+  } catch (erro) {
+    return falhaInterna(res, 'PUT /api/perfil/bio', erro);
+  }
+});
+
+// ---------- avatar ----------
+
+// Sem fileFilter de MIME: quem decide o formato são os bytes (detectarTipoImagem).
+const uploadAvatar = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: AVATAR_MAX_BYTES, files: 1 }
+});
+
+const limitarAvatarIP = criarLimitador(60 * 60 * 1000, 30, 'Muitas trocas de avatar a partir deste IP. Tente novamente mais tarde.');
+
+app.post(
+  '/api/perfil/avatar',
+  verificarAutenticacao,
+  limitarAvatarIP,
+  tratarMulter(uploadAvatar.single('avatar'), `${AVATAR_MAX_BYTES / (1024 * 1024)} MB`),
+  async (req, res) => {
+    const arquivo = req.file;
+    if (!arquivo) return falha(res, 400, 'Envie uma imagem no campo "avatar".');
+
+    const tipo = detectarTipoImagem(arquivo.buffer);
+    if (!tipo) return falha(res, 400, 'Formato não suportado. Use JPEG, PNG ou WEBP.');
+
+    const usuarioId = req.usuario.id;
+    // Nome gerado pelo servidor (nunca o originalname do cliente).
+    const caminhoNovo = `avatares/${usuarioId}-${Date.now()}.${tipo.extensao}`;
+
+    try {
+      const anterior = await pool.query('SELECT url_avatar FROM usuarios WHERE id = $1', [usuarioId]);
+      if (anterior.rows.length === 0) return falha(res, 404, 'Usuário não encontrado.');
+      const urlAnterior = anterior.rows[0].url_avatar;
+
+      const { error: erroUpload } = await supabase.storage
+        .from(SUPABASE_BUCKET)
+        .upload(caminhoNovo, arquivo.buffer, { contentType: tipo.mime, cacheControl: '3600' });
+
+      if (erroUpload) {
+        console.error('Erro ao subir avatar pro Storage:', erroUpload);
+        return falha(res, 500, 'Falha ao enviar a imagem.');
+      }
+
+      const urlNova = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(caminhoNovo).data.publicUrl;
+
+      try {
+        await pool.query('UPDATE usuarios SET url_avatar = $1 WHERE id = $2', [urlNova, usuarioId]);
+      } catch (erroBanco) {
+        // Subiu mas o banco não registrou: desfaz o upload (sem órfão).
+        await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, urlNova);
+        throw erroBanco;
+      }
+
+      // Só agora que a nova está confirmada é seguro descartar a antiga.
+      if (urlAnterior && urlAnterior !== urlNova) {
+        await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, urlAnterior);
+      }
+
+      return sucesso(res, { avatar_url: urlNova });
+    } catch (erro) {
+      return falhaInterna(res, 'POST /api/perfil/avatar', erro);
+    }
+  }
+);
+
+app.delete('/api/perfil/avatar', verificarAutenticacao, async (req, res) => {
+  try {
+    const anterior = await pool.query('SELECT url_avatar FROM usuarios WHERE id = $1', [req.usuario.id]);
+    if (anterior.rows.length === 0) return falha(res, 404, 'Usuário não encontrado.');
+
+    // Banco primeiro: mesmo que apagar o arquivo falhe, o perfil já não aponta pra ele.
+    await pool.query('UPDATE usuarios SET url_avatar = NULL WHERE id = $1', [req.usuario.id]);
+    await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, anterior.rows[0].url_avatar);
+
+    return sucesso(res, { avatar_url: null });
+  } catch (erro) {
+    return falhaInterna(res, 'DELETE /api/perfil/avatar', erro);
+  }
+});
+
+// ---------- tema ----------
+
+app.put('/api/perfil/tema', verificarAutenticacao, async (req, res) => {
+  const { tema } = req.body || {};
+
+  if (!TEMAS_VALIDOS.includes(tema)) return falha(res, 400, 'Tema inválido. Use "light" ou "dark".');
+
+  try {
+    const resultado = await pool.query(
+      'UPDATE usuarios SET tema = $1 WHERE id = $2 RETURNING tema',
+      [tema, req.usuario.id]
+    );
+    if (resultado.rows.length === 0) return falha(res, 404, 'Usuário não encontrado.');
+
+    return sucesso(res, { tema: resultado.rows[0].tema });
+  } catch (erro) {
+    return falhaInterna(res, 'PUT /api/perfil/tema', erro);
+  }
+});
+
+// ---------- música favorita ----------
+
+app.put('/api/perfil/favorita', verificarAutenticacao, async (req, res) => {
+  const musicaId = paraIdValido((req.body || {}).musicaId);
+  if (!musicaId) return falha(res, 400, 'Escolha uma música válida.');
+
+  try {
+    const existe = await pool.query('SELECT id FROM musicas WHERE id = $1', [musicaId]);
+    if (existe.rows.length === 0) return falha(res, 404, 'Música não encontrada.');
+
+    // Upsert: a primeira vez insere, as próximas trocam a música.
+    await pool.query(
+      `INSERT INTO perfil_favorita (usuario_id, musica_id)
+       VALUES ($1, $2)
+       ON CONFLICT (usuario_id)
+       DO UPDATE SET musica_id = EXCLUDED.musica_id, atualizado_em = CURRENT_TIMESTAMP`,
+      [req.usuario.id, musicaId]
+    );
+
+    return sucesso(res, { favorita: await lerFavorita(pool, req.usuario.id) });
+  } catch (erro) {
+    if (ehMusicaSumida(erro)) return falha(res, 404, 'Música não encontrada.');
+    return falhaInterna(res, 'PUT /api/perfil/favorita', erro);
+  }
+});
+
+app.delete('/api/perfil/favorita', verificarAutenticacao, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM perfil_favorita WHERE usuario_id = $1', [req.usuario.id]);
+    return sucesso(res, { favorita: null });
+  } catch (erro) {
+    return falhaInterna(res, 'DELETE /api/perfil/favorita', erro);
+  }
+});
+
+// ---------- curtidas em destaque (lista inteira substituída de uma vez) ----------
+
+app.put('/api/perfil/curtidas', verificarAutenticacao, async (req, res) => {
+  const { musicaIds } = req.body || {};
+
+  if (!Array.isArray(musicaIds)) return falha(res, 400, 'Envie a lista de músicas em "musicaIds".');
+  if (musicaIds.length > CURTIDAS_MAX) return falha(res, 400, `Você pode destacar no máximo ${CURTIDAS_MAX} músicas.`);
+
+  const ids = musicaIds.map(paraIdValido);
+  if (ids.some((id) => id === null)) return falha(res, 400, 'A lista tem um id de música inválido.');
+  if (new Set(ids).size !== ids.length) return falha(res, 400, 'A lista tem músicas repetidas.');
+
+  try {
+    // A trava serializa requisições do mesmo usuário (senão dois "salvar"
+    // simultâneos violavam o UNIQUE ou gravavam uma lista misturada).
+    const curtidas = await comTravaDoUsuario(pool, req.usuario.id, async (client) => {
+      if (ids.length > 0) {
+        const existentes = await client.query('SELECT id FROM musicas WHERE id = ANY($1::int[])', [ids]);
+        if (existentes.rows.length !== ids.length) throw new MusicaInexistente();
+      }
+
+      // Tudo ou nada: falha no meio faz rollback da lista inteira.
+      await client.query('DELETE FROM perfil_curtidas WHERE usuario_id = $1', [req.usuario.id]);
+      for (let i = 0; i < ids.length; i++) {
+        await client.query(
+          'INSERT INTO perfil_curtidas (usuario_id, musica_id, posicao) VALUES ($1, $2, $3)',
+          [req.usuario.id, ids[i], i + 1]
+        );
+      }
+      return lerCurtidas(client, req.usuario.id);
+    });
+
+    return sucesso(res, { curtidas });
+  } catch (erro) {
+    if (erro instanceof UsuarioInexistente) return falha(res, 404, 'Usuário não encontrado.');
+    if (ehMusicaSumida(erro)) return falha(res, 404, 'Alguma das músicas não existe mais.');
+    return falhaInterna(res, 'PUT /api/perfil/curtidas', erro);
+  }
+});
+
+// ---------- playlists do perfil ----------
+
+app.post('/api/perfil/playlists', verificarAutenticacao, async (req, res) => {
+  const { nome, erro: erroNome } = normalizarNomePlaylist((req.body || {}).nome);
+  if (erroNome) return falha(res, 400, erroNome);
+
+  try {
+    const criada = await criarPlaylist(req.usuario.id, nome, null);
+    return sucesso(
+      res,
+      { playlist: { id: criada.id, nome: criada.nome, criado_em: criada.criado_em, total_faixas: 0 } },
+      201
+    );
+  } catch (erro) {
+    if (erro instanceof UsuarioInexistente) return falha(res, 404, 'Usuário não encontrado.');
+    if (erro instanceof LimiteDePlaylists) return respostaLimitePlaylists(res);
+    return falhaInterna(res, 'POST /api/perfil/playlists', erro);
+  }
+});
+
+app.delete('/api/perfil/playlists/:id', verificarAutenticacao, excluirPlaylistDoUsuario);
+
+// ============================================================
+// FINAL: rota inexistente + tratador de erros (sempre por último)
+// ============================================================
+
+// Rota que não existe responde JSON e loga qual foi — o "404 misterioso"
+// deixa de ser um "Cannot GET ..." em HTML.
+app.use((req, res) => {
+  console.warn(`404 sem rota: ${req.method} ${req.originalUrl}`);
+  return falha(res, 404, 'Rota não encontrada.');
+});
+
+app.use((erro, req, res, next) => {
+  if (erro && erro.type === 'entity.parse.failed') {
+    return falha(res, 400, 'Corpo da requisição inválido (JSON malformado).');
+  }
+  if (erro instanceof multer.MulterError) {
+    return falha(res, erro.code === 'LIMIT_FILE_SIZE' ? 413 : 400,
+      erro.code === 'LIMIT_FILE_SIZE' ? 'O arquivo enviado é grande demais. Escolha um arquivo menor.' : 'Não foi possível ler o arquivo enviado.');
   }
   console.error('Erro não tratado:', erro);
-  return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  return falha(res, 500, 'Erro interno no servidor.');
 });
+
+// ============================================================
+// LIMPEZA PERIÓDICA + INICIALIZAÇÃO
+// ============================================================
+
+// Verificações expiradas nunca eram apagadas se o usuário abandonasse o fluxo.
+async function limparExpirados() {
+  try {
+    await pool.query('DELETE FROM verificacoes_2fa WHERE expira_em < CURRENT_TIMESTAMP');
+    await pool.query('DELETE FROM recuperacoes_senha WHERE expira_em < CURRENT_TIMESTAMP');
+    await pool.query('DELETE FROM redefinicoes_senha WHERE expira_em < CURRENT_TIMESTAMP');
+  } catch (erro) {
+    console.error('Erro na limpeza de verificações expiradas:', erro);
+  }
+}
+
+(async () => {
+  // Só aceita requisições depois de o schema estar pronto.
+  const schemaOk = await pool.pronto;
+  if (!schemaOk) {
+    console.error('ATENÇÃO: o schema do banco NÃO foi criado por completo. Verifique o erro acima.');
+  }
+
+  await limparExpirados();
+  setInterval(limparExpirados, 30 * 60 * 1000).unref();
+
+  const porta = process.env.PORT || 3000;
+  app.listen(porta, () => {
+    console.log(`Servidor rodando na porta ${porta} com PostgreSQL`);
+    garantirBucket();
+  });
+})();
