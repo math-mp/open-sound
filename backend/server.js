@@ -21,12 +21,35 @@ const {
   ehMusicaSumida,
   comTravaDoUsuario,
   removerArquivosDoStorage,
-  removerArquivoDoStorage
+  removerArquivoDoStorage,
+  logInfo,
+  logWarn,
+  logError,
+  DEBUG_LOGS
 } = require('./ajudantes');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// ============================================================
+// MIDDLEWARE DE LOG HTTP
+// ============================================================
+app.use((req, res, next) => {
+  const inicio = Date.now();
+  const metodo = req.method;
+  const url = req.originalUrl;
+  
+  // Log da requisição recebida
+  logInfo('HTTP', `${metodo} ${url}`);
+  
+  res.on('finish', () => {
+    const duracao = Date.now() - inicio;
+    logInfo('HTTP', `${metodo} ${url} → ${res.statusCode} (${duracao}ms)`);
+  });
+  
+  next();
+});
 
 // Sem fallback fraco: se a variável não existir, o servidor não sobe.
 const JWT_SECRET_SESSAO = process.env.JWT_SECRET_SESSAO;
@@ -165,13 +188,16 @@ app.post('/api/registro', limitarRegistroIP, async (req, res) => {
   if (!validarSenhaForte(password)) return falha(res, 400, MSG_SENHA_FRACA);
 
   try {
+    logInfo('AUTH', 'Tentativa de registro recebida', { email });
     const existente = await pool.query('SELECT 1 FROM usuarios WHERE email = $1', [email]);
     if (existente.rows.length > 0) {
+      logWarn('AUTH', 'Registro recusado: e-mail já cadastrado', { email });
       return falha(res, 400, 'Este e-mail já está cadastrado. Por favor, faça login.', { codigo: 'EMAIL_JA_CADASTRADO' });
     }
 
     const codigo = gerarCodigo();
     logarCodigoEmDev('código 2FA (cadastro)', codigo);
+    logInfo('2FA', 'Cadastro pendente criado', { email, idVerificacao: null });
 
     const senhaHash = await bcrypt.hash(password, 10);
     const codigoHash = await bcrypt.hash(codigo, 10);
@@ -187,11 +213,14 @@ app.post('/api/registro', limitarRegistroIP, async (req, res) => {
     const enviado = await enviarEmail(email, 'Seu código de verificação 2FA', `Seu código de confirmação é: ${codigo}`);
     if (!enviado) {
       await pool.query('DELETE FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
+      logError('2FA', 'Falha ao enviar e-mail de verificação', { email });
       return falha(res, 500, 'Falha ao enviar o e-mail com o código de verificação.');
     }
 
+    logInfo('2FA', 'Código enviado por e-mail', { email });
     return sucesso(res, { mensagem: 'Código enviado com sucesso!', idVerificacao });
   } catch (erro) {
+    logError('AUTH', 'Erro no registro', { erro: erro.message });
     return falhaInterna(res, 'POST /api/registro', erro);
   }
 });
@@ -204,27 +233,35 @@ app.post('/api/validar-2fa', limitarValidacaoIP, async (req, res) => {
   }
 
   try {
+    logInfo('2FA', 'Validação recebida', { idVerificacao });
     const resultado = await pool.query('SELECT * FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
     const verificacao = resultado.rows[0];
 
-    if (!verificacao) return falha(res, 400, 'Verificação não encontrada ou expirada.');
+    if (!verificacao) {
+      logWarn('2FA', 'Verificação não encontrada ou expirada', { idVerificacao });
+      return falha(res, 400, 'Verificação não encontrada ou expirada.');
+    }
 
     if (expirado(verificacao.expira_em)) {
       await pool.query('DELETE FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
+      logWarn('2FA', 'Código expirado', { idVerificacao });
       return falha(res, 400, 'O tempo limite do código expirou. Solicite um novo cadastro.');
     }
 
     if (verificacao.tentativas >= MAX_TENTATIVAS_CODIGO) {
       await pool.query('DELETE FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
+      logWarn('2FA', 'Máximo de tentativas excedido', { idVerificacao });
       return falha(res, 429, 'Número máximo de tentativas excedido. Solicite um novo cadastro.');
     }
 
     const codigoConfere = await bcrypt.compare(codigo.trim(), verificacao.codigo_hash);
     if (!codigoConfere) {
       await pool.query('UPDATE verificacoes_2fa SET tentativas = tentativas + 1 WHERE id = $1', [idVerificacao]);
+      logWarn('2FA', 'Código incorreto', { idVerificacao, tentativas: verificacao.tentativas + 1 });
       return falha(res, 400, 'Código 2FA incorreto.');
     }
 
+    logInfo('2FA', 'Verificação aprovada', { email: verificacao.email });
     try {
       await pool.query(
         'INSERT INTO usuarios (email, senha, nome_usuario, verificado) VALUES ($1, $2, $3, TRUE)',
@@ -240,8 +277,10 @@ app.post('/api/validar-2fa', limitarValidacaoIP, async (req, res) => {
     }
 
     await pool.query('DELETE FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
+    logInfo('2FA', 'Verificação removida após sucesso', { email: verificacao.email });
     return sucesso(res, { mensagem: 'Conta registrada e ativada com sucesso!' });
   } catch (erro) {
+    logError('2FA', 'Erro na validação 2FA', { erro: erro.message });
     return falhaInterna(res, 'POST /api/validar-2fa', erro);
   }
 });
@@ -252,13 +291,18 @@ app.post('/api/reenviar-2fa', limitarReenvioIP, async (req, res) => {
   if (!ehTexto(idVerificacao) || !idVerificacao) return falha(res, 400, 'Sessão inválida ou expirada.');
 
   try {
+    logInfo('2FA', 'Reenvio solicitado', { idVerificacao });
     const resultado = await pool.query('SELECT * FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
     const verificacao = resultado.rows[0];
 
-    if (!verificacao) return falha(res, 400, 'Sessão inválida ou expirada.');
+    if (!verificacao) {
+      logWarn('2FA', 'Sessão inválida ou expirada no reenvio', { idVerificacao });
+      return falha(res, 400, 'Sessão inválida ou expirada.');
+    }
 
     if (expirado(verificacao.expira_em)) {
       await pool.query('DELETE FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
+      logWarn('2FA', 'Tempo limite expirado no reenvio', { idVerificacao });
       return falha(res, 400, 'O tempo limite expirou. Solicite um novo cadastro.');
     }
 
@@ -277,10 +321,15 @@ app.post('/api/reenviar-2fa', limitarReenvioIP, async (req, res) => {
     );
 
     const enviado = await enviarEmail(verificacao.email, 'Seu novo código de verificação 2FA', `Seu novo código de confirmação é: ${novoCodigo}`);
-    if (!enviado) return falha(res, 500, 'Falha ao reenviar o e-mail de verificação.');
+    if (!enviado) {
+      logError('2FA', 'Falha ao reenviar e-mail', { email: verificacao.email });
+      return falha(res, 500, 'Falha ao reenviar o e-mail de verificação.');
+    }
 
+    logInfo('2FA', 'Novo código enviado por e-mail', { email: verificacao.email });
     return sucesso(res, { mensagem: 'Novo código enviado com sucesso!' });
   } catch (erro) {
+    logError('2FA', 'Erro no reenvio 2FA', { erro: erro.message });
     return falhaInterna(res, 'POST /api/reenviar-2fa', erro);
   }
 });
@@ -293,27 +342,36 @@ app.post('/api/login', limitarLoginIP, async (req, res) => {
   }
 
   try {
+    logInfo('AUTH', 'Tentativa de login recebida', { email: email.trim() });
     const resultado = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email.trim()]);
     const usuario = resultado.rows[0];
 
     if (!usuario) {
+      logWarn('AUTH', 'Login recusado: e-mail não cadastrado', { email: email.trim() });
       return falha(res, 404, 'E-mail não cadastrado. Por favor, faça cadastro.', { codigo: 'EMAIL_NAO_CADASTRADO' });
     }
     if (!usuario.verificado) {
+      logWarn('AUTH', 'Login recusado: conta não verificada', { email: email.trim() });
       return falha(res, 403, 'Conta ainda não verificada. Conclua o cadastro com o código 2FA.');
     }
 
     const senhaConfere = await bcrypt.compare(password, usuario.senha);
-    if (!senhaConfere) return falha(res, 401, 'Senha incorreta.');
+    if (!senhaConfere) {
+      logWarn('AUTH', 'Login recusado: senha incorreta', { email: email.trim() });
+      return falha(res, 401, 'Senha incorreta.');
+    }
 
+    logInfo('AUTH', 'Senha validada', { usuarioId: usuario.id });
     const tokenSessao = jwt.sign(
       { id: usuario.id, email: usuario.email },
       JWT_SECRET_SESSAO,
       { expiresIn: lembrarDeMim === true ? '30d' : '7d', algorithm: 'HS256' }
     );
 
+    logInfo('AUTH', 'Login concluído', { usuarioId: usuario.id });
     return sucesso(res, { mensagem: 'Login realizado com sucesso!', tokenSessao });
   } catch (erro) {
+    logError('AUTH', 'Erro no login', { erro: erro.message });
     return falhaInterna(res, 'POST /api/login', erro);
   }
 });
@@ -387,15 +445,18 @@ app.post('/api/auth/esqueci-senha', limitarRecuperacaoSolicitarIP, async (req, r
   const email = emailBruto.trim();
 
   try {
+    logInfo('AUTH', 'Recuperação de senha solicitada', { email });
     const resultadoUsuario = await pool.query('SELECT id FROM usuarios WHERE email = $1', [email]);
     const usuario = resultadoUsuario.rows[0];
 
     // Não revela se o e-mail existe.
     if (!usuario) {
+      logInfo('AUTH', 'Recuperação: e-mail não encontrado (resposta genérica)', { email });
       return sucesso(res, { mensagem: 'Se o e-mail estiver cadastrado, enviaremos um código.', idVerificacao: null });
     }
 
     if ((await contarRedefinicoesModalRecentes(pool, usuario.id)) >= LIMITE_REDEFINICOES_MODAL) {
+      logWarn('AUTH', 'Limite de recuperação atingido', { usuarioId: usuario.id });
       return respostaLimiteRecuperacao(res);
     }
 
@@ -414,11 +475,14 @@ app.post('/api/auth/esqueci-senha', limitarRecuperacaoSolicitarIP, async (req, r
     const enviado = await enviarEmail(email, 'Código para recuperar sua senha', `Seu código de recuperação é: ${codigo}`);
     if (!enviado) {
       await pool.query('DELETE FROM recuperacoes_senha WHERE id = $1', [idRecuperacao]);
+      logError('AUTH', 'Falha ao enviar e-mail de recuperação', { email });
       return falha(res, 500, 'Falha ao enviar o e-mail com o código.');
     }
 
+    logInfo('AUTH', 'Código de recuperação enviado por e-mail', { email });
     return sucesso(res, { mensagem: 'Código enviado com sucesso!', idVerificacao: idRecuperacao });
   } catch (erro) {
+    logError('AUTH', 'Erro na recuperação de senha', { erro: erro.message });
     return falhaInterna(res, 'POST /api/auth/esqueci-senha', erro);
   }
 });
@@ -1651,15 +1715,20 @@ async function limparExpirados() {
     await pool.query('DELETE FROM recuperacoes_senha WHERE expira_em < CURRENT_TIMESTAMP');
     await pool.query('DELETE FROM redefinicoes_senha WHERE expira_em < CURRENT_TIMESTAMP');
   } catch (erro) {
-    console.error('Erro na limpeza de verificações expiradas:', erro);
+    logError('SERVER', 'Erro na limpeza de verificações expiradas', { erro: erro.message });
   }
 }
 
 (async () => {
+  logInfo('SERVER', 'Iniciando OpenSound');
+  logInfo('DB', 'Inicialização do banco iniciada');
+  
   // Só aceita requisições depois de o schema estar pronto.
   const schemaOk = await pool.pronto;
   if (!schemaOk) {
-    console.error('ATENÇÃO: o schema do banco NÃO foi criado por completo. Verifique o erro acima.');
+    logError('DB', 'Falha ao iniciar banco');
+  } else {
+    logInfo('DB', 'Tabelas/migrações verificadas');
   }
 
   await limparExpirados();
@@ -1667,7 +1736,7 @@ async function limparExpirados() {
 
   const porta = process.env.PORT || 3000;
   app.listen(porta, () => {
-    console.log(`Servidor rodando na porta ${porta} com PostgreSQL`);
+    logInfo('SERVER', `Servidor iniciado na porta ${porta}`);
     garantirBucket();
   });
 })();
