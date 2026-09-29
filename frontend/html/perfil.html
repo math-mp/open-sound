@@ -3,18 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Perfil — openSound</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap"
+        rel="stylesheet"
+    >
 
     <link rel="stylesheet" href="../css/root.css">
     <link rel="stylesheet" href="../css/theme.css">
     <link rel="stylesheet" href="../css/perfil.css">
 
-    <!-- Player global primeiro; perfil depois. -->
-    <script src="../js/player.js" defer></script>
     <script src="../js/profile.js" defer></script>
+    <script src="../js/player.js" defer></script>
 </head>
 
 <body>
@@ -22,23 +25,50 @@
     <!-- =========================================================
          NAVBAR
          ========================================================= -->
-    <nav class="fixed-bar" aria-label="Navegação principal">
+
+    <nav
+        class="fixed-bar"
+        aria-label="Navegação principal"
+    >
+
         <div class="nav-left">
-            <a href="home.html" class="btn-navbar">← Voltar</a>
+
+            <a
+                href="home.html"
+                class="btn-navbar"
+            >
+                ← Voltar
+            </a>
+
         </div>
+
 
         <div class="nav-center">
-            <span class="titulo-navbar-perfil">Meu perfil</span>
+
+            <span class="titulo-navbar-perfil">
+                Meu perfil
+            </span>
+
         </div>
 
-        <div class="nav-right" aria-hidden="true"></div>
+
+        <div
+            class="nav-right"
+            aria-hidden="true"
+        ></div>
+
     </nav>
 
 
     <!-- =========================================================
          PLAYER GLOBAL
          ========================================================= -->
-    <div id="player-barra" class="player-barra hidden" aria-label="Player">
+
+    <div
+        id="player-barra"
+        class="player-barra hidden"
+        aria-label="Player"
+    >
 
         <img
             id="player-capa"
@@ -46,16 +76,30 @@
             alt="Capa da música atual"
         >
 
+
         <div class="player-info">
-            <p id="player-titulo" class="player-titulo"></p>
-            <p id="player-artista" class="player-artista"></p>
+
+            <p
+                id="player-titulo"
+                class="player-titulo"
+            ></p>
+
+            <p
+                id="player-artista"
+                class="player-artista"
+            ></p>
+
         </div>
+
 
         <button
             id="player-play-pause"
             type="button"
             aria-label="Reproduzir ou pausar"
-        >▶</button>
+        >
+            ▶
+        </button>
+
 
         <button
             id="player-proxima"
@@ -63,9 +107,18 @@
             class="btn-icone"
             aria-label="Próxima música"
             title="Próxima"
-        >⏭</button>
+        >
+            ⏭
+        </button>
 
-        <span id="player-tempo-atual" class="player-tempo">0:00</span>
+
+        <span
+            id="player-tempo-atual"
+            class="player-tempo"
+        >
+            0:00
+        </span>
+
 
         <input
             type="range"
@@ -78,29 +131,46 @@
             aria-label="Progresso da música"
         >
 
-        <span id="player-tempo-total" class="player-tempo">0:00</span>
+
+        <span
+            id="player-tempo-total"
+            class="player-tempo"
+        >
+            0:00
+        </span>
+
 
         <button
             id="player-favoritar"
             type="button"
             class="btn-icone"
             aria-label="Favoritar"
-        >♡</button>
+        >
+            ♡
+        </button>
+
 
         <button
             id="player-add-playlist"
             type="button"
             class="btn-icone"
             aria-label="Adicionar à playlist"
-        >＋</button>
+        >
+            ＋
+        </button>
+
 
         <div class="player-volume">
+
             <button
                 id="player-volume-btn"
                 type="button"
                 class="btn-volume"
                 aria-label="Volume"
-            >🔊</button>
+            >
+                🔊
+            </button>
+
 
             <input
                 type="range"
@@ -112,28 +182,35 @@
                 value="1"
                 aria-label="Volume"
             >
+
         </div>
+
     </div>
 
 
     <!-- =========================================================
-         CONTEÚDO
+         PÁGINA
          ========================================================= -->
+
     <main class="perfil-page">
 
         <div class="perfil-container">
 
+
             <!-- =================================================
-                 BLOQUEADO
+                 ESTADO NÃO AUTENTICADO
                  ================================================= -->
+
             <section
                 id="perfil-bloqueado"
                 class="perfil-bloqueado hidden"
                 aria-live="polite"
             >
+
                 <p class="perfil-bloqueado-texto">
                     Faça login para acessar seu perfil.
                 </p>
+
 
                 <a
                     href="home.html"
@@ -141,39 +218,50 @@
                 >
                     Voltar para a home
                 </a>
+
             </section>
 
 
             <!-- =================================================
                  CONTEÚDO DO PERFIL
-                 O layout aparece antes da API terminar.
                  ================================================= -->
+
             <section
                 id="perfil-conteudo"
                 class="perfil-conteudo"
                 aria-busy="true"
             >
 
+
                 <!-- =================================================
                      JANELA 1 — PERFIL
                      ================================================= -->
-                <article class="perfil-janela perfil-janela-identidade">
+
+                <article
+                    class="perfil-janela perfil-janela-identidade"
+                >
 
                     <span class="perfil-janela-tab aba-perfil">
                         Perfil
                     </span>
 
+
                     <div class="perfil-painel">
+
+
+                        <!-- BANNER -->
 
                         <div
                             id="perfil-banner"
                             class="perfil-banner"
                         >
+
                             <img
                                 id="perfil-banner-img"
                                 class="perfil-banner-img hidden"
                                 alt="Banner do perfil"
                             >
+
 
                             <span
                                 id="perfil-banner-vazio"
@@ -181,18 +269,25 @@
                             >
                                 Sem banner
                             </span>
+
                         </div>
 
 
+                        <!-- AVATAR -->
+
                         <div class="perfil-avatar-wrapper">
+
                             <img
                                 id="perfil-avatar"
                                 class="perfil-avatar"
                                 src="../assets/avatar-padrao.png"
                                 alt="Avatar do usuário"
                             >
+
                         </div>
 
+
+                        <!-- IDENTIDADE -->
 
                         <div class="perfil-identidade">
 
@@ -203,10 +298,12 @@
                                 —
                             </h1>
 
+
                             <p
                                 id="perfil-nome-artista"
                                 class="perfil-nome-artista hidden"
                             ></p>
+
 
                             <p
                                 id="perfil-bio"
@@ -214,33 +311,46 @@
                                 data-placeholder="Nenhuma bio adicionada."
                             ></p>
 
+
                             <p
                                 id="perfil-estatisticas"
                                 class="perfil-estatisticas hidden"
                             ></p>
 
                         </div>
+
                     </div>
+
                 </article>
+
 
 
                 <!-- =================================================
                      JANELA 2 — CONFIGURAÇÕES
                      ================================================= -->
-                <article class="perfil-janela perfil-janela-config">
+
+                <article
+                    class="perfil-janela perfil-janela-config"
+                >
 
                     <span class="perfil-janela-tab aba-config">
                         Configurações
                     </span>
 
-                    <div class="perfil-painel perfil-painel-config">
+
+                    <div
+                        class="perfil-painel perfil-painel-config"
+                    >
+
 
                         <!-- AVATAR -->
+
                         <section class="perfil-config-secao">
 
                             <h2 class="perfil-config-titulo">
                                 Avatar
                             </h2>
+
 
                             <div class="perfil-config-avatar-linha">
 
@@ -251,6 +361,7 @@
                                     alt="Prévia do avatar"
                                 >
 
+
                                 <div class="perfil-config-avatar-botoes">
 
                                     <input
@@ -260,6 +371,7 @@
                                         hidden
                                     >
 
+
                                     <button
                                         id="config-avatar-enviar"
                                         class="perfil-btn-secundario"
@@ -267,6 +379,7 @@
                                     >
                                         Trocar avatar
                                     </button>
+
 
                                     <button
                                         id="config-avatar-remover"
@@ -277,7 +390,9 @@
                                     </button>
 
                                 </div>
+
                             </div>
+
 
                             <p
                                 id="config-avatar-status"
@@ -292,26 +407,32 @@
 
 
                         <!-- BANNER -->
+
                         <section class="perfil-config-secao">
 
                             <h2 class="perfil-config-titulo">
                                 Banner
                             </h2>
 
+
                             <div
                                 id="config-banner-preview"
                                 class="perfil-config-banner-preview"
                             >
+
                                 <img
                                     id="config-banner-preview-img"
                                     class="perfil-config-banner-img hidden"
                                     alt="Prévia do banner"
                                 >
 
+
                                 <span id="config-banner-preview-vazio">
                                     Sem banner
                                 </span>
+
                             </div>
+
 
                             <input
                                 id="config-banner-input"
@@ -319,6 +440,7 @@
                                 accept="image/jpeg,image/png,image/webp"
                                 hidden
                             >
+
 
                             <div class="perfil-config-banner-botoes">
 
@@ -330,6 +452,7 @@
                                     Enviar banner
                                 </button>
 
+
                                 <button
                                     id="config-banner-remover"
                                     class="perfil-btn-secundario"
@@ -339,6 +462,7 @@
                                 </button>
 
                             </div>
+
 
                             <p
                                 id="config-banner-status"
@@ -353,11 +477,13 @@
 
 
                         <!-- BIO -->
+
                         <section class="perfil-config-secao">
 
                             <h2 class="perfil-config-titulo">
                                 Bio
                             </h2>
+
 
                             <form id="config-bio-form">
 
@@ -369,6 +495,7 @@
                                     placeholder="Escreva algo sobre você..."
                                 ></textarea>
 
+
                                 <div class="perfil-config-bio-rodape">
 
                                     <span
@@ -378,6 +505,7 @@
                                         0/220
                                     </span>
 
+
                                     <button
                                         class="perfil-btn-salvar"
                                         type="submit"
@@ -386,7 +514,9 @@
                                     </button>
 
                                 </div>
+
                             </form>
+
 
                             <p
                                 id="config-bio-status"
@@ -401,11 +531,13 @@
 
 
                         <!-- TEMA -->
+
                         <section class="perfil-config-secao">
 
                             <h2 class="perfil-config-titulo">
                                 Tema
                             </h2>
+
 
                             <button
                                 id="config-tema-btn"
@@ -414,6 +546,7 @@
                             >
                                 Alternar tema
                             </button>
+
 
                             <p
                                 id="config-tema-status"
@@ -424,211 +557,228 @@
                         </section>
 
                     </div>
+
                 </article>
+
 
 
                 <!-- =================================================
                      JANELA 3 — BIBLIOTECA
-                     TRÊS COLUNAS DO PERFIL 1.0
                      ================================================= -->
-                <!-- =================================================
-     JANELA 3 — BIBLIOTECA
-     ================================================= -->
-<article class="perfil-janela perfil-janela-biblioteca">
 
-    <span class="perfil-janela-tab aba-biblioteca">
-        Biblioteca
-    </span>
+                <article
+                    class="perfil-janela perfil-janela-biblioteca"
+                >
 
-    <div class="perfil-painel">
-
-        <div class="perfil-biblioteca-conteudo">
-
-            <!-- =================================================
-                 TRÊS COLUNAS
-                 ================================================= -->
-            <div class="perfil-biblioteca-colunas">
+                    <span class="perfil-janela-tab aba-biblioteca">
+                        Biblioteca
+                    </span>
 
 
-                <!-- =================================================
-                     COLUNA 1 — MÚSICA FAVORITA
-                     ================================================= -->
-                <section class="perfil-coluna">
+                    <div class="perfil-painel">
 
-                    <div class="perfil-biblioteca-cabecalho">
-
-                        <h2 class="perfil-coluna-titulo perfil-acento-favorita">
-                            Música favorita
-                        </h2>
-
-                        <button
-                            id="perfil-favorita-remover"
-                            class="perfil-link-acao hidden"
-                            type="button"
-                        >
-                            Remover
-                        </button>
-
-                    </div>
+                        <div class="perfil-biblioteca-conteudo">
 
 
-                    <p
-                        id="perfil-favorita-atual"
-                        class="perfil-selecao-atual"
-                    >
-                        Nenhuma música escolhida.
-                    </p>
+                            <!-- =================================================
+                                 TRÊS COLUNAS
+                                 ================================================= -->
+
+                            <div class="perfil-biblioteca-colunas">
 
 
-                    <label
-                        class="perfil-visually-hidden"
-                        for="perfil-favorita-filtro"
-                    >
-                        Buscar música favorita
-                    </label>
+                                <!-- =================================================
+                                     COLUNA 1 — MÚSICA FAVORITA
+                                     ================================================= -->
 
-                    <input
-                        id="perfil-favorita-filtro"
-                        class="perfil-filtro"
-                        type="search"
-                        autocomplete="off"
-                        placeholder="Buscar por título ou artista..."
-                    >
+                                <section class="perfil-coluna">
 
-                    <div
-                        id="perfil-favorita-resultados"
-                        class="perfil-resultados"
-                        aria-live="polite"
-                    ></div>
+                                    <div class="perfil-biblioteca-cabecalho">
 
-                </section>
+                                        <h2 class="perfil-coluna-titulo perfil-acento-favorita">
+                                            Música favorita
+                                        </h2>
 
 
-                <!-- =================================================
-                     COLUNA 2 — CURTIDAS EM DESTAQUE
-                     ================================================= -->
-                <section class="perfil-coluna">
+                                        <button
+                                            id="perfil-favorita-remover"
+                                            class="perfil-link-acao hidden"
+                                            type="button"
+                                        >
+                                            Remover
+                                        </button>
 
-                    <div class="perfil-biblioteca-cabecalho">
-
-                        <h2 class="perfil-coluna-titulo perfil-acento-curtidas">
-                            Curtidas em destaque
-                        </h2>
-
-                        <span
-                            id="perfil-curtidas-contador"
-                            class="perfil-config-contador"
-                        >
-                            0/4
-                        </span>
-
-                    </div>
+                                    </div>
 
 
-                    <div
-                        id="perfil-curtidas-lista"
-                        class="perfil-lista-atual"
-                    ></div>
+                                    <p
+                                        id="perfil-favorita-atual"
+                                        class="perfil-selecao-atual"
+                                    >
+                                        Nenhuma música escolhida.
+                                    </p>
 
 
-                    <label
-                        class="perfil-visually-hidden"
-                        for="perfil-curtidas-filtro"
-                    >
-                        Adicionar música às curtidas em destaque
-                    </label>
-
-                    <input
-                        id="perfil-curtidas-filtro"
-                        class="perfil-filtro"
-                        type="search"
-                        autocomplete="off"
-                        placeholder="Buscar música para destacar..."
-                    >
-
-                    <div
-                        id="perfil-curtidas-resultados"
-                        class="perfil-resultados"
-                        aria-live="polite"
-                    ></div>
-
-                </section>
+                                    <label
+                                        class="perfil-visually-hidden"
+                                        for="perfil-favorita-filtro"
+                                    >
+                                        Buscar música favorita
+                                    </label>
 
 
-                <!-- =================================================
-                     COLUNA 3 — PLAYLISTS
-                     ================================================= -->
-                <section class="perfil-coluna">
-
-                    <div class="perfil-biblioteca-cabecalho">
-
-                        <h2 class="perfil-coluna-titulo perfil-acento-playlists">
-                            Playlists públicas
-                        </h2>
-
-                    </div>
+                                    <input
+                                        id="perfil-favorita-filtro"
+                                        class="perfil-filtro"
+                                        type="search"
+                                        autocomplete="off"
+                                        placeholder="Buscar por título ou artista..."
+                                    >
 
 
-                    <form
-                        id="perfil-playlist-form"
-                        class="perfil-playlist-criar"
-                    >
+                                    <div
+                                        id="perfil-favorita-resultados"
+                                        class="perfil-resultados"
+                                        aria-live="polite"
+                                    ></div>
 
-                        <label
-                            class="perfil-visually-hidden"
-                            for="perfil-playlist-nome"
-                        >
-                            Nome da nova playlist
-                        </label>
-
-                        <input
-                            id="perfil-playlist-nome"
-                            class="perfil-filtro"
-                            type="text"
-                            maxlength="60"
-                            placeholder="Nova playlist..."
-                        >
-
-                        <button
-                            class="perfil-btn-salvar"
-                            type="submit"
-                        >
-                            Criar
-                        </button>
-
-                    </form>
+                                </section>
 
 
-                    <div
-                        id="perfil-playlists-lista"
-                        class="perfil-resultados"
-                        aria-live="polite"
-                    ></div>
 
-                </section>
+                                <!-- =================================================
+                                     COLUNA 2 — CURTIDAS
+                                     ================================================= -->
 
-            </div>
+                                <section class="perfil-coluna">
+
+                                    <div class="perfil-biblioteca-cabecalho">
+
+                                        <h2 class="perfil-coluna-titulo perfil-acento-curtidas">
+                                            Curtidas em destaque
+                                        </h2>
 
 
-            <!-- =================================================
-                 RODAPÉ DA BIBLIOTECA
-                 ================================================= -->
-            <p class="perfil-biblioteca-nota">
-                Sua música favorita, destaques e playlists ficam
-                ligados ao seu perfil autenticado.
-            </p>
+                                        <span
+                                            id="perfil-curtidas-contador"
+                                            class="perfil-config-contador"
+                                        >
+                                            0/4
+                                        </span>
 
-        </div>
+                                    </div>
 
-    </div>
 
-</article>
+                                    <div
+                                        id="perfil-curtidas-lista"
+                                        class="perfil-lista-atual"
+                                    ></div>
+
+
+                                    <label
+                                        class="perfil-visually-hidden"
+                                        for="perfil-curtidas-filtro"
+                                    >
+                                        Adicionar música às curtidas em destaque
+                                    </label>
+
+
+                                    <input
+                                        id="perfil-curtidas-filtro"
+                                        class="perfil-filtro"
+                                        type="search"
+                                        autocomplete="off"
+                                        placeholder="Buscar música para destacar..."
+                                    >
+
+
+                                    <div
+                                        id="perfil-curtidas-resultados"
+                                        class="perfil-resultados"
+                                        aria-live="polite"
+                                    ></div>
+
+                                </section>
+
+
+
+                                <!-- =================================================
+                                     COLUNA 3 — PLAYLISTS
+                                     ================================================= -->
+
+                                <section class="perfil-coluna">
+
+                                    <div class="perfil-biblioteca-cabecalho">
+
+                                        <h2 class="perfil-coluna-titulo perfil-acento-playlists">
+                                            Playlists públicas
+                                        </h2>
+
+                                    </div>
+
+
+                                    <form
+                                        id="perfil-playlist-form"
+                                        class="perfil-playlist-criar"
+                                    >
+
+                                        <label
+                                            class="perfil-visually-hidden"
+                                            for="perfil-playlist-nome"
+                                        >
+                                            Nome da nova playlist
+                                        </label>
+
+
+                                        <input
+                                            id="perfil-playlist-nome"
+                                            class="perfil-filtro"
+                                            type="text"
+                                            maxlength="60"
+                                            placeholder="Nova playlist..."
+                                        >
+
+
+                                        <button
+                                            class="perfil-btn-salvar"
+                                            type="submit"
+                                        >
+                                            Criar
+                                        </button>
+
+                                    </form>
+
+
+                                    <div
+                                        id="perfil-playlists-lista"
+                                        class="perfil-resultados"
+                                        aria-live="polite"
+                                    ></div>
+
+                                </section>
+
+                            </div>
+
+
+                            <!-- =================================================
+                                 RODAPÉ DA BIBLIOTECA
+                                 ================================================= -->
+
+                            <p class="perfil-biblioteca-nota">
+                                Sua música favorita, destaques e playlists ficam
+                                ligados ao seu perfil autenticado.
+                            </p>
+
                         </div>
+
                     </div>
+
                 </article>
 
             </section>
+
         </div>
+
     </main>
 
 </body>

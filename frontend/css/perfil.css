@@ -2,19 +2,29 @@
    OPENSOUND — PERFIL
    ============================================================ */
 
+/* ============================================================
+   UTILITÁRIOS
+   ============================================================ */
+
 .hidden {
     display: none !important;
 }
 
 .perfil-visually-hidden {
     position: absolute;
+
     width: 1px;
     height: 1px;
+
     padding: 0;
     margin: -1px;
+
     overflow: hidden;
+
     clip: rect(0, 0, 0, 0);
+
     white-space: nowrap;
+
     border: 0;
 }
 
@@ -23,19 +33,235 @@
    NAVBAR
    ============================================================ */
 
+.fixed-bar {
+    position: fixed;
+
+    inset: 0 0 auto 0;
+
+    z-index: 1000;
+
+    display: flex;
+    align-items: center;
+
+    gap: var(--espaco-5);
+
+    min-height: 64px;
+
+    padding:
+        var(--espaco-3)
+        var(--espaco-5);
+
+    background: var(--cor-superficie);
+
+    border-bottom:
+        1px solid
+        var(--cor-borda);
+
+    box-shadow: var(--sombra-suave);
+}
+
+.nav-left,
+.nav-right {
+    flex: 1;
+
+    display: flex;
+    align-items: center;
+}
+
+.nav-right {
+    justify-content: flex-end;
+}
+
+.nav-center {
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+}
+
+.titulo-navbar-perfil {
+    color: var(--cor-texto);
+
+    font-weight: 800;
+}
+
+.btn-navbar {
+    display: inline-flex;
+
+    align-items: center;
+    justify-content: center;
+
+    padding:
+        var(--espaco-2)
+        var(--espaco-4);
+
+    background: var(--cor-superficie-clara);
+
+    color: var(--cor-texto);
+
+    border:
+        1px solid
+        var(--cor-borda);
+
+    border-radius:
+        var(--raio-medio);
+
+    box-shadow:
+        var(--sombra-suave);
+
+    text-decoration: none;
+
+    font-weight: 700;
+
+    transition:
+        transform var(--transicao-rapida),
+        filter var(--transicao-rapida),
+        background-color var(--transicao-rapida);
+}
+
+.btn-navbar:hover {
+    transform: scale(1.03);
+
+    filter: brightness(1.03);
+}
+
+.btn-navbar:active {
+    transform: scale(0.98);
+}
+
+
 /* ============================================================
-   JANELAS / ABAS — MOLDE DO PERFIL 1.0
+   PÁGINA
+   ============================================================ */
+
+.perfil-page {
+    width: 100%;
+
+    min-height: 100vh;
+
+    padding-top: 92px;
+
+    padding-bottom: 120px;
+}
+
+.perfil-container {
+    position: relative;
+
+    width: 100%;
+
+    max-width: 1150px;
+
+    margin: 0 auto;
+
+    padding: var(--espaco-5);
+}
+
+.perfil-container::before {
+    content: "";
+
+    position: fixed;
+
+    inset: 0;
+
+    z-index: -1;
+
+    pointer-events: none;
+
+    background-image:
+        radial-gradient(
+            var(--painel-borda) 1px,
+            transparent 1px
+        );
+
+    background-size: 4px 4px;
+
+    opacity: 0.45;
+}
+
+
+/* ============================================================
+   ESTADO NÃO AUTENTICADO
+   ============================================================ */
+
+.perfil-bloqueado {
+    width: min(520px, 100%);
+
+    margin:
+        var(--espaco-7)
+        auto;
+
+    padding: var(--espaco-7);
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    gap: var(--espaco-3);
+
+    text-align: center;
+
+    background: var(--painel-fundo);
+
+    border:
+        1px solid
+        var(--painel-borda);
+
+    border-radius:
+        var(--raio-grande);
+
+    box-shadow:
+        var(--painel-sombra);
+}
+
+.perfil-bloqueado-texto {
+    color: var(--cor-texto);
+}
+
+.perfil-bloqueado-link {
+    padding:
+        var(--espaco-2)
+        var(--espaco-4);
+
+    background: var(--cor-primaria);
+
+    color: var(--texto-sobre-pastel);
+
+    border-radius:
+        var(--raio-pequeno);
+
+    text-decoration: none;
+
+    font-weight: 800;
+
+    transition:
+        transform var(--transicao-rapida),
+        filter var(--transicao-rapida);
+}
+
+.perfil-bloqueado-link:hover {
+    transform: scale(1.03);
+
+    filter: brightness(1.03);
+}
+
+
+/* ============================================================
+   JANELAS / ABAS
+   MOLDE VISUAL BASEADO NA 1.0
    ============================================================ */
 
 .perfil-conteudo {
     display: flex;
+
     flex-wrap: wrap;
+
     justify-content: center;
+
     align-items: stretch;
 
     gap: var(--espaco-5);
-
-    width: 100%;
 }
 
 .perfil-janela {
@@ -44,38 +270,40 @@
     margin-top: 40px;
 }
 
-/* Perfil */
 .perfil-janela-identidade {
     flex: 1 1 240px;
+
     max-width: 280px;
 }
 
-/* Configurações */
 .perfil-janela-config {
     flex: 1 1 260px;
+
     max-width: 320px;
 }
 
-/* Biblioteca */
 .perfil-janela-biblioteca {
     flex: 1 1 340px;
+
     max-width: 480px;
 }
 
 
-/* ------------------------------------------------------------
-   ABA SUPERIOR
-   ------------------------------------------------------------ */
+/* ============================================================
+   ABAS
+   ============================================================ */
 
 .perfil-janela-tab {
     position: absolute;
 
     top: -34px;
+
     left: var(--espaco-3);
 
     z-index: 2;
 
     display: flex;
+
     align-items: center;
 
     min-height: 34px;
@@ -90,33 +318,40 @@
         0
         0;
 
-    color: var(--texto-sobre-pastel);
+    color:
+        var(--texto-sobre-pastel);
 
     font-size: 0.95rem;
+
     font-weight: 800;
 
     white-space: nowrap;
 
-    /* IMPORTANTE:
-       o molde continua sendo o da 1.0,
-       mas o título NÃO fica torto. */
-    transform: none;
+    box-shadow:
+        var(--sombra-suave);
 
-    box-shadow: var(--sombra-suave);
+    border:
+        1px solid
+        var(--painel-borda);
 
-    border: 1px solid var(--painel-borda);
     border-bottom: none;
-}
 
-/* Nada de inclinação só na Biblioteca também. */
-.perfil-janela-biblioteca .perfil-janela-tab {
+    /* Retas: não ficam tortas. */
     transform: none;
 }
 
 
-/* ------------------------------------------------------------
+/* Também mantém Biblioteca reta. */
+
+.perfil-janela-biblioteca
+.perfil-janela-tab {
+    transform: none;
+}
+
+
+/* ============================================================
    CORES DAS ABAS
-   ------------------------------------------------------------ */
+   ============================================================ */
 
 .perfil-janela-tab.aba-perfil {
     background: var(--aba-perfil);
@@ -131,9 +366,9 @@
 }
 
 
-/* ------------------------------------------------------------
-   CORPO DA JANELA
-   ------------------------------------------------------------ */
+/* ============================================================
+   CORPO DAS JANELAS
+   ============================================================ */
 
 .perfil-painel {
     position: relative;
@@ -142,18 +377,23 @@
 
     overflow: hidden;
 
-    background: var(--painel-fundo);
+    background:
+        var(--painel-fundo);
 
-    border: 1px solid var(--painel-borda);
+    border:
+        1px solid
+        var(--painel-borda);
 
-    border-radius: var(--raio-grande);
+    border-radius:
+        var(--raio-grande);
 
-    box-shadow: var(--painel-sombra);
+    box-shadow:
+        var(--painel-sombra);
 }
 
 
 /* ============================================================
-   PERFIL / BANNER / AVATAR
+   IDENTIDADE / BANNER / AVATAR
    ============================================================ */
 
 .perfil-banner {
@@ -164,10 +404,13 @@
     overflow: hidden;
 
     display: flex;
+
     align-items: center;
+
     justify-content: center;
 
-    background: var(--cor-superficie-clara);
+    background:
+        var(--cor-superficie-clara);
 
     background-image:
         repeating-linear-gradient(
@@ -181,6 +424,7 @@
 
 .perfil-banner-img {
     position: absolute;
+
     inset: 0;
 
     width: 100%;
@@ -191,11 +435,14 @@
 
 .perfil-banner-vazio {
     position: relative;
+
     z-index: 1;
 
-    color: var(--cor-texto-fraco);
+    color:
+        var(--cor-texto-fraco);
 
     font-size: 0.75rem;
+
     font-style: italic;
 }
 
@@ -203,6 +450,7 @@
     position: absolute;
 
     top: 78px;
+
     left: var(--espaco-4);
 
     width: 78px;
@@ -210,13 +458,19 @@
 
     overflow: hidden;
 
-    border: 3px dashed var(--aba-perfil);
+    border:
+        3px dashed
+        var(--aba-perfil);
 
-    outline: 4px solid var(--painel-fundo);
+    outline:
+        4px solid
+        var(--painel-fundo);
 
-    border-radius: var(--raio-circular);
+    border-radius:
+        var(--raio-circular);
 
-    background: var(--cor-superficie);
+    background:
+        var(--cor-superficie);
 }
 
 .perfil-avatar {
@@ -230,6 +484,7 @@
 
 .perfil-identidade {
     display: flex;
+
     flex-direction: column;
 
     gap: var(--espaco-1);
@@ -244,6 +499,7 @@
     color: var(--cor-texto);
 
     font-size: 1.2rem;
+
     font-weight: 800;
 }
 
@@ -251,33 +507,40 @@
     color: var(--cor-primaria);
 
     font-size: 0.82rem;
+
     font-weight: 700;
 }
 
 .perfil-bio-exibicao {
     min-height: 1.4em;
+
     max-width: 60ch;
 
-    color: var(--cor-texto-secundario);
+    color:
+        var(--cor-texto-secundario);
 
     white-space: pre-wrap;
 
     font-size: 0.88rem;
+
     line-height: 1.45;
 }
 
 .perfil-bio-exibicao:empty::before {
     content: attr(data-placeholder);
 
-    color: var(--cor-texto-fraco);
+    color:
+        var(--cor-texto-fraco);
 
     font-style: italic;
 }
 
 .perfil-estatisticas {
-    margin-top: var(--espaco-1);
+    margin-top:
+        var(--espaco-1);
 
-    color: var(--cor-texto-fraco);
+    color:
+        var(--cor-texto-fraco);
 
     font-size: 0.72rem;
 }
@@ -293,6 +556,7 @@
         var(--espaco-4);
 
     display: flex;
+
     flex-direction: column;
 
     gap: var(--espaco-4);
@@ -300,15 +564,18 @@
 
 .perfil-config-secao {
     display: flex;
+
     flex-direction: column;
 
     gap: var(--espaco-2);
 }
 
 .perfil-config-titulo {
-    color: var(--cor-texto);
+    color:
+        var(--cor-texto);
 
     font-size: 0.85rem;
+
     font-weight: 800;
 
     letter-spacing: 0.03em;
@@ -320,11 +587,15 @@
     width: 100%;
 
     border: 0;
-    border-top: 1px dashed var(--painel-borda);
+
+    border-top:
+        1px dashed
+        var(--painel-borda);
 }
 
 .perfil-config-avatar-linha {
     display: flex;
+
     align-items: center;
 
     gap: var(--espaco-3);
@@ -338,13 +609,18 @@
 
     object-fit: cover;
 
-    border: 3px dashed var(--aba-config);
-    border-radius: var(--raio-circular);
+    border:
+        3px dashed
+        var(--aba-config);
+
+    border-radius:
+        var(--raio-circular);
 }
 
 .perfil-config-avatar-botoes,
 .perfil-config-banner-botoes {
     display: flex;
+
     flex-wrap: wrap;
 
     gap: var(--espaco-1);
@@ -354,6 +630,7 @@
 .perfil-btn-salvar,
 .perfil-link-acao {
     font-family: inherit;
+
     cursor: pointer;
 }
 
@@ -364,35 +641,45 @@
 
     background: transparent;
 
-    color: var(--cor-texto-secundario);
+    color:
+        var(--cor-texto-secundario);
 
-    border: 1px solid var(--input-borda);
-    border-radius: var(--raio-pequeno);
+    border:
+        1px solid
+        var(--input-borda);
+
+    border-radius:
+        var(--raio-pequeno);
 
     font-size: 0.75rem;
+
     font-weight: 700;
 
     transition:
         background var(--transicao-rapida),
-        color var(--transicao-rapida),
-        transform var(--transicao-rapida);
+        color var(--transicao-rapida);
 }
 
 .perfil-btn-secundario:hover {
-    background: var(--cor-superficie-hover);
-    color: var(--cor-texto);
+    background:
+        var(--cor-superficie-hover);
+
+    color:
+        var(--cor-texto);
 }
 
 .perfil-btn-secundario:disabled,
 .perfil-btn-salvar:disabled {
     cursor: not-allowed;
+
     opacity: 0.55;
 }
 
 .perfil-config-status {
     min-height: 1.2em;
 
-    color: var(--cor-texto-secundario);
+    color:
+        var(--cor-texto-secundario);
 
     font-size: 0.72rem;
 }
@@ -405,17 +692,25 @@
     overflow: hidden;
 
     display: flex;
+
     align-items: center;
+
     justify-content: center;
 
-    background: var(--cor-superficie-clara);
+    background:
+        var(--cor-superficie-clara);
 
-    border: 1px dashed var(--painel-borda);
-    border-radius: var(--raio-pequeno);
+    border:
+        1px dashed
+        var(--painel-borda);
+
+    border-radius:
+        var(--raio-pequeno);
 }
 
 .perfil-config-banner-img {
     position: absolute;
+
     inset: 0;
 
     width: 100%;
@@ -426,11 +721,14 @@
 
 #config-banner-preview-vazio {
     position: relative;
+
     z-index: 1;
 
-    color: var(--cor-texto-fraco);
+    color:
+        var(--cor-texto-fraco);
 
     font-size: 0.72rem;
+
     font-style: italic;
 }
 
@@ -445,38 +743,51 @@
         var(--espaco-2)
         var(--espaco-3);
 
-    background: var(--input-fundo);
+    background:
+        var(--input-fundo);
 
-    color: var(--input-texto);
+    color:
+        var(--input-texto);
 
-    border: 1px solid var(--input-borda);
-    border-radius: var(--raio-pequeno);
+    border:
+        1px solid
+        var(--input-borda);
+
+    border-radius:
+        var(--raio-pequeno);
 
     outline: none;
 
     font-family: inherit;
+
     font-size: 0.85rem;
+
     line-height: 1.4;
 }
 
 .perfil-config-textarea::placeholder {
-    color: var(--input-placeholder);
+    color:
+        var(--input-placeholder);
 }
 
 .perfil-config-textarea:focus {
-    border-color: var(--input-borda-foco);
+    border-color:
+        var(--input-borda-foco);
 }
 
 .perfil-config-bio-rodape {
     display: flex;
+
     align-items: center;
+
     justify-content: space-between;
 
     gap: var(--espaco-2);
 }
 
 .perfil-config-contador {
-    color: var(--cor-texto-fraco);
+    color:
+        var(--cor-texto-fraco);
 
     font-size: 0.72rem;
 }
@@ -486,14 +797,19 @@
         var(--espaco-2)
         var(--espaco-3);
 
-    background: var(--cor-primaria);
+    background:
+        var(--cor-primaria);
 
-    color: var(--texto-sobre-pastel);
+    color:
+        var(--texto-sobre-pastel);
 
     border: 0;
-    border-radius: var(--raio-pequeno);
+
+    border-radius:
+        var(--raio-pequeno);
 
     font-size: 0.8rem;
+
     font-weight: 800;
 
     transition:
@@ -503,6 +819,7 @@
 
 .perfil-btn-salvar:hover:not(:disabled) {
     transform: scale(1.03);
+
     filter: brightness(1.03);
 }
 
@@ -512,24 +829,22 @@
 
 
 /* ============================================================
-   BIBLIOTECA — TRÊS COLUNAS
-   ============================================================ */
-
-/* ============================================================
-   BIBLIOTECA — ESTRUTURA COMPLETA DO PERFIL 1.0
+   BIBLIOTECA
+   ESTRUTURA COMPLETA DA 1.0
    ============================================================ */
 
 .perfil-biblioteca-conteudo {
     display: flex;
+
     flex-direction: column;
 
     width: 100%;
 }
 
 
-/* ------------------------------------------------------------
-   CONTAINER DAS TRÊS COLUNAS
-   ------------------------------------------------------------ */
+/* ============================================================
+   TRÊS COLUNAS
+   ============================================================ */
 
 .perfil-biblioteca-colunas {
     display: flex;
@@ -538,9 +853,9 @@
 }
 
 
-/* ------------------------------------------------------------
-   CADA COLUNA
-   ------------------------------------------------------------ */
+/* ============================================================
+   COLUNAS INDIVIDUAIS
+   ============================================================ */
 
 .perfil-coluna {
     flex: 1 1 0;
@@ -552,6 +867,7 @@
         var(--espaco-4);
 
     display: flex;
+
     flex-direction: column;
 
     gap: var(--espaco-2);
@@ -566,14 +882,15 @@
 }
 
 
-/* ------------------------------------------------------------
+/* ============================================================
    CABEÇALHO DA COLUNA
-   ------------------------------------------------------------ */
+   ============================================================ */
 
 .perfil-biblioteca-cabecalho {
     display: flex;
 
     align-items: center;
+
     justify-content: space-between;
 
     gap: var(--espaco-2);
@@ -582,48 +899,54 @@
 }
 
 
-/* ------------------------------------------------------------
-   TÍTULOS
-   ------------------------------------------------------------ */
+/* ============================================================
+   TÍTULOS DAS COLUNAS
+   ============================================================ */
 
 .perfil-coluna-titulo {
-    color: var(--cor-texto);
+    color:
+        var(--cor-texto);
 
     font-size: 0.85rem;
+
     font-weight: 800;
 
     line-height: 1.2;
 }
 
 .perfil-acento-favorita {
-    color: var(--aba-musicas);
+    color:
+        var(--aba-musicas);
 }
 
 .perfil-acento-curtidas {
-    color: var(--aba-artistas);
+    color:
+        var(--aba-artistas);
 }
 
 .perfil-acento-playlists {
-    color: var(--aba-generos);
+    color:
+        var(--aba-generos);
 }
 
 
-/* ------------------------------------------------------------
-   TEXTO DA MÚSICA FAVORITA
-   ------------------------------------------------------------ */
+/* ============================================================
+   MÚSICA FAVORITA ATUAL
+   ============================================================ */
 
 .perfil-selecao-atual {
     min-height: 1.2em;
 
-    color: var(--cor-texto-secundario);
+    color:
+        var(--cor-texto-secundario);
 
     font-size: 0.75rem;
 }
 
 
-/* ------------------------------------------------------------
-   INPUTS DA BIBLIOTECA
-   ------------------------------------------------------------ */
+/* ============================================================
+   INPUTS
+   ============================================================ */
 
 .perfil-filtro {
     width: 100%;
@@ -632,9 +955,11 @@
         var(--espaco-2)
         var(--espaco-3);
 
-    background: var(--input-fundo);
+    background:
+        var(--input-fundo);
 
-    color: var(--input-texto);
+    color:
+        var(--input-texto);
 
     border:
         1px solid
@@ -646,6 +971,7 @@
     outline: none;
 
     font-family: inherit;
+
     font-size: 0.82rem;
 
     transition:
@@ -654,26 +980,30 @@
 }
 
 .perfil-filtro::placeholder {
-    color: var(--input-placeholder);
+    color:
+        var(--input-placeholder);
 }
 
 .perfil-filtro:focus {
-    border-color: var(--input-borda-foco);
+    border-color:
+        var(--input-borda-foco);
 }
 
 .perfil-filtro:disabled {
     cursor: not-allowed;
+
     opacity: 0.6;
 }
 
 
-/* ------------------------------------------------------------
-   ÁREA DE RESULTADOS
-   ------------------------------------------------------------ */
+/* ============================================================
+   RESULTADOS / LISTAS
+   ============================================================ */
 
 .perfil-resultados,
 .perfil-lista-atual {
     display: flex;
+
     flex-direction: column;
 
     gap: var(--espaco-1);
@@ -685,30 +1015,31 @@
     overflow-y: auto;
 }
 
-
-/* Estado vazio das curtidas */
-
 .perfil-lista-atual:empty::before {
-    content: "Nenhuma música em destaque.";
+    content:
+        "Nenhuma música em destaque.";
 
     padding:
         var(--espaco-2)
         0;
 
-    color: var(--cor-texto-fraco);
+    color:
+        var(--cor-texto-fraco);
 
     font-size: 0.75rem;
+
     font-style: italic;
 }
 
 
-/* ------------------------------------------------------------
-   ITENS DA BIBLIOTECA
-   ------------------------------------------------------------ */
+/* ============================================================
+   ITENS
+   ============================================================ */
 
 .perfil-resultado-item,
 .perfil-item-atual {
     display: flex;
+
     align-items: center;
 
     gap: var(--espaco-2);
@@ -723,15 +1054,12 @@
         var(--raio-pequeno);
 }
 
-
-/* Resultado pesquisável */
-
 .perfil-resultado-item {
     width: 100%;
 
     background: transparent;
 
-    border: none;
+    border: 0;
 
     color: inherit;
 
@@ -745,9 +1073,11 @@
 }
 
 .perfil-resultado-item:hover:not(:disabled) {
-    background: var(--cor-superficie-hover);
+    background:
+        var(--cor-superficie-hover);
 
-    transform: translateX(2px);
+    transform:
+        translateX(2px);
 }
 
 .perfil-resultado-item:disabled {
@@ -756,34 +1086,45 @@
     opacity: 0.5;
 }
 
+.perfil-resultado-item.selecionado {
+    background:
+        var(--cor-superficie-clara);
 
-/* ------------------------------------------------------------
+    box-shadow:
+        0 0 0 1px
+        var(--input-borda-foco);
+}
+
+
+/* ============================================================
    CAPAS
-   ------------------------------------------------------------ */
+   ============================================================ */
 
 .perfil-resultado-capa,
 .perfil-item-atual-capa {
-    width: 30px;
-    height: 30px;
+    width: 34px;
+    height: 34px;
 
-    flex: 0 0 30px;
+    flex: 0 0 34px;
+
+    object-fit: cover;
 
     border-radius:
         var(--raio-pequeno);
 
-    object-fit: cover;
-
-    background: var(--cor-superficie-clara);
+    background:
+        var(--cor-superficie-clara);
 }
 
 
-/* ------------------------------------------------------------
-   TEXTOS DOS RESULTADOS
-   ------------------------------------------------------------ */
+/* ============================================================
+   TEXTOS DOS ITENS
+   ============================================================ */
 
 .perfil-resultado-texto,
 .perfil-item-atual-texto {
     display: flex;
+
     flex-direction: column;
 
     min-width: 0;
@@ -795,14 +1136,16 @@
 .perfil-item-atual-titulo {
     overflow: hidden;
 
-    color: var(--cor-texto);
+    color:
+        var(--cor-texto);
 
     font-size: 0.8rem;
-    font-weight: 600;
 
-    white-space: nowrap;
+    font-weight: 700;
 
     text-overflow: ellipsis;
+
+    white-space: nowrap;
 }
 
 .perfil-resultado-artista,
@@ -810,22 +1153,24 @@
 .perfil-playlist-faixas {
     overflow: hidden;
 
-    color: var(--cor-texto-secundario);
+    color:
+        var(--cor-texto-secundario);
 
     font-size: 0.7rem;
 
-    white-space: nowrap;
-
     text-overflow: ellipsis;
+
+    white-space: nowrap;
 }
 
 
-/* ------------------------------------------------------------
+/* ============================================================
    BOTÕES DA BIBLIOTECA
-   ------------------------------------------------------------ */
+   ============================================================ */
 
 .perfil-link-acao,
-.perfil-remover-item {
+.perfil-remover-item,
+.perfil-resultado-remover {
     flex-shrink: 0;
 
     padding:
@@ -833,32 +1178,36 @@
 
     background: transparent;
 
-    color: var(--cor-texto-fraco);
+    color:
+        var(--cor-texto-fraco);
 
-    border: none;
+    border: 0;
 
     cursor: pointer;
 
     font-size: 0.72rem;
+
     font-weight: 700;
 }
 
 .perfil-link-acao:hover,
-.perfil-remover-item:hover {
-    color: var(--cor-erro);
+.perfil-remover-item:hover,
+.perfil-resultado-remover:hover {
+    color:
+        var(--cor-erro);
 }
 
 
-/* ------------------------------------------------------------
-   CRIAÇÃO DE PLAYLIST
-   ------------------------------------------------------------ */
+/* ============================================================
+   PLAYLISTS
+   ============================================================ */
 
 .perfil-playlist-criar {
     display: flex;
 
-    gap: var(--espaco-2);
+    align-items: stretch;
 
-    width: 100%;
+    gap: var(--espaco-2);
 }
 
 .perfil-playlist-criar .perfil-filtro {
@@ -866,57 +1215,17 @@
 }
 
 
-/* ------------------------------------------------------------
-   BOTÃO SALVAR / CRIAR
-   ------------------------------------------------------------ */
-
-.perfil-btn-salvar {
-    padding:
-        var(--espaco-2)
-        var(--espaco-3);
-
-    background: var(--cor-primaria);
-
-    color: var(--texto-sobre-pastel);
-
-    border: none;
-
-    border-radius:
-        var(--raio-pequeno);
-
-    font-size: 0.8rem;
-    font-weight: 800;
-
-    cursor: pointer;
-
-    transition:
-        transform var(--transicao-rapida),
-        filter var(--transicao-rapida);
-}
-
-.perfil-btn-salvar:hover:not(:disabled) {
-    transform: scale(1.03);
-
-    filter: brightness(1.03);
-}
-
-.perfil-btn-salvar:disabled {
-    cursor: not-allowed;
-
-    opacity: 0.55;
-}
-
-
-/* ------------------------------------------------------------
-   MENSAGENS / ESTADOS
-   ------------------------------------------------------------ */
+/* ============================================================
+   MENSAGENS
+   ============================================================ */
 
 .perfil-estado-mensagem {
     padding:
         var(--espaco-2)
         0;
 
-    color: var(--cor-texto-fraco);
+    color:
+        var(--cor-texto-fraco);
 
     font-size: 0.75rem;
 
@@ -924,9 +1233,9 @@
 }
 
 
-/* ------------------------------------------------------------
+/* ============================================================
    RODAPÉ DA BIBLIOTECA
-   ------------------------------------------------------------ */
+   ============================================================ */
 
 .perfil-biblioteca-nota {
     padding:
@@ -937,14 +1246,17 @@
         1px dashed
         var(--painel-borda);
 
-    color: var(--cor-texto-fraco);
+    color:
+        var(--cor-texto-fraco);
 
-    font-size: 0.7rem;
+    font-size: 0.68rem;
 
-    line-height: 1.5;
+    line-height: 1.45;
 }
+
+
 /* ============================================================
-   LOADING VISUAL
+   ESTADO DE CARREGAMENTO
    ============================================================ */
 
 .perfil-conteudo[aria-busy="true"] {
@@ -967,11 +1279,13 @@
     width: 100%;
 
     display: flex;
+
     align-items: center;
 
     gap: 14px;
 
-    padding: 10px 24px;
+    padding:
+        10px 24px;
 }
 
 .player-capa {
@@ -982,14 +1296,17 @@
 
     object-fit: cover;
 
-    border-radius: var(--raio-pequeno);
+    border-radius:
+        var(--raio-pequeno);
 }
 
 .player-info {
     display: flex;
+
     flex-direction: column;
 
     min-width: 100px;
+
     max-width: 160px;
 
     flex-shrink: 0;
@@ -1005,14 +1322,17 @@
 }
 
 .player-titulo {
-    color: var(--cor-texto);
+    color:
+        var(--cor-texto);
 
     font-size: 0.85rem;
+
     font-weight: 700;
 }
 
 .player-artista {
-    color: var(--cor-texto-secundario);
+    color:
+        var(--cor-texto-secundario);
 
     font-size: 0.75rem;
 }
@@ -1025,15 +1345,25 @@
 
     border: 0;
 
-    border-radius: var(--raio-circular);
+    border-radius:
+        var(--raio-circular);
 
-    background: var(--cor-primaria);
-    color: var(--texto-sobre-pastel);
+    background:
+        var(--cor-primaria);
+
+    color:
+        var(--texto-sobre-pastel);
 
     cursor: pointer;
 }
 
 #player-proxima {
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
     width: 32px;
     height: 32px;
 
@@ -1042,11 +1372,14 @@
     padding: 0;
 
     border: 0;
-    border-radius: var(--raio-circular);
+
+    border-radius:
+        var(--raio-circular);
 
     background: transparent;
 
-    color: var(--cor-texto-secundario);
+    color:
+        var(--cor-texto-secundario);
 
     cursor: pointer;
 }
@@ -1054,7 +1387,8 @@
 .player-tempo {
     min-width: 35px;
 
-    color: var(--cor-texto-fraco);
+    color:
+        var(--cor-texto-fraco);
 
     font-size: 0.75rem;
 
@@ -1064,11 +1398,13 @@
 .player-seek {
     flex: 1;
 
-    accent-color: var(--cor-primaria);
+    accent-color:
+        var(--cor-primaria);
 }
 
 .player-volume {
     display: flex;
+
     align-items: center;
 
     gap: var(--espaco-2);
@@ -1083,10 +1419,13 @@
 
     background: transparent;
 
-    color: var(--cor-texto);
+    color:
+        var(--cor-texto);
 
     border: 0;
-    border-radius: var(--raio-pequeno);
+
+    border-radius:
+        var(--raio-pequeno);
 
     cursor: pointer;
 }
@@ -1094,27 +1433,34 @@
 .volume-slider {
     width: 90px;
 
-    accent-color: var(--cor-primaria);
+    accent-color:
+        var(--cor-primaria);
 }
 
 .player-barra .btn-icone {
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
     width: 32px;
     height: 32px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
 
     padding: 0;
 
     flex-shrink: 0;
 
-    background: var(--cor-superficie-clara);
+    background:
+        var(--cor-superficie-clara);
 
-    color: var(--cor-texto);
+    color:
+        var(--cor-texto);
 
     border: 0;
-    border-radius: var(--raio-circular);
+
+    border-radius:
+        var(--raio-circular);
 
     cursor: pointer;
 }
@@ -1130,45 +1476,62 @@
         padding-top: 84px;
     }
 
+
     .perfil-container {
-        padding-inline: var(--espaco-3);
+        padding-inline:
+            var(--espaco-3);
     }
+
 
     .perfil-conteudo {
         flex-direction: column;
+
         align-items: stretch;
     }
+
 
     .perfil-janela-identidade,
     .perfil-janela-config,
     .perfil-janela-biblioteca {
         width: 100%;
+
         max-width: none;
     }
+
 
     .perfil-biblioteca-colunas {
         flex-direction: column;
     }
 
+
     .perfil-coluna {
         border-right: none;
-        border-bottom: 1px dashed var(--painel-borda);
+
+        border-bottom:
+            1px dashed
+            var(--painel-borda);
     }
+
 
     .perfil-coluna:last-child {
         border-bottom: none;
     }
+
 }
+
 
 @media (max-width: 600px) {
 
     .fixed-bar {
-        padding-inline: var(--espaco-3);
+        padding-inline:
+            var(--espaco-3);
     }
+
 
     .nav-center {
         display: none;
     }
+
 
     .player-barra {
         gap: 10px;
@@ -1177,12 +1540,15 @@
             8px 12px;
     }
 
+
     .player-info {
         min-width: 0;
+
         max-width: none;
 
         flex: 1;
     }
+
 
     .player-seek,
     .player-tempo,
@@ -1190,7 +1556,9 @@
         display: none;
     }
 
+
     .perfil-playlist-criar {
         flex-direction: column;
     }
+
 }
