@@ -1,63 +1,78 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>Perfil — openSound</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
+
     <link
         href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap"
         rel="stylesheet"
     >
 
-    <link rel="stylesheet" href="../css/root.css">
-    <link rel="stylesheet" href="../css/theme.css">
-    <link rel="stylesheet" href="../css/perfil.css">
+    <link
+        rel="stylesheet"
+        href="../css/root.css"
+    >
 
-    <script src="../js/profile.js" defer></script>
-    <script src="../js/player.js" defer></script>
+    <link
+        rel="stylesheet"
+        href="../css/theme.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="../css/perfil.css"
+    >
+
+    <script
+        src="../js/player.js"
+        defer
+    ></script>
+
+    <script
+        src="../js/profile.js"
+        defer
+    ></script>
 </head>
+
 
 <body>
 
     <!-- =========================================================
-         NAVBAR
+         BARRA SUPERIOR
+         ÚNICA ADIÇÃO EM RELAÇÃO AO FRONT 1.0
          ========================================================= -->
 
-    <nav
-        class="fixed-bar"
-        aria-label="Navegação principal"
-    >
+    <header class="perfil-barra-superior">
 
-        <div class="nav-left">
-
-            <a
-                href="home.html"
-                class="btn-navbar"
-            >
-                ← Voltar
-            </a>
-
-        </div>
+        <a
+            href="home.html"
+            class="perfil-btn-voltar"
+            aria-label="Voltar para a página inicial"
+        >
+            ← Voltar
+        </a>
 
 
-        <div class="nav-center">
-
-            <span class="titulo-navbar-perfil">
-                Meu perfil
-            </span>
-
-        </div>
+        <span class="perfil-titulo-superior">
+            Meu perfil
+        </span>
 
 
         <div
-            class="nav-right"
+            class="perfil-barra-superior-espaco"
             aria-hidden="true"
         ></div>
 
-    </nav>
+    </header>
 
 
     <!-- =========================================================
@@ -189,7 +204,7 @@
 
 
     <!-- =========================================================
-         PÁGINA
+         PERFIL
          ========================================================= -->
 
     <main class="perfil-page">
@@ -198,7 +213,7 @@
 
 
             <!-- =================================================
-                 ESTADO NÃO AUTENTICADO
+                 ESTADO NÃO LOGADO
                  ================================================= -->
 
             <section
@@ -223,13 +238,12 @@
 
 
             <!-- =================================================
-                 CONTEÚDO DO PERFIL
+                 CONTEÚDO
                  ================================================= -->
 
             <section
                 id="perfil-conteudo"
-                class="perfil-conteudo"
-                aria-busy="true"
+                class="perfil-conteudo hidden"
             >
 
 
@@ -247,9 +261,6 @@
 
 
                     <div class="perfil-painel">
-
-
-                        <!-- BANNER -->
 
                         <div
                             id="perfil-banner"
@@ -273,8 +284,6 @@
                         </div>
 
 
-                        <!-- AVATAR -->
-
                         <div class="perfil-avatar-wrapper">
 
                             <img
@@ -286,8 +295,6 @@
 
                         </div>
 
-
-                        <!-- IDENTIDADE -->
 
                         <div class="perfil-identidade">
 
@@ -342,8 +349,6 @@
                         class="perfil-painel perfil-painel-config"
                     >
 
-
-                        <!-- AVATAR -->
 
                         <section class="perfil-config-secao">
 
@@ -405,8 +410,6 @@
 
                         <hr class="perfil-config-divisor">
 
-
-                        <!-- BANNER -->
 
                         <section class="perfil-config-secao">
 
@@ -476,8 +479,6 @@
                         <hr class="perfil-config-divisor">
 
 
-                        <!-- BIO -->
-
                         <section class="perfil-config-secao">
 
                             <h2 class="perfil-config-titulo">
@@ -530,8 +531,6 @@
                         <hr class="perfil-config-divisor">
 
 
-                        <!-- TEMA -->
-
                         <section class="perfil-config-secao">
 
                             <h2 class="perfil-config-titulo">
@@ -579,17 +578,10 @@
 
                         <div class="perfil-biblioteca-conteudo">
 
-
-                            <!-- =================================================
-                                 TRÊS COLUNAS
-                                 ================================================= -->
-
                             <div class="perfil-biblioteca-colunas">
 
 
-                                <!-- =================================================
-                                     COLUNA 1 — MÚSICA FAVORITA
-                                     ================================================= -->
+                                <!-- COLUNA 1 -->
 
                                 <section class="perfil-coluna">
 
@@ -646,9 +638,7 @@
 
 
 
-                                <!-- =================================================
-                                     COLUNA 2 — CURTIDAS
-                                     ================================================= -->
+                                <!-- COLUNA 2 -->
 
                                 <section class="perfil-coluna">
 
@@ -702,9 +692,7 @@
 
 
 
-                                <!-- =================================================
-                                     COLUNA 3 — PLAYLISTS
-                                     ================================================= -->
+                                <!-- COLUNA 3 -->
 
                                 <section class="perfil-coluna">
 
@@ -760,13 +748,8 @@
                             </div>
 
 
-                            <!-- =================================================
-                                 RODAPÉ DA BIBLIOTECA
-                                 ================================================= -->
-
                             <p class="perfil-biblioteca-nota">
-                                Sua música favorita, destaques e playlists ficam
-                                ligados ao seu perfil autenticado.
+                                Sua música favorita, destaques e playlists ficam ligados ao seu perfil autenticado.
                             </p>
 
                         </div>
@@ -782,4 +765,5 @@
     </main>
 
 </body>
+
 </html>
