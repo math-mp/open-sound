@@ -1324,8 +1324,21 @@ function criarDestaqueMusica(musica) {
   const btnAddPlaylist = criarBotaoIcone('', '＋', 'Adicionar à playlist');
   btnAddPlaylist.addEventListener('click', () => abrirModalAddPlaylist(musica));
 
+  // "Tocar depois": joga no fim da fila sem tirar o que está tocando.
+  const btnFila = criarBotaoIcone('btn-enfileirar-destaque', '⇥', 'Tocar depois');
+  btnFila.dataset.musicaId = musica.id;
+  btnFila.addEventListener('click', () => {
+    if (!estaLogado()) {
+      alert('Faça login para usar a fila.');
+      if (modalLogin) modalLogin.classList.remove('hidden');
+      return;
+    }
+    adicionarAFila(musica);
+  });
+
   acoes.appendChild(btnFavoritar);
   acoes.appendChild(btnAddPlaylist);
+  acoes.appendChild(btnFila);
   capaWrapper.appendChild(acoes);
 
   div.appendChild(capaWrapper);   // <- substitui o antigo div.appendChild(capa);

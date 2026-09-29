@@ -1533,6 +1533,34 @@ body,
   flex-shrink: 0;
 }
 
+/* Pular música — mesmo formato dos outros botões de ícone da barra. */
+#player-proxima {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--cor-texto-secundario);
+  font-size: 1rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+#player-proxima:hover {
+  background: var(--cor-superficie-hover);
+  color: var(--cor-primaria);
+  transform: scale(1.08);
+}
+
+#player-proxima:active {
+  transform: scale(0.95);
+}
+
 .player-seek {
   flex-grow: 1;
 }
@@ -1623,6 +1651,182 @@ body,
 
 .player-volume .volume-slider {
   transition: width 0.3s ease, opacity 0.3s ease;
+}
+
+/*===================================================
+  PAINEL DA FILA (somente na home)
+  ====================================================*/
+.player-fila-painel {
+  position: fixed;
+  right: 16px;
+  bottom: 92px; /* acima da barra de player */
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: var(--raio-medio);
+  background: var(--painel-fundo);
+  border: 1px solid var(--painel-borda);
+  box-shadow: var(--sombra-forte);
+  color: var(--cor-texto);
+  z-index: 950; /* acima do conteúdo, abaixo do painel de upload (1001) */
+}
+
+.player-fila-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.player-fila-titulo-h2 {
+  font-size: 0.95rem;
+  font-weight: 800;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.player-fila-contagem {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--cor-texto-fraco);
+}
+
+.player-fila-acoes {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.player-fila-btn,
+.player-fila-fechar {
+  border: 1px solid var(--input-borda);
+  border-radius: var(--raio-pequeno);
+  background: transparent;
+  color: var(--cor-texto-secundario);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.player-fila-btn:hover,
+.player-fila-fechar:hover {
+  background: var(--cor-superficie-hover);
+  color: var(--cor-texto);
+}
+
+.player-fila-fechar {
+  padding: 2px 8px;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.player-fila-dica {
+  font-size: 0.68rem;
+  color: var(--cor-texto-fraco);
+}
+
+.player-fila-lista {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+}
+
+.player-fila-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  border-radius: var(--raio-pequeno);
+  background: var(--cor-superficie);
+  border: 1px solid transparent;
+  cursor: grab;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.player-fila-item:hover {
+  background: var(--cor-superficie-hover);
+  border-color: var(--painel-borda);
+}
+
+.player-fila-item.arrastando {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+
+.player-fila-posicao {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--cor-texto-fraco);
+  min-width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.player-fila-capa {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--raio-pequeno);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.player-fila-texto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex-grow: 1;
+}
+
+.player-fila-titulo {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--cor-texto);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-fila-artista {
+  font-size: 0.68rem;
+  color: var(--cor-texto-secundario);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-fila-remover {
+  border: none;
+  background: none;
+  color: var(--cor-texto-fraco);
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 0 4px;
+  flex-shrink: 0;
+  transition: color 0.2s ease;
+}
+
+.player-fila-remover:hover {
+  color: var(--cor-erro);
+}
+
+.player-fila-vazia {
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--cor-texto-fraco);
+  padding: 10px 2px;
+}
+
+.player-fila-btn-abrir {
+  flex-shrink: 0;
 }
 
 /*====menu hamburguer (config, e futuramente biblioteca/perfil)====*/

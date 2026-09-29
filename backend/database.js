@@ -139,7 +139,18 @@ const COMANDOS = [
      musica_id INTEGER NOT NULL REFERENCES musicas(id) ON DELETE CASCADE,
      posicao SMALLINT NOT NULL,
      UNIQUE(usuario_id, musica_id)
-   )`
+   )`,
+
+  // ---------- player global: estado de reprodução e fila por usuário ----------
+  `CREATE TABLE IF NOT EXISTS user_player_state (
+     user_id INTEGER PRIMARY KEY REFERENCES usuarios(id) ON DELETE CASCADE,
+     current_track_id INTEGER REFERENCES musicas(id) ON DELETE SET NULL,
+     progress_ms INTEGER NOT NULL DEFAULT 0,
+     is_playing BOOLEAN NOT NULL DEFAULT FALSE,
+     queue JSONB NOT NULL DEFAULT '[]'::jsonb,
+     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+   )`,
+  `CREATE INDEX IF NOT EXISTS idx_user_player_state_updated ON user_player_state(updated_at DESC)`
 ];
 
 // Converte colunas antigas TIMESTAMP -> TIMESTAMPTZ (só as que ainda não

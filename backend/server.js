@@ -1682,6 +1682,178 @@ app.post('/api/perfil/playlists', verificarAutenticacao, async (req, res) => {
 app.delete('/api/perfil/playlists/:id', verificarAutenticacao, excluirPlaylistDoUsuario);
 
 // ============================================================
+// PLAYER GLOBAL — estado de reprodução e fila
+// ============================================================
+
+// Helper: busca estado do player (com as músicas resolvidas) ou devolve vazio.
+// A fila no banco é só uma lista de ids; o front precisa de id/titulo/artista/
+// url_audio/url_capa pra desenhar a barra e a lista sem refazer requisição.
+async function obterEstadoPlayer(usuarioId) {
+  const resultado = await pool.query(
+    'SELECT current_track_id, progress_ms, is_playing, queue FROM user_player_state WHERE user_id = $1',
+    [usuarioId]
+  );
+
+  if (!resultado.rows[0]) {
+    return { current_track_id: null, current_track: null, progress_ms: 0, is_playing: false, queue: [], faixas: [] };
+  }
+
+  const estado = resultado.rows[0];
+  const fila = Array.isArray(estado.queue) ? estado.queue.map(Number).filter(Number.isInteger) : [];
+  const faixas = await buscarMusicas(fila);
+
+  let atual = null;
+  if (estado.current_track_id) {
+    const achadas = await buscarMusicas([estado.current_track_id]);
+    atual = achadas[0] || null;
+  }
+
+  return {
+    current_track_id: atual ? atual.id : null,
+    current_track: atual,
+    progress_ms: estado.progress_ms || 0,
+    is_playing: !!estado.is_playing,
+    queue: faixas.map((f) => f.id),
+    faixas
+  };
+}
+
+// Busca as músicas dos ids informados preservando a ordem da fila.
+async function buscarMusicas(ids) {
+  if (!ids || ids.length === 0) return [];
+
+  const resultado = await pool.query(
+    `SELECT ${COLUNAS_MUSICA} FROM musicas m WHERE m.id = ANY($1::int[])`,
+    [ids]
+  );
+
+  const porId = new Map(resultado.rows.map((m) => [m.id, m]));
+  // Uma música apagada some da fila: o front só recebe o que ainda existe.
+  return ids.map((id) => porId.get(id)).filter(Boolean);
+}
+
+// Helper: atualiza estado do player (upsert)
+async function atualizarEstadoPlayer(usuarioId, dados) {
+  const { current_track_id, progress_ms, is_playing, queue } = dados;
+  await pool.query(
+    `INSERT INTO user_player_state (user_id, current_track_id, progress_ms, is_playing, queue, updated_at)
+     VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+     ON CONFLICT (user_id)
+     DO UPDATE SET
+       current_track_id = EXCLUDED.current_track_id,
+       progress_ms = EXCLUDED.progress_ms,
+       is_playing = EXCLUDED.is_playing,
+       queue = EXCLUDED.queue,
+       updated_at = CURRENT_TIMESTAMP`,
+    [usuarioId, current_track_id, progress_ms, is_playing, JSON.stringify(queue || [])]
+  );
+}
+
+// GET /api/player/state — busca estado completo (música atual + fila)
+app.get('/api/player/state', verificarAutenticacao, async (req, res) => {
+  try {
+    const estado = await obterEstadoPlayer(req.usuario.id);
+    return sucesso(res, { state: estado });
+  } catch (erro) {
+    return falhaInterna(res, 'GET /api/player/state', erro);
+  }
+});
+
+// POST /api/player/queue — adiciona faixas ao final da fila
+app.post('/api/player/queue', verificarAutenticacao, async (req, res) => {
+  const { trackIds } = req.body || {};
+  if (!Array.isArray(trackIds) || trackIds.length === 0) {
+    return falha(res, 400, 'Envie um array "trackIds" com ao menos um ID.');
+  }
+  const ids = trackIds.map(paraIdValido);
+  if (ids.some((id) => id === null)) return falha(res, 400, 'Lista contém ID de música inválido.');
+
+  try {
+    // Valida se todas as músicas existem
+    const existentes = await pool.query('SELECT id FROM musicas WHERE id = ANY($1::int[])', [ids]);
+    if (existentes.rows.length !== ids.length) {
+      return falha(res, 404, 'Uma ou mais músicas não existem.');
+    }
+
+    const estado = await obterEstadoPlayer(req.usuario.id);
+    const novaQueue = [...(estado.queue || []), ...ids];
+    await atualizarEstadoPlayer(req.usuario.id, { ...estado, queue: novaQueue });
+
+    return sucesso(res, { queue: novaQueue, faixas: await buscarMusicas(novaQueue) });
+  } catch (erro) {
+    if (ehMusicaSumida(erro)) return falha(res, 404, 'Alguma das músicas não existe mais.');
+    return falhaInterna(res, 'POST /api/player/queue', erro);
+  }
+});
+
+// PATCH /api/player/queue/reorder — reordena a fila
+app.patch('/api/player/queue/reorder', verificarAutenticacao, async (req, res) => {
+  const { queue } = req.body || {};
+  if (!Array.isArray(queue)) return falha(res, 400, 'Envie o array "queue" com a nova ordem.');
+
+  const ids = queue.map(paraIdValido);
+  if (ids.some((id) => id === null)) return falha(res, 400, 'Lista contém ID de música inválido.');
+
+  try {
+    const existentes = await pool.query('SELECT id FROM musicas WHERE id = ANY($1::int[])', [ids]);
+    if (existentes.rows.length !== ids.length) {
+      return falha(res, 404, 'Uma ou mais músicas não existem.');
+    }
+
+    const estado = await obterEstadoPlayer(req.usuario.id);
+    await atualizarEstadoPlayer(req.usuario.id, { ...estado, queue: ids });
+
+    return sucesso(res, { queue: ids, faixas: await buscarMusicas(ids) });
+  } catch (erro) {
+    if (ehMusicaSumida(erro)) return falha(res, 404, 'Alguma das músicas não existe mais.');
+    return falhaInterna(res, 'PATCH /api/player/queue/reorder', erro);
+  }
+});
+
+// DELETE /api/player/queue/:trackId — remove uma faixa da fila
+app.delete('/api/player/queue/:trackId', verificarAutenticacao, async (req, res) => {
+  const trackId = paraIdValido(req.params.trackId);
+  if (!trackId) return falha(res, 400, 'ID de música inválido.');
+
+  try {
+    const estado = await obterEstadoPlayer(req.usuario.id);
+    const novaQueue = (estado.queue || []).filter((id) => id !== trackId);
+    await atualizarEstadoPlayer(req.usuario.id, { ...estado, queue: novaQueue });
+
+    return sucesso(res, { queue: novaQueue, faixas: await buscarMusicas(novaQueue) });
+  } catch (erro) {
+    return falhaInterna(res, 'DELETE /api/player/queue/:trackId', erro);
+  }
+});
+
+// PUT /api/player/state — atualiza música atual, progresso e estado de play
+app.put('/api/player/state', verificarAutenticacao, async (req, res) => {
+  const { current_track_id, progress_ms, is_playing } = req.body || {};
+
+  if (current_track_id !== undefined && current_track_id !== null) {
+    const id = paraIdValido(current_track_id);
+    if (!id) return falha(res, 400, 'ID de música inválido.');
+    const existe = await pool.query('SELECT 1 FROM musicas WHERE id = $1', [id]);
+    if (!existe.rows[0]) return falha(res, 404, 'Música não encontrada.');
+  }
+
+  try {
+    const estado = await obterEstadoPlayer(req.usuario.id);
+    const novoEstado = {
+      current_track_id: current_track_id !== undefined ? current_track_id : estado.current_track_id,
+      progress_ms: typeof progress_ms === 'number' ? progress_ms : estado.progress_ms,
+      is_playing: typeof is_playing === 'boolean' ? is_playing : estado.is_playing,
+      queue: estado.queue
+    };
+    await atualizarEstadoPlayer(req.usuario.id, novoEstado);
+
+    return sucesso(res, { state: { ...novoEstado, ...(await obterEstadoPlayer(req.usuario.id)) } });
+  } catch (erro) {
+    return falhaInterna(res, 'PUT /api/player/state', erro);
+  }
+});
+
+// ============================================================
 // FINAL: rota inexistente + tratador de erros (sempre por último)
 // ============================================================
 

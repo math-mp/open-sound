@@ -604,6 +604,34 @@ body,
     filter: brightness(1.05);
 }
 
+/* Pular música */
+#player-proxima {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--cor-texto-secundario);
+    font-size: 1rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background var(--transicao-rapida), color var(--transicao-rapida), transform var(--transicao-rapida);
+}
+
+#player-proxima:hover {
+    background: var(--cor-superficie-hover);
+    color: var(--cor-primaria);
+    transform: scale(1.08);
+}
+
+#player-proxima:active {
+    transform: scale(0.95);
+}
+
 .player-tempo {
     font-size: 0.75rem;
     min-width: 35px;
