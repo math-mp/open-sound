@@ -1,8 +1,37 @@
-// ============================================================
 // ajudantes.js
-//
 // Funções pequenas e reutilizáveis pelo server.js. Sem rotas e sem estado.
-// ============================================================
+
+
+// ---------- Sistema de Logs de Desenvolvimento ----------
+const DEBUG_LOGS = process.env.DEBUG_LOGS === 'true' || process.env.LOG_LEVEL === 'debug';
+
+function logTimestamp() {
+  return new Date().toISOString().replace('T', ' ').slice(0, 19);
+}
+
+function log(prefixo, nivel, mensagem, dados = null) {
+  const ts = logTimestamp();
+  const saida = `[${ts}] [${prefixo}] ${mensagem}${dados ? ` ${JSON.stringify(dados)}` : ''}`;
+  if (nivel === 'error') {
+    console.error(saida);
+  } else if (nivel === 'warn') {
+    console.warn(saida);
+  } else if (DEBUG_LOGS) {
+    console.log(saida);
+  }
+}
+
+function logInfo(prefixo, mensagem, dados = null) {
+  log(prefixo, 'info', mensagem, dados);
+}
+
+function logWarn(prefixo, mensagem, dados = null) {
+  log(prefixo, 'warn', mensagem, dados);
+}
+
+function logError(prefixo, mensagem, dados = null) {
+  log(prefixo, 'error', mensagem, dados);
+}
 
 // ---------- erros de regra de negócio ----------
 // Lançados dentro de transações; as rotas traduzem cada um para o status certo.
@@ -148,5 +177,9 @@ module.exports = {
   comTravaDoUsuario,
   extrairCaminhoNoBucket,
   removerArquivosDoStorage,
-  removerArquivoDoStorage
+  removerArquivoDoStorage,
+  logInfo,
+  logWarn,
+  logError,
+  DEBUG_LOGS
 };
