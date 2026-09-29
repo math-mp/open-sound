@@ -1,488 +1,1194 @@
-// ================================================================
-// profile.js — conectado às rotas reais de backend/perfil.routes.js.
-// Curtidas foi removido do front (a rota PUT /api/perfil/curtidas
-// continua existindo no back-end, só não é mais chamada daqui).
-// A edição de foto/bio agora vive na janela "Configurações";
-// a janela "Perfil" só exibe.
-// ================================================================
+/* ============================================================
+   OPENSOUND — PROFILE.JS
 
-const API_BASE = 'http://localhost:3000';
-const CHAVE_SESSAO = 'tokenSessao';
-const BIO_MAX = 220; // mesmo limite de backend/perfil.routes.js (LIMITES.BIO_MAX)
+   Responsabilidades deste arquivo:
+   1. Ler o token de sessão existente.
+   2. Buscar o perfil real na API.
+   3. Renderizar dados reais sem HTML vindo do usuário.
+   4. Salvar bio, avatar, tema, banner, favorita, curtidas e playlists.
+   5. Reaproveitar as rotas já existentes no server.js.
 
-// ================================================================
-// AUTENTICAÇÃO
-// ================================================================
+   Importante:
+   - localStorage NÃO é fonte de verdade para dados de perfil.
+   - O único dado mantido pelo front aqui é o token de sessão já usado pelo projeto.
+   - Banner depende da pequena migração/rota de backend entregue junto.
+   ============================================================ */
 
-function obterTokenSessao() {
-    return localStorage.getItem(CHAVE_SESSAO);
-}
+(() => {
+    'use strict';
 
-function estaLogado() {
-    return !!obterTokenSessao();
-}
+    const API_BASE = (() => {
+        // Desenvolvimento local: front costuma rodar em outra porta.
+        // Em produção, quando front e API estiverem no mesmo host, usa origem relativa.
+        return window.location.origin === 'null' || window.location.port !== '3000'
+            ? 'http://localhost:3000'
+            : '';
+    })();
 
-async function fetchComAutenticacao(url, opcoes = {}) {
-    const token = obterTokenSessao();
-    const headers = { ...(opcoes.headers || {}), Authorization: `Bearer ${token}` };
-    const resposta = await fetch(url, { ...opcoes, headers });
-    if (resposta.status === 401) {
-        localStorage.removeItem(CHAVE_SESSAO);
-        mostrarBloqueado();
+    const TOKEN_KEY = 'tokenSessao';
+    const BIO_MAX = 220;
+    const CURTIDAS_MAX = 4;
+    const AVATAR_PADRAO = '../assets/avatar-padrao.png';
+
+    let perfilAtual = null;
+
+    const $ = (seletor) => document.querySelector(seletor);
+
+    const dom = {
+        bloqueado: $('#perfil-bloqueado'),
+        conteudo: $('#perfil-conteudo'),
+
+        banner: $('#perfil-banner'),
+        bannerImg: $('#perfil-banner-img'),
+        bannerVazio: $('#perfil-banner-vazio'),
+        avatar: $('#perfil-avatar'),
+        nome: $('#perfil-nome'),
+        nomeArtista: $('#perfil-nome-artista'),
+        bio: $('#perfil-bio'),
+        estatisticas: $('#perfil-estatisticas'),
+
+        avatarInput: $('#config-avatar-input'),
+        avatarPreview: $('#config-avatar-preview'),
+        avatarEnviar: $('#config-avatar-enviar'),
+        avatarRemover: $('#config-avatar-remover'),
+        avatarStatus: $('#config-avatar-status'),
+
+        bannerInput: $('#config-banner-input'),
+        bannerPreview: $('#config-banner-preview-img'),
+        bannerPreviewVazio: $('#config-banner-preview-vazio'),
+        bannerEnviar: $('#config-banner-enviar'),
+        bannerRemover: $('#config-banner-remover'),
+        bannerStatus: $('#config-banner-status'),
+
+        bioForm: $('#config-bio-form'),
+        bioTextarea: $('#config-bio-textarea'),
+        bioContador: $('#config-bio-contador'),
+        bioStatus: $('#config-bio-status'),
+
+        temaBtn: $('#config-tema-btn'),
+        temaStatus: $('#config-tema-status'),
+
+        favoritaFiltro: $('#perfil-favorita-filtro'),
+        favoritaResultados: $('#perfil-favorita-resultados'),
+        favoritaAtual: $('#perfil-favorita-atual'),
+        favoritaRemover: $('#perfil-favorita-remover'),
+
+        curtidasFiltro: $('#perfil-curtidas-filtro'),
+        curtidasResultados: $('#perfil-curtidas-resultados'),
+        curtidasLista: $('#perfil-curtidas-lista'),
+        curtidasContador: $('#perfil-curtidas-contador'),
+
+        playlistForm: $('#perfil-playlist-form'),
+        playlistNome: $('#perfil-playlist-nome'),
+        playlistsLista: $('#perfil-playlists-lista')
+    };
+
+    class ApiErro extends Error {
+        constructor(mensagem, status, dados = null) {
+            super(mensagem);
+            this.name = 'ApiErro';
+            this.status = status;
+            this.dados = dados;
+        }
     }
-    return resposta;
-}
 
-// ================================================================
-// CACHE curto de GET /api/perfil e GET /api/musicas
-// ================================================================
-
-function montarChaveCache(tipo) {
-    return `opensound_cache_${tipo}_${(obterTokenSessao() || 'sem-sessao').slice(-12)}`;
-}
-
-function obterDoCache(chave, ttlMs) {
-    const bruto = localStorage.getItem(chave);
-    if (!bruto) return null;
-    try {
-        const { dados, salvoEm } = JSON.parse(bruto);
-        if (Date.now() - salvoEm > ttlMs) { localStorage.removeItem(chave); return null; }
-        return dados;
-    } catch { localStorage.removeItem(chave); return null; }
-}
-
-function salvarNoCache(chave, dados) {
-    localStorage.setItem(chave, JSON.stringify({ dados, salvoEm: Date.now() }));
-}
-
-function invalidarCachePerfil() {
-    localStorage.removeItem(montarChaveCache('perfil'));
-}
-
-// ================================================================
-// ELEMENTOS DO DOM
-// ================================================================
-
-const elBloqueado = document.getElementById('perfil-bloqueado');
-const elConteudo = document.getElementById('perfil-conteudo');
-
-// Janela 1 — Perfil (só exibição)
-const elNome = document.getElementById('perfil-nome');
-const elUsuario = document.getElementById('perfil-usuario');
-const elBioExibicao = document.getElementById('perfil-bio');
-const elEstatisticas = document.getElementById('perfil-estatisticas');
-const elAvatar = document.getElementById('perfil-avatar');
-
-// Janela 2 — Configurações
-const elConfigAvatarPreview = document.getElementById('config-avatar-preview');
-const elConfigAvatarInput = document.getElementById('config-avatar-input');
-const elConfigAvatarEnviar = document.getElementById('config-avatar-enviar');
-const elConfigAvatarRemover = document.getElementById('config-avatar-remover');
-const elConfigAvatarStatus = document.getElementById('config-avatar-status');
-
-const elConfigBioForm = document.getElementById('config-bio-form');
-const elConfigBioTextarea = document.getElementById('config-bio-textarea');
-const elConfigBioContador = document.getElementById('config-bio-contador');
-const elConfigBioStatus = document.getElementById('config-bio-status');
-
-// Janela 3 — Biblioteca
-const elFavoritaFiltro = document.getElementById('perfil-favorita-filtro');
-const elFavoritaResultados = document.getElementById('perfil-favorita-resultados');
-const elFavoritaSelecionada = document.getElementById('perfil-favorita-selecionada');
-
-const elPlaylistsLista = document.getElementById('perfil-playlists-lista');
-
-// ================================================================
-// ESTADO EM MEMÓRIA
-// ================================================================
-
-let catalogoMusicas = [];
-let favoritaAtual = null;
-
-function mostrarBloqueado() {
-    elBloqueado.classList.remove('hidden');
-    elConteudo.classList.add('hidden');
-}
-
-function mostrarConteudo() {
-    elBloqueado.classList.add('hidden');
-    elConteudo.classList.remove('hidden');
-}
-
-function exibirMensagemLista(elemento, mensagem) {
-    elemento.innerHTML = '';
-    const item = document.createElement('li');
-    item.className = 'perfil-estado-mensagem';
-    item.textContent = mensagem;
-    elemento.appendChild(item);
-}
-
-// ================================================================
-// GET /api/perfil — identidade, favorita, playlists e estatísticas.
-// A mesma resposta alimenta a janela Perfil (exibição) e a janela
-// Configurações (valores iniciais dos campos editáveis).
-// ================================================================
-
-function renderizarPerfil(perfil) {
-    const { usuario, favorita, playlists, estatisticas } = perfil;
-
-    const nomeExibido = usuario.eh_artista && usuario.nome_artista ? usuario.nome_artista : usuario.nome_usuario || 'Sem nome';
-    elNome.textContent = nomeExibido;
-    
-    // Mostra @nome_usuario abaixo do nome
-    if (usuario.nome_usuario) {
-        elUsuario.textContent = `@${usuario.nome_usuario}`;
-        elUsuario.style.display = 'block';
-    } else {
-        elUsuario.style.display = 'none';
+    function getToken() {
+        return localStorage.getItem(TOKEN_KEY);
     }
-    
-    elBioExibicao.textContent = usuario.bio || '';
 
-    const urlAvatar = usuario.avatar_url || '../assets/avatar-padrao.png';
-    elAvatar.src = urlAvatar;
-    elConfigAvatarPreview.src = urlAvatar;
-    elConfigAvatarRemover.classList.toggle('hidden', !usuario.avatar_url);
+    function limparSessao() {
+        localStorage.removeItem(TOKEN_KEY);
+    }
 
-    elEstatisticas.textContent = usuario.eh_artista
-        ? `${estatisticas.musicas_enviadas} música(s) enviada(s) · ${estatisticas.reproducoes} reprodução(ões)`
-        : '';
+    function mostrarBloqueado() {
+        dom.bloqueado?.classList.remove('hidden');
+        dom.conteudo?.classList.add('hidden');
+    }
 
-    // Só substitui o texto do campo se o usuário não estiver com o
-    // foco nele agora (evita apagar o que a pessoa está digitando se
-    // o cache/refresh disparar no meio da edição).
-    if (document.activeElement !== elConfigBioTextarea) {
-        elConfigBioTextarea.value = usuario.bio || '';
+    function mostrarConteudo() {
+        dom.bloqueado?.classList.add('hidden');
+        dom.conteudo?.classList.remove('hidden');
+    }
+
+    function extrairMensagem(dados, fallback) {
+        return dados?.mensagem || fallback;
+    }
+
+    async function apiRequest(caminho, opcoes = {}) {
+        const token = getToken();
+        const headers = new Headers(opcoes.headers || {});
+
+        if (token) {
+            headers.set('Authorization', `Bearer ${token}`);
+        }
+
+        const corpoEhFormData = opcoes.body instanceof FormData;
+
+        if (opcoes.body && !corpoEhFormData && !headers.has('Content-Type')) {
+            headers.set('Content-Type', 'application/json');
+        }
+
+        let resposta;
+        try {
+            resposta = await fetch(`${API_BASE}${caminho}`, {
+                ...opcoes,
+                headers
+            });
+        } catch (erro) {
+            throw new Error('Não foi possível conectar ao servidor.');
+        }
+
+        let dados = null;
+        const contentType = resposta.headers.get('content-type') || '';
+
+        if (contentType.includes('application/json')) {
+            try {
+                dados = await resposta.json();
+            } catch {
+                dados = null;
+            }
+        }
+
+        if (resposta.status === 401) {
+            limparSessao();
+            mostrarBloqueado();
+            throw new ApiErro('Sua sessão expirou. Faça login novamente.', 401, dados);
+        }
+
+        if (!resposta.ok) {
+            throw new ApiErro(
+                extrairMensagem(dados, 'A operação não pôde ser concluída.'),
+                resposta.status,
+                dados
+            );
+        }
+
+        return dados || {};
+    }
+
+    function setStatus(elemento, mensagem, erro = false) {
+        if (!elemento) return;
+        elemento.textContent = mensagem || '';
+        elemento.dataset.estado = erro ? 'erro' : 'ok';
+    }
+
+    function formatarImagem(url, fallback = AVATAR_PADRAO) {
+        return url || fallback;
+    }
+
+    function atualizarTema(tema) {
+        const temaValido = tema === 'light' ? 'light' : 'dark';
+        document.documentElement.dataset.theme = temaValido;
+
+        if (dom.temaStatus) {
+            dom.temaStatus.textContent =
+                `Tema atual: ${temaValido === 'light' ? 'claro' : 'escuro'}.`;
+        }
+    }
+
+    function renderizarBanner(url) {
+        const possuiBanner = Boolean(url);
+
+        dom.banner?.classList.toggle('tem-imagem', possuiBanner);
+        dom.bannerImg?.classList.toggle('hidden', !possuiBanner);
+        dom.bannerVazio?.classList.toggle('hidden', possuiBanner);
+
+        if (dom.bannerImg) {
+            dom.bannerImg.src = possuiBanner ? url : '';
+        }
+
+        dom.bannerPreview?.classList.toggle('hidden', !possuiBanner);
+        dom.bannerPreviewVazio?.classList.toggle('hidden', possuiBanner);
+
+        if (dom.bannerPreview && possuiBanner) {
+            dom.bannerPreview.src = url;
+        } else if (dom.bannerPreview) {
+            dom.bannerPreview.src = '';
+        }
+    }
+
+    function renderizarPerfil(perfil) {
+        perfilAtual = perfil;
+
+        const usuario = perfil?.usuario || {};
+        const estatisticas = perfil?.estatisticas || {};
+        const favorita = perfil?.favorita || null;
+        const curtidas = Array.isArray(perfil?.curtidas)
+            ? perfil.curtidas
+            : [];
+        const playlists = Array.isArray(perfil?.playlists)
+            ? perfil.playlists
+            : [];
+
+        dom.nome.textContent = usuario.nome_usuario || 'Usuário';
+
+        if (usuario.eh_artista && usuario.nome_artista) {
+            dom.nomeArtista.textContent = usuario.nome_artista;
+            dom.nomeArtista.classList.remove('hidden');
+        } else {
+            dom.nomeArtista.textContent = '';
+            dom.nomeArtista.classList.add('hidden');
+        }
+
+        dom.bio.textContent = usuario.bio || '';
+        dom.avatar.src = formatarImagem(usuario.avatar_url);
+        dom.avatar.alt = `Avatar de ${usuario.nome_usuario || 'usuário'}`;
+        dom.avatarPreview.src = formatarImagem(usuario.avatar_url);
+
+        if (usuario.eh_artista) {
+            const musicas = Number(estatisticas.musicas_enviadas) || 0;
+            const reproducoes = Number(estatisticas.reproducoes) || 0;
+
+            dom.estatisticas.textContent =
+                `${musicas} ${
+                    musicas === 1 ? 'música enviada' : 'músicas enviadas'
+                } • ${reproducoes} ${
+                    reproducoes === 1 ? 'reprodução' : 'reproduções'
+                }`;
+
+            dom.estatisticas.classList.remove('hidden');
+        } else {
+            dom.estatisticas.textContent = '';
+            dom.estatisticas.classList.add('hidden');
+        }
+
+        dom.bioTextarea.value = usuario.bio || '';
+
         atualizarContadorBio();
+        atualizarTema(usuario.tema);
+        renderizarBanner(usuario.url_banner || null);
+        renderizarFavorita(favorita);
+        renderizarCurtidas(curtidas);
+        renderizarPlaylists(playlists);
+
+        mostrarConteudo();
     }
 
-    favoritaAtual = favorita;
-    elFavoritaSelecionada.textContent = favorita ? `Favorita: ${favorita.titulo}` : 'Nenhuma escolhida ainda.';
+    function atualizarContadorBio() {
+        if (!dom.bioContador) return;
 
-    renderizarPlaylists(playlists);
-}
-
-async function carregarPerfil({ usarCache = true } = {}) {
-    const chave = montarChaveCache('perfil');
-    if (usarCache) {
-        const emCache = obterDoCache(chave, 20 * 1000);
-        if (emCache !== null) { renderizarPerfil(emCache); return; }
+        dom.bioContador.textContent =
+            `${dom.bioTextarea.value.length}/${BIO_MAX}`;
     }
 
-    try {
-        const resposta = await fetchComAutenticacao(`${API_BASE}/api/perfil`);
-        if (resposta.status === 401) return;
-        if (!resposta.ok) throw new Error('Falha ao carregar perfil.');
-        const { perfil } = await resposta.json();
-        renderizarPerfil(perfil);
-        salvarNoCache(chave, perfil);
-    } catch (erro) {
-        elNome.textContent = 'Não foi possível carregar o perfil';
-        console.error('Erro ao carregar perfil:', erro);
-    }
-}
+    function renderizarFavorita(favorita) {
+        if (!dom.favoritaAtual || !dom.favoritaRemover) return;
 
-// ================================================================
-// CONFIGURAÇÕES — BIOGRAFIA
-// ================================================================
+        if (!favorita) {
+            dom.favoritaAtual.textContent =
+                'Nenhuma música escolhida.';
 
-function atualizarContadorBio() {
-    elConfigBioContador.textContent = `${elConfigBioTextarea.value.length}/${BIO_MAX}`;
-}
-
-elConfigBioTextarea.addEventListener('input', atualizarContadorBio);
-
-elConfigBioForm.addEventListener('submit', async (evento) => {
-    evento.preventDefault();
-    const texto = elConfigBioTextarea.value.trim();
-
-    elConfigBioStatus.textContent = 'Salvando...';
-    try {
-        const resposta = await fetchComAutenticacao(`${API_BASE}/api/perfil/bio`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bio: texto })
-        });
-        const dados = await resposta.json().catch(() => null);
-
-        if (!resposta.ok) {
-            elConfigBioStatus.textContent = dados?.mensagem || 'Não foi possível salvar a bio.';
+            dom.favoritaRemover.classList.add('hidden');
             return;
         }
 
-        elConfigBioStatus.textContent = 'Biografia salva ✓';
-        elBioExibicao.textContent = dados.bio || '';
-        invalidarCachePerfil();
-    } catch (erro) {
-        elConfigBioStatus.textContent = 'Erro de conexão ao salvar a bio.';
-        console.error(erro);
+        dom.favoritaAtual.textContent =
+            `${favorita.titulo} — ${favorita.artista}`;
+
+        dom.favoritaRemover.classList.remove('hidden');
     }
-});
 
-// ================================================================
-// CONFIGURAÇÕES — FOTO DE PERFIL
-// ================================================================
+    function renderizarCurtidas(curtidas) {
+        dom.curtidasLista.replaceChildren();
 
-elConfigAvatarEnviar.addEventListener('click', () => elConfigAvatarInput.click());
+        dom.curtidasContador.textContent =
+            `${curtidas.length}/${CURTIDAS_MAX}`;
 
-elConfigAvatarInput.addEventListener('change', async () => {
-    const arquivo = elConfigAvatarInput.files[0];
-    if (!arquivo) return;
+        curtidas.forEach((musica) => {
+            const item = document.createElement('div');
+            item.className = 'perfil-item-atual';
 
-    const formulario = new FormData();
-    formulario.append('avatar', arquivo);
+            const capa = document.createElement('img');
+            capa.className = 'perfil-item-atual-capa';
+            capa.src = musica.url_capa || '';
+            capa.alt = '';
 
-    elConfigAvatarStatus.textContent = 'Enviando...';
-    try {
-        // Não definir Content-Type manualmente com FormData: o navegador
-        // monta o boundary do multipart sozinho.
-        const resposta = await fetchComAutenticacao(`${API_BASE}/api/perfil/avatar`, {
-            method: 'POST',
-            body: formulario
+            const texto = document.createElement('div');
+            texto.className = 'perfil-item-atual-texto';
+
+            const titulo = document.createElement('span');
+            titulo.className = 'perfil-item-atual-titulo';
+            titulo.textContent = musica.titulo;
+
+            const subtitulo = document.createElement('span');
+            subtitulo.className = 'perfil-item-atual-subtitulo';
+            subtitulo.textContent = musica.artista;
+
+            const remover = document.createElement('button');
+            remover.type = 'button';
+            remover.className = 'perfil-remover-item';
+            remover.textContent = 'Remover';
+
+            remover.addEventListener(
+                'click',
+                () => removerCurtida(musica.id)
+            );
+
+            texto.append(titulo, subtitulo);
+            item.append(capa, texto, remover);
+
+            dom.curtidasLista.appendChild(item);
         });
-        const dados = await resposta.json().catch(() => null);
+    }
 
-        if (!resposta.ok) {
-            elConfigAvatarStatus.textContent = dados?.mensagem || 'Não foi possível enviar a foto.';
+    function renderizarPlaylists(playlists) {
+        dom.playlistsLista.replaceChildren();
+
+        if (playlists.length === 0) {
+            const vazio = document.createElement('p');
+            vazio.className = 'perfil-estado-mensagem';
+            vazio.textContent =
+                'Nenhuma playlist pública ainda.';
+
+            dom.playlistsLista.appendChild(vazio);
             return;
         }
 
-        elConfigAvatarPreview.src = dados.avatar_url;
-        elAvatar.src = dados.avatar_url;
-        elConfigAvatarRemover.classList.remove('hidden');
-        elConfigAvatarStatus.textContent = 'Foto atualizada ✓';
-        invalidarCachePerfil();
-    } catch (erro) {
-        elConfigAvatarStatus.textContent = 'Erro de conexão ao enviar a foto.';
-        console.error(erro);
-    } finally {
-        elConfigAvatarInput.value = '';
-    }
-});
+        playlists.forEach((playlist) => {
+            const item = document.createElement('div');
+            item.className = 'perfil-item-atual';
 
-elConfigAvatarRemover.addEventListener('click', async () => {
-    elConfigAvatarStatus.textContent = 'Removendo...';
-    try {
-        const resposta = await fetchComAutenticacao(`${API_BASE}/api/perfil/avatar`, { method: 'DELETE' });
-        if (!resposta.ok) { elConfigAvatarStatus.textContent = 'Não foi possível remover a foto.'; return; }
+            const texto = document.createElement('div');
+            texto.className = 'perfil-item-atual-texto';
 
-        elConfigAvatarPreview.src = '../assets/avatar-padrao.png';
-        elAvatar.src = '../assets/avatar-padrao.png';
-        elConfigAvatarRemover.classList.add('hidden');
-        elConfigAvatarStatus.textContent = 'Foto removida.';
-        invalidarCachePerfil();
-    } catch (erro) {
-        elConfigAvatarStatus.textContent = 'Erro de conexão ao remover a foto.';
-        console.error(erro);
-    }
-});
+            const titulo = document.createElement('span');
+            titulo.className = 'perfil-item-atual-titulo';
+            titulo.textContent = playlist.nome;
 
-// ================================================================
-// TEMA CLARO/ESCURO — salvo no perfil do usuário (backend)
-// ================================================================
+            const subtitulo = document.createElement('span');
+            subtitulo.className = 'perfil-item-atual-subtitulo';
 
-const CHAVE_TEMA_LOCAL = 'opensound_tema';
-const elTemaBtn = document.getElementById('config-tema-btn');
+            const total = Number(playlist.total_faixas) || 0;
 
-function temaAtual() {
-    return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
-}
+            subtitulo.textContent =
+                `${total} ${total === 1 ? 'faixa' : 'faixas'}`;
 
-function atualizarTextoBotaoTema() {
-    elTemaBtn.textContent = temaAtual() === 'light' ? '☀️ Claro' : '🌙 Escuro';
-}
+            const remover = document.createElement('button');
+            remover.type = 'button';
+            remover.className = 'perfil-remover-item';
+            remover.textContent = 'Excluir';
 
-function aplicarTema(tema) {
-    if (tema === 'light') {
-        document.documentElement.dataset.theme = 'light';
-    } else {
-        delete document.documentElement.dataset.theme;
-    }
-    atualizarTextoBotaoTema();
-}
+            remover.addEventListener(
+                'click',
+                () => removerPlaylist(playlist.id)
+            );
 
-async function salvarTemaNoBackend(tema) {
-    try {
-        await fetchComAutenticacao(`${API_BASE}/api/perfil/tema`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tema })
+            texto.append(titulo, subtitulo);
+            item.append(texto, remover);
+
+            dom.playlistsLista.appendChild(item);
         });
-    } catch (erro) {
-        console.error('Erro ao salvar tema no backend:', erro);
     }
-}
 
-elTemaBtn.addEventListener('click', async () => {
-    const novoTema = temaAtual() === 'light' ? 'dark' : 'light';
-    aplicarTema(novoTema);
-    localStorage.setItem(CHAVE_TEMA_LOCAL, novoTema);
-    await salvarTemaNoBackend(novoTema);
-});
-
-// ================================================================
-// CATÁLOGO (GET /api/musicas — público) — só alimenta a Favorita
-// agora que Curtidas saiu.
-// ================================================================
-
-async function carregarCatalogo() {
-    const chave = montarChaveCache('catalogo-musicas');
-    const emCache = obterDoCache(chave, 2 * 60 * 1000);
-    if (emCache !== null) { catalogoMusicas = emCache; aplicarCatalogoCarregado(); return; }
-
-    try {
-        const resposta = await fetch(`${API_BASE}/api/musicas`);
-        if (!resposta.ok) throw new Error('Falha ao carregar catálogo.');
-        const { musicas } = await resposta.json();
-        catalogoMusicas = musicas;
-        salvarNoCache(chave, musicas);
-        aplicarCatalogoCarregado();
-    } catch (erro) {
-        exibirMensagemLista(elFavoritaResultados, 'Não foi possível carregar o catálogo.');
-        console.error('Erro ao carregar catálogo:', erro);
+    async function carregarPerfil() {
+        const dados = await apiRequest('/api/perfil');
+        renderizarPerfil(dados.perfil);
     }
-}
 
-function aplicarCatalogoCarregado() {
-    elFavoritaFiltro.disabled = false;
-    renderizarResultadosFavorita(catalogoMusicas);
-}
+    async function salvarBio(event) {
+        event.preventDefault();
 
-elFavoritaFiltro.addEventListener('input', () => {
-    const termo = elFavoritaFiltro.value.trim().toLowerCase();
-    const filtradas = termo
-        ? catalogoMusicas.filter((m) => m.titulo.toLowerCase().includes(termo) || m.artista.toLowerCase().includes(termo))
-        : catalogoMusicas;
-    renderizarResultadosFavorita(filtradas);
-});
+        const bio = dom.bioTextarea.value.trim();
 
-function renderizarResultadosFavorita(musicas) {
-    elFavoritaResultados.innerHTML = '';
-    if (musicas.length === 0) { exibirMensagemLista(elFavoritaResultados, 'Nenhuma música encontrada.'); return; }
+        if (bio.length > BIO_MAX) {
+            setStatus(
+                dom.bioStatus,
+                `A bio pode ter no máximo ${BIO_MAX} caracteres.`,
+                true
+            );
+            return;
+        }
 
-    musicas.forEach((musica) => {
-        const item = document.createElement('li');
-        item.className = 'perfil-resultado-item';
-        if (favoritaAtual?.id === musica.id) item.classList.add('selecionado');
+        setStatus(dom.bioStatus, 'Salvando...');
 
-        const capa = document.createElement('img');
-        capa.className = 'perfil-resultado-capa';
-        capa.src = musica.url_capa || '../assets/avatar-padrao.png';
-        capa.alt = '';
-
-        const texto = document.createElement('div');
-        texto.className = 'perfil-resultado-texto';
-        const titulo = document.createElement('span');
-        titulo.className = 'perfil-resultado-titulo';
-        titulo.textContent = musica.titulo;
-        const artista = document.createElement('span');
-        artista.className = 'perfil-resultado-artista';
-        artista.textContent = musica.artista;
-        texto.append(titulo, artista);
-        item.append(capa, texto);
-
-        item.addEventListener('click', () => definirFavorita(musica));
-        elFavoritaResultados.appendChild(item);
-    });
-}
-
-// ================================================================
-// FAVORITA — salva ao clicar; clicar na já-selecionada remove
-// ================================================================
-
-async function definirFavorita(musica) {
-    const removendo = favoritaAtual?.id === musica.id;
-    elFavoritaSelecionada.textContent = removendo ? 'Removendo...' : 'Salvando...';
-
-    try {
-        const resposta = removendo
-            ? await fetchComAutenticacao(`${API_BASE}/api/perfil/favorita`, { method: 'DELETE' })
-            : await fetchComAutenticacao(`${API_BASE}/api/perfil/favorita`, {
+        try {
+            const dados = await apiRequest('/api/perfil/bio', {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ musicaId: musica.id })
+                body: JSON.stringify({ bio })
             });
 
-        const dados = await resposta.json().catch(() => null);
-        if (!resposta.ok) {
-            alert(dados?.mensagem || 'Não foi possível salvar a favorita.');
-            elFavoritaSelecionada.textContent = favoritaAtual ? `Favorita: ${favoritaAtual.titulo}` : 'Nenhuma escolhida ainda.';
+            dom.bio.textContent = dados.bio || '';
+
+            perfilAtual.usuario.bio = dados.bio || null;
+
+            setStatus(dom.bioStatus, 'Bio salva.');
+        } catch (erro) {
+            setStatus(dom.bioStatus, erro.message, true);
+        }
+    }
+
+    async function enviarAvatar(arquivo) {
+        if (!arquivo) return;
+
+        const formData = new FormData();
+        formData.append('avatar', arquivo);
+
+        setStatus(dom.avatarStatus, 'Enviando avatar...');
+
+        try {
+            const dados = await apiRequest(
+                '/api/perfil/avatar',
+                {
+                    method: 'POST',
+                    body: formData
+                }
+            );
+
+            const url = dados.avatar_url || null;
+
+            perfilAtual.usuario.avatar_url = url;
+
+            dom.avatar.src = formatarImagem(url);
+            dom.avatarPreview.src = formatarImagem(url);
+
+            setStatus(
+                dom.avatarStatus,
+                'Avatar atualizado.'
+            );
+        } catch (erro) {
+            setStatus(
+                dom.avatarStatus,
+                erro.message,
+                true
+            );
+        }
+    }
+
+    async function removerAvatar() {
+        setStatus(
+            dom.avatarStatus,
+            'Removendo avatar...'
+        );
+
+        try {
+            const dados = await apiRequest(
+                '/api/perfil/avatar',
+                {
+                    method: 'DELETE'
+                }
+            );
+
+            perfilAtual.usuario.avatar_url =
+                dados.avatar_url || null;
+
+            dom.avatar.src = AVATAR_PADRAO;
+            dom.avatarPreview.src = AVATAR_PADRAO;
+
+            setStatus(
+                dom.avatarStatus,
+                'Avatar removido.'
+            );
+        } catch (erro) {
+            setStatus(
+                dom.avatarStatus,
+                erro.message,
+                true
+            );
+        }
+    }
+
+    async function enviarBanner(arquivo) {
+        if (!arquivo) return;
+
+        const formData = new FormData();
+        formData.append('banner', arquivo);
+
+        setStatus(
+            dom.bannerStatus,
+            'Enviando banner...'
+        );
+
+        try {
+            const dados = await apiRequest(
+                '/api/perfil/banner',
+                {
+                    method: 'POST',
+                    body: formData
+                }
+            );
+
+            const url = dados.url_banner || null;
+
+            perfilAtual.usuario.url_banner = url;
+
+            renderizarBanner(url);
+
+            setStatus(
+                dom.bannerStatus,
+                'Banner atualizado.'
+            );
+        } catch (erro) {
+            setStatus(
+                dom.bannerStatus,
+                erro.status === 404
+                    ? 'A rota de banner ainda não está instalada no backend.'
+                    : erro.message,
+                true
+            );
+        }
+    }
+
+    async function removerBanner() {
+        setStatus(
+            dom.bannerStatus,
+            'Removendo banner...'
+        );
+
+        try {
+            const dados = await apiRequest(
+                '/api/perfil/banner',
+                {
+                    method: 'DELETE'
+                }
+            );
+
+            perfilAtual.usuario.url_banner =
+                dados.url_banner || null;
+
+            renderizarBanner(null);
+
+            setStatus(
+                dom.bannerStatus,
+                'Banner removido.'
+            );
+        } catch (erro) {
+            setStatus(
+                dom.bannerStatus,
+                erro.status === 404
+                    ? 'A rota de banner ainda não está instalada no backend.'
+                    : erro.message,
+                true
+            );
+        }
+    }
+
+    async function alternarTema() {
+        const atual =
+            document.documentElement.dataset.theme === 'light'
+                ? 'light'
+                : 'dark';
+
+        const proximo =
+            atual === 'light'
+                ? 'dark'
+                : 'light';
+
+        setStatus(
+            dom.temaStatus,
+            'Salvando tema...'
+        );
+
+        try {
+            const dados = await apiRequest(
+                '/api/perfil/tema',
+                {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        tema: proximo
+                    })
+                }
+            );
+
+            atualizarTema(
+                dados.tema || proximo
+            );
+
+            perfilAtual.usuario.tema =
+                dados.tema || proximo;
+
+            setStatus(
+                dom.temaStatus,
+                `Tema ${
+                    dados.tema === 'light'
+                        ? 'claro'
+                        : 'escuro'
+                } salvo.`
+            );
+        } catch (erro) {
+            setStatus(
+                dom.temaStatus,
+                erro.message,
+                true
+            );
+        }
+    }
+
+    function renderizarResultadosBusca(
+        container,
+        musicas,
+        aoSelecionar,
+        indisponiveis = new Set()
+    ) {
+        container.replaceChildren();
+
+        if (!musicas.length) {
+            const vazio =
+                document.createElement('p');
+
+            vazio.className =
+                'perfil-estado-mensagem';
+
+            vazio.textContent =
+                'Nenhuma música encontrada.';
+
+            container.appendChild(vazio);
+
             return;
         }
 
-        favoritaAtual = dados.favorita;
-        elFavoritaSelecionada.textContent = favoritaAtual ? `Favorita: ${favoritaAtual.titulo}` : 'Nenhuma escolhida ainda.';
-        invalidarCachePerfil();
-        renderizarResultadosFavorita(catalogoMusicas.filter((m) =>
-            !elFavoritaFiltro.value.trim() ||
-            m.titulo.toLowerCase().includes(elFavoritaFiltro.value.trim().toLowerCase()) ||
-            m.artista.toLowerCase().includes(elFavoritaFiltro.value.trim().toLowerCase())
-        ));
-    } catch (erro) {
-        alert('Erro de conexão ao salvar a favorita.');
-        console.error(erro);
+        musicas.slice(0, 10).forEach((musica) => {
+            const botao =
+                document.createElement('button');
+
+            botao.type = 'button';
+            botao.className =
+                'perfil-resultado-item';
+
+            botao.disabled =
+                indisponiveis.has(musica.id);
+
+            const capa =
+                document.createElement('img');
+
+            capa.className =
+                'perfil-resultado-capa';
+
+            capa.src =
+                musica.url_capa || '';
+
+            capa.alt = '';
+
+            const texto =
+                document.createElement('span');
+
+            texto.className =
+                'perfil-resultado-texto';
+
+            const titulo =
+                document.createElement('span');
+
+            titulo.className =
+                'perfil-resultado-titulo';
+
+            titulo.textContent =
+                musica.titulo;
+
+            const artista =
+                document.createElement('span');
+
+            artista.className =
+                'perfil-resultado-artista';
+
+            artista.textContent =
+                musica.artista;
+
+            texto.append(
+                titulo,
+                artista
+            );
+
+            botao.append(
+                capa,
+                texto
+            );
+
+            botao.addEventListener(
+                'click',
+                () => aoSelecionar(musica)
+            );
+
+            container.appendChild(
+                botao
+            );
+        });
     }
-}
 
-// ================================================================
-// PLAYLISTS
-// ================================================================
+    function configurarBuscaMusicas(
+        input,
+        resultados,
+        aoSelecionar,
+        getIndisponiveis
+    ) {
+        let timeout = null;
 
-function renderizarPlaylists(playlists) {
-    elPlaylistsLista.innerHTML = '';
-    if (playlists.length === 0) { exibirMensagemLista(elPlaylistsLista, 'Você ainda não tem playlists públicas.'); return; }
+        input.addEventListener(
+            'input',
+            () => {
+                window.clearTimeout(timeout);
 
-    playlists.forEach((playlist) => {
-        const item = document.createElement('li');
-        item.className = 'perfil-resultado-item';
+                const termo =
+                    input.value.trim();
 
-        const texto = document.createElement('div');
-        texto.className = 'perfil-resultado-texto';
-        const titulo = document.createElement('span');
-        titulo.className = 'perfil-resultado-titulo';
-        titulo.textContent = playlist.nome;
-        const faixas = document.createElement('span');
-        faixas.className = 'perfil-playlist-faixas';
-        faixas.textContent = playlist.total_faixas === 1 ? '1 faixa' : `${playlist.total_faixas} faixas`;
-        texto.append(titulo, faixas);
+                if (termo.length < 2) {
+                    resultados.replaceChildren();
+                    return;
+                }
 
-        const remover = document.createElement('button');
-        remover.type = 'button';
-        remover.className = 'perfil-resultado-remover';
-        remover.textContent = '✕';
-        remover.title = 'Excluir playlist';
-        remover.addEventListener('click', () => excluirPlaylist(playlist.id));
+                resultados.replaceChildren();
 
-        item.append(texto, remover);
-        elPlaylistsLista.appendChild(item);
-    });
-}
+                const carregando =
+                    document.createElement('p');
 
-async function excluirPlaylist(id) {
-    try {
-        const resposta = await fetchComAutenticacao(`${API_BASE}/api/perfil/playlists/${id}`, { method: 'DELETE' });
-        if (!resposta.ok) { alert('Não foi possível excluir a playlist.'); return; }
-        invalidarCachePerfil();
-        await carregarPerfil({ usarCache: false });
-    } catch (erro) {
-        alert('Erro de conexão ao excluir a playlist.');
-        console.error(erro);
+                carregando.className =
+                    'perfil-estado-mensagem';
+
+                carregando.textContent =
+                    'Buscando...';
+
+                resultados.appendChild(
+                    carregando
+                );
+
+                timeout =
+                    window.setTimeout(
+                        async () => {
+                            try {
+                                const dados =
+                                    await apiRequest(
+                                        `/api/musicas/buscar?q=${encodeURIComponent(termo)}`,
+                                        {
+                                            method: 'GET'
+                                        }
+                                    );
+
+                                renderizarResultadosBusca(
+                                    resultados,
+                                    Array.isArray(dados.musicas)
+                                        ? dados.musicas
+                                        : [],
+                                    aoSelecionar,
+                                    getIndisponiveis()
+                                );
+                            } catch (erro) {
+                                resultados.replaceChildren();
+
+                                const erroEl =
+                                    document.createElement('p');
+
+                                erroEl.className =
+                                    'perfil-estado-mensagem';
+
+                                erroEl.textContent =
+                                    erro.message;
+
+                                resultados.appendChild(
+                                    erroEl
+                                );
+                            }
+                        },
+                        250
+                    );
+            }
+        );
     }
-}
 
-// ================================================================
-// INICIALIZAÇÃO
-// ================================================================
+    async function selecionarFavorita(musica) {
+        try {
+            const dados =
+                await apiRequest(
+                    '/api/perfil/favorita',
+                    {
+                        method: 'PUT',
+                        body: JSON.stringify({
+                            musicaId: musica.id
+                        })
+                    }
+                );
 
-document.addEventListener('DOMContentLoaded', () => {
-    if (!estaLogado()) { mostrarBloqueado(); return; }
-    mostrarConteudo();
-    
-    // Carrega tema do localStorage primeiro (rápido), depois sincroniza com backend
-    const temaLocal = localStorage.getItem(CHAVE_TEMA_LOCAL);
-    if (temaLocal) aplicarTema(temaLocal);
-    
-    atualizarContadorBio();
-    carregarPerfil();
-    carregarCatalogo();
-});
+            perfilAtual.favorita =
+                dados.favorita || null;
+
+            renderizarFavorita(
+                perfilAtual.favorita
+            );
+
+            dom.favoritaFiltro.value = '';
+            dom.favoritaResultados.replaceChildren();
+        } catch (erro) {
+            const mensagem =
+                document.createElement('p');
+
+            mensagem.className =
+                'perfil-estado-mensagem';
+
+            mensagem.textContent =
+                erro.message;
+
+            dom.favoritaResultados.replaceChildren(
+                mensagem
+            );
+        }
+    }
+
+    async function removerFavorita() {
+        try {
+            const dados =
+                await apiRequest(
+                    '/api/perfil/favorita',
+                    {
+                        method: 'DELETE'
+                    }
+                );
+
+            perfilAtual.favorita =
+                dados.favorita || null;
+
+            renderizarFavorita(
+                perfilAtual.favorita
+            );
+        } catch (erro) {
+            setStatus(
+                dom.bioStatus,
+                erro.message,
+                true
+            );
+        }
+    }
+
+    async function salvarCurtidas(
+        novasCurtidas
+    ) {
+        const ids =
+            novasCurtidas.map(
+                (musica) => musica.id
+            );
+
+        if (ids.length > CURTIDAS_MAX) {
+            throw new Error(
+                `Você pode destacar no máximo ${CURTIDAS_MAX} músicas.`
+            );
+        }
+
+        const dados =
+            await apiRequest(
+                '/api/perfil/curtidas',
+                {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        musicaIds: ids
+                    })
+                }
+            );
+
+        perfilAtual.curtidas =
+            Array.isArray(dados.curtidas)
+                ? dados.curtidas
+                : [];
+
+        renderizarCurtidas(
+            perfilAtual.curtidas
+        );
+    }
+
+    async function adicionarCurtida(
+        musica
+    ) {
+        const curtidas =
+            Array.isArray(
+                perfilAtual.curtidas
+            )
+                ? [...perfilAtual.curtidas]
+                : [];
+
+        if (
+            curtidas.some(
+                (item) =>
+                    item.id === musica.id
+            )
+        ) {
+            return;
+        }
+
+        if (
+            curtidas.length >=
+            CURTIDAS_MAX
+        ) {
+            const mensagem =
+                document.createElement('p');
+
+            mensagem.className =
+                'perfil-estado-mensagem';
+
+            mensagem.textContent =
+                `O limite é ${CURTIDAS_MAX} músicas.`;
+
+            dom.curtidasResultados.replaceChildren(
+                mensagem
+            );
+
+            return;
+        }
+
+        try {
+            await salvarCurtidas([
+                ...curtidas,
+                musica
+            ]);
+
+            dom.curtidasFiltro.value = '';
+            dom.curtidasResultados.replaceChildren();
+        } catch (erro) {
+            const mensagem =
+                document.createElement('p');
+
+            mensagem.className =
+                'perfil-estado-mensagem';
+
+            mensagem.textContent =
+                erro.message;
+
+            dom.curtidasResultados.replaceChildren(
+                mensagem
+            );
+        }
+    }
+
+    async function removerCurtida(id) {
+        const curtidas =
+            Array.isArray(
+                perfilAtual.curtidas
+            )
+                ? perfilAtual.curtidas
+                : [];
+
+        const restantes =
+            curtidas.filter(
+                (musica) =>
+                    musica.id !== id
+            );
+
+        try {
+            await salvarCurtidas(
+                restantes
+            );
+        } catch (erro) {
+            const mensagem =
+                document.createElement('p');
+
+            mensagem.className =
+                'perfil-estado-mensagem';
+
+            mensagem.textContent =
+                erro.message;
+
+            dom.curtidasLista.appendChild(
+                mensagem
+            );
+        }
+    }
+
+    async function criarPlaylist(event) {
+        event.preventDefault();
+
+        const nome =
+            dom.playlistNome.value.trim();
+
+        if (!nome) return;
+
+        try {
+            const dados =
+                await apiRequest(
+                    '/api/perfil/playlists',
+                    {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            nome
+                        })
+                    }
+                );
+
+            perfilAtual.playlists = [
+                ...(perfilAtual.playlists || []),
+                dados.playlist
+            ];
+
+            renderizarPlaylists(
+                perfilAtual.playlists
+            );
+
+            dom.playlistNome.value = '';
+        } catch (erro) {
+            const mensagem =
+                document.createElement('p');
+
+            mensagem.className =
+                'perfil-estado-mensagem';
+
+            mensagem.textContent =
+                erro.message;
+
+            dom.playlistsLista.prepend(
+                mensagem
+            );
+        }
+    }
+
+    async function removerPlaylist(id) {
+        try {
+            await apiRequest(
+                `/api/perfil/playlists/${encodeURIComponent(id)}`,
+                {
+                    method: 'DELETE'
+                }
+            );
+
+            perfilAtual.playlists =
+                (perfilAtual.playlists || [])
+                    .filter(
+                        (playlist) =>
+                            playlist.id !== id
+                    );
+
+            renderizarPlaylists(
+                perfilAtual.playlists
+            );
+        } catch (erro) {
+            const mensagem =
+                document.createElement('p');
+
+            mensagem.className =
+                'perfil-estado-mensagem';
+
+            mensagem.textContent =
+                erro.message;
+
+            dom.playlistsLista.prepend(
+                mensagem
+            );
+        }
+    }
+
+    function configurarEventos() {
+        dom.bioTextarea.addEventListener(
+            'input',
+            atualizarContadorBio
+        );
+
+        dom.bioForm.addEventListener(
+            'submit',
+            salvarBio
+        );
+
+        dom.avatarEnviar.addEventListener(
+            'click',
+            () =>
+                dom.avatarInput.click()
+        );
+
+        dom.avatarInput.addEventListener(
+            'change',
+            () => {
+                const arquivo =
+                    dom.avatarInput.files?.[0] ||
+                    null;
+
+                dom.avatarInput.value = '';
+
+                enviarAvatar(
+                    arquivo
+                );
+            }
+        );
+
+        dom.avatarRemover.addEventListener(
+            'click',
+            removerAvatar
+        );
+
+        dom.bannerEnviar.addEventListener(
+            'click',
+            () =>
+                dom.bannerInput.click()
+        );
+
+        dom.bannerInput.addEventListener(
+            'change',
+            () => {
+                const arquivo =
+                    dom.bannerInput.files?.[0] ||
+                    null;
+
+                dom.bannerInput.value = '';
+
+                enviarBanner(
+                    arquivo
+                );
+            }
+        );
+
+        dom.bannerRemover.addEventListener(
+            'click',
+            removerBanner
+        );
+
+        dom.temaBtn.addEventListener(
+            'click',
+            alternarTema
+        );
+
+        dom.favoritaRemover.addEventListener(
+            'click',
+            removerFavorita
+        );
+
+        configurarBuscaMusicas(
+            dom.favoritaFiltro,
+            dom.favoritaResultados,
+            selecionarFavorita,
+            () => new Set()
+        );
+
+        configurarBuscaMusicas(
+            dom.curtidasFiltro,
+            dom.curtidasResultados,
+            adicionarCurtida,
+            () =>
+                new Set(
+                    (
+                        perfilAtual?.curtidas ||
+                        []
+                    ).map(
+                        (musica) =>
+                            musica.id
+                    )
+                )
+        );
+
+        dom.playlistForm.addEventListener(
+            'submit',
+            criarPlaylist
+        );
+    }
+
+    async function iniciar() {
+        if (!getToken()) {
+            mostrarBloqueado();
+            return;
+        }
+
+        try {
+            configurarEventos();
+            await carregarPerfil();
+        } catch (erro) {
+            if (erro.status === 401) return;
+
+            mostrarBloqueado();
+
+            const texto =
+                dom.bloqueado?.querySelector(
+                    '.perfil-bloqueado-texto'
+                );
+
+            if (texto) {
+                texto.textContent =
+                    erro.message ||
+                    'Não foi possível carregar o perfil.';
+            }
+        }
+    }
+
+    document.addEventListener(
+        'DOMContentLoaded',
+        iniciar
+    );
+})();
