@@ -23,207 +23,49 @@
    NAVBAR
    ============================================================ */
 
-.fixed-bar {
-    position: fixed;
-    inset: 0 0 auto 0;
-    z-index: 1000;
-
-    display: flex;
-    align-items: center;
-
-    gap: var(--espaco-5);
-
-    min-height: 64px;
-    padding: var(--espaco-3) var(--espaco-5);
-
-    background: var(--cor-superficie);
-    border-bottom: 1px solid var(--cor-borda);
-
-    box-shadow: var(--sombra-suave);
-}
-
-.nav-left,
-.nav-right {
-    flex: 1;
-
-    display: flex;
-    align-items: center;
-}
-
-.nav-right {
-    justify-content: flex-end;
-}
-
-.nav-center {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.titulo-navbar-perfil {
-    color: var(--cor-texto);
-    font-weight: 800;
-}
-
-.btn-navbar {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-
-    padding: var(--espaco-2) var(--espaco-4);
-
-    background: var(--cor-superficie-clara);
-    color: var(--cor-texto);
-
-    border: 1px solid var(--cor-borda);
-    border-radius: var(--raio-medio);
-
-    box-shadow: var(--sombra-suave);
-
-    text-decoration: none;
-    font-weight: 700;
-
-    transition:
-        transform var(--transicao-rapida),
-        filter var(--transicao-rapida);
-}
-
-.btn-navbar:hover {
-    transform: scale(1.03);
-    filter: brightness(1.03);
-}
-
-.btn-navbar:active {
-    transform: scale(0.98);
-}
-
-
 /* ============================================================
-   PÁGINA
-   ============================================================ */
-
-.perfil-page {
-    width: 100%;
-    min-height: 100vh;
-
-    padding-top: 92px;
-    padding-bottom: 120px;
-}
-
-.perfil-container {
-    position: relative;
-
-    width: 100%;
-    max-width: 1150px;
-
-    margin: 0 auto;
-    padding: var(--espaco-5);
-}
-
-.perfil-container::before {
-    content: "";
-
-    position: fixed;
-    inset: 0;
-
-    z-index: -1;
-    pointer-events: none;
-
-    background-image:
-        radial-gradient(
-            var(--painel-borda) 1px,
-            transparent 1px
-        );
-
-    background-size: 4px 4px;
-    opacity: 0.45;
-}
-
-
-/* ============================================================
-   NÃO AUTENTICADO
-   ============================================================ */
-
-.perfil-bloqueado {
-    width: min(520px, 100%);
-
-    margin: var(--espaco-7) auto;
-    padding: var(--espaco-7);
-
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-
-    gap: var(--espaco-3);
-
-    text-align: center;
-
-    background: var(--painel-fundo);
-    border: 1px solid var(--painel-borda);
-    border-radius: var(--raio-grande);
-
-    box-shadow: var(--painel-sombra);
-}
-
-.perfil-bloqueado-texto {
-    color: var(--cor-texto);
-}
-
-.perfil-bloqueado-link {
-    padding: var(--espaco-2) var(--espaco-4);
-
-    background: var(--cor-primaria);
-    color: var(--texto-sobre-pastel);
-
-    border-radius: var(--raio-pequeno);
-
-    text-decoration: none;
-    font-weight: 800;
-
-    transition:
-        transform var(--transicao-rapida),
-        filter var(--transicao-rapida);
-}
-
-.perfil-bloqueado-link:hover {
-    transform: scale(1.03);
-    filter: brightness(1.03);
-}
-
-
-/* ============================================================
-   JANELAS
+   JANELAS / ABAS — MOLDE DO PERFIL 1.0
    ============================================================ */
 
 .perfil-conteudo {
     display: flex;
     flex-wrap: wrap;
-
     justify-content: center;
     align-items: stretch;
 
     gap: var(--espaco-5);
+
+    width: 100%;
 }
 
 .perfil-janela {
     position: relative;
+
     margin-top: 40px;
 }
 
+/* Perfil */
 .perfil-janela-identidade {
-    flex: 1 1 260px;
+    flex: 1 1 240px;
     max-width: 280px;
 }
 
+/* Configurações */
 .perfil-janela-config {
-    flex: 1 1 300px;
+    flex: 1 1 260px;
     max-width: 320px;
 }
 
+/* Biblioteca */
 .perfil-janela-biblioteca {
-    flex: 1 1 380px;
-    max-width: 500px;
+    flex: 1 1 340px;
+    max-width: 480px;
 }
+
+
+/* ------------------------------------------------------------
+   ABA SUPERIOR
+   ------------------------------------------------------------ */
 
 .perfil-janela-tab {
     position: absolute;
@@ -237,7 +79,10 @@
     align-items: center;
 
     min-height: 34px;
-    padding: var(--espaco-1) var(--espaco-4);
+
+    padding:
+        var(--espaco-1)
+        var(--espaco-4);
 
     border-radius:
         var(--raio-pequeno)
@@ -252,15 +97,26 @@
 
     white-space: nowrap;
 
+    /* IMPORTANTE:
+       o molde continua sendo o da 1.0,
+       mas o título NÃO fica torto. */
+    transform: none;
+
     box-shadow: var(--sombra-suave);
 
-    transform: rotate(-1.5deg);
+    border: 1px solid var(--painel-borda);
+    border-bottom: none;
 }
 
-.perfil-janela-biblioteca
-.perfil-janela-tab {
-    transform: rotate(1deg);
+/* Nada de inclinação só na Biblioteca também. */
+.perfil-janela-biblioteca .perfil-janela-tab {
+    transform: none;
 }
+
+
+/* ------------------------------------------------------------
+   CORES DAS ABAS
+   ------------------------------------------------------------ */
 
 .perfil-janela-tab.aba-perfil {
     background: var(--aba-perfil);
@@ -274,6 +130,11 @@
     background: var(--aba-biblioteca);
 }
 
+
+/* ------------------------------------------------------------
+   CORPO DA JANELA
+   ------------------------------------------------------------ */
+
 .perfil-painel {
     position: relative;
 
@@ -284,6 +145,7 @@
     background: var(--painel-fundo);
 
     border: 1px solid var(--painel-borda);
+
     border-radius: var(--raio-grande);
 
     box-shadow: var(--painel-sombra);
@@ -653,18 +515,36 @@
    BIBLIOTECA — TRÊS COLUNAS
    ============================================================ */
 
+/* ============================================================
+   BIBLIOTECA — ESTRUTURA COMPLETA DO PERFIL 1.0
+   ============================================================ */
+
 .perfil-biblioteca-conteudo {
     display: flex;
     flex-direction: column;
-}
 
-.perfil-biblioteca-colunas {
-    display: flex;
     width: 100%;
 }
 
+
+/* ------------------------------------------------------------
+   CONTAINER DAS TRÊS COLUNAS
+   ------------------------------------------------------------ */
+
+.perfil-biblioteca-colunas {
+    display: flex;
+
+    width: 100%;
+}
+
+
+/* ------------------------------------------------------------
+   CADA COLUNA
+   ------------------------------------------------------------ */
+
 .perfil-coluna {
     flex: 1 1 0;
+
     min-width: 0;
 
     padding:
@@ -676,28 +556,43 @@
 
     gap: var(--espaco-2);
 
-    border-right: 1px dashed var(--painel-borda);
+    border-right:
+        1px dashed
+        var(--painel-borda);
 }
 
 .perfil-coluna:last-child {
     border-right: none;
 }
 
-.perfil-biblioteca-cabecalho {
-    min-height: 28px;
 
+/* ------------------------------------------------------------
+   CABEÇALHO DA COLUNA
+   ------------------------------------------------------------ */
+
+.perfil-biblioteca-cabecalho {
     display: flex;
+
     align-items: center;
     justify-content: space-between;
 
     gap: var(--espaco-2);
+
+    min-height: 28px;
 }
+
+
+/* ------------------------------------------------------------
+   TÍTULOS
+   ------------------------------------------------------------ */
 
 .perfil-coluna-titulo {
     color: var(--cor-texto);
 
     font-size: 0.85rem;
     font-weight: 800;
+
+    line-height: 1.2;
 }
 
 .perfil-acento-favorita {
@@ -712,6 +607,24 @@
     color: var(--aba-generos);
 }
 
+
+/* ------------------------------------------------------------
+   TEXTO DA MÚSICA FAVORITA
+   ------------------------------------------------------------ */
+
+.perfil-selecao-atual {
+    min-height: 1.2em;
+
+    color: var(--cor-texto-secundario);
+
+    font-size: 0.75rem;
+}
+
+
+/* ------------------------------------------------------------
+   INPUTS DA BIBLIOTECA
+   ------------------------------------------------------------ */
+
 .perfil-filtro {
     width: 100%;
 
@@ -723,13 +636,21 @@
 
     color: var(--input-texto);
 
-    border: 1px solid var(--input-borda);
-    border-radius: var(--raio-pequeno);
+    border:
+        1px solid
+        var(--input-borda);
+
+    border-radius:
+        var(--raio-pequeno);
 
     outline: none;
 
     font-family: inherit;
     font-size: 0.82rem;
+
+    transition:
+        border-color var(--transicao-rapida),
+        background var(--transicao-rapida);
 }
 
 .perfil-filtro::placeholder {
@@ -739,6 +660,16 @@
 .perfil-filtro:focus {
     border-color: var(--input-borda-foco);
 }
+
+.perfil-filtro:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+
+/* ------------------------------------------------------------
+   ÁREA DE RESULTADOS
+   ------------------------------------------------------------ */
 
 .perfil-resultados,
 .perfil-lista-atual {
@@ -754,6 +685,9 @@
     overflow-y: auto;
 }
 
+
+/* Estado vazio das curtidas */
+
 .perfil-lista-atual:empty::before {
     content: "Nenhuma música em destaque.";
 
@@ -766,6 +700,11 @@
     font-size: 0.75rem;
     font-style: italic;
 }
+
+
+/* ------------------------------------------------------------
+   ITENS DA BIBLIOTECA
+   ------------------------------------------------------------ */
 
 .perfil-resultado-item,
 .perfil-item-atual {
@@ -780,21 +719,29 @@
         var(--espaco-1)
         var(--espaco-2);
 
-    border-radius: var(--raio-pequeno);
+    border-radius:
+        var(--raio-pequeno);
 }
+
+
+/* Resultado pesquisável */
 
 .perfil-resultado-item {
     width: 100%;
 
     background: transparent;
 
-    border: 0;
+    border: none;
 
     color: inherit;
 
     text-align: left;
 
     cursor: pointer;
+
+    transition:
+        background var(--transicao-rapida),
+        transform var(--transicao-rapida);
 }
 
 .perfil-resultado-item:hover:not(:disabled) {
@@ -805,22 +752,34 @@
 
 .perfil-resultado-item:disabled {
     cursor: not-allowed;
+
     opacity: 0.5;
 }
 
+
+/* ------------------------------------------------------------
+   CAPAS
+   ------------------------------------------------------------ */
+
 .perfil-resultado-capa,
 .perfil-item-atual-capa {
-    width: 34px;
-    height: 34px;
+    width: 30px;
+    height: 30px;
 
-    flex: 0 0 34px;
+    flex: 0 0 30px;
+
+    border-radius:
+        var(--raio-pequeno);
 
     object-fit: cover;
 
-    border-radius: var(--raio-pequeno);
-
     background: var(--cor-superficie-clara);
 }
+
+
+/* ------------------------------------------------------------
+   TEXTOS DOS RESULTADOS
+   ------------------------------------------------------------ */
 
 .perfil-resultado-texto,
 .perfil-item-atual-texto {
@@ -839,35 +798,44 @@
     color: var(--cor-texto);
 
     font-size: 0.8rem;
-    font-weight: 700;
+    font-weight: 600;
+
+    white-space: nowrap;
 
     text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .perfil-resultado-artista,
-.perfil-item-atual-subtitulo {
+.perfil-item-atual-subtitulo,
+.perfil-playlist-faixas {
     overflow: hidden;
 
     color: var(--cor-texto-secundario);
 
     font-size: 0.7rem;
 
-    text-overflow: ellipsis;
     white-space: nowrap;
+
+    text-overflow: ellipsis;
 }
+
+
+/* ------------------------------------------------------------
+   BOTÕES DA BIBLIOTECA
+   ------------------------------------------------------------ */
 
 .perfil-link-acao,
 .perfil-remover-item {
     flex-shrink: 0;
 
-    padding: 0 var(--espaco-1);
+    padding:
+        0 var(--espaco-1);
 
     background: transparent;
 
     color: var(--cor-texto-fraco);
 
-    border: 0;
+    border: none;
 
     cursor: pointer;
 
@@ -880,13 +848,68 @@
     color: var(--cor-erro);
 }
 
-.perfil-selecao-atual {
-    min-height: 1.2em;
 
-    color: var(--cor-texto-secundario);
+/* ------------------------------------------------------------
+   CRIAÇÃO DE PLAYLIST
+   ------------------------------------------------------------ */
 
-    font-size: 0.75rem;
+.perfil-playlist-criar {
+    display: flex;
+
+    gap: var(--espaco-2);
+
+    width: 100%;
 }
+
+.perfil-playlist-criar .perfil-filtro {
+    flex: 1;
+}
+
+
+/* ------------------------------------------------------------
+   BOTÃO SALVAR / CRIAR
+   ------------------------------------------------------------ */
+
+.perfil-btn-salvar {
+    padding:
+        var(--espaco-2)
+        var(--espaco-3);
+
+    background: var(--cor-primaria);
+
+    color: var(--texto-sobre-pastel);
+
+    border: none;
+
+    border-radius:
+        var(--raio-pequeno);
+
+    font-size: 0.8rem;
+    font-weight: 800;
+
+    cursor: pointer;
+
+    transition:
+        transform var(--transicao-rapida),
+        filter var(--transicao-rapida);
+}
+
+.perfil-btn-salvar:hover:not(:disabled) {
+    transform: scale(1.03);
+
+    filter: brightness(1.03);
+}
+
+.perfil-btn-salvar:disabled {
+    cursor: not-allowed;
+
+    opacity: 0.55;
+}
+
+
+/* ------------------------------------------------------------
+   MENSAGENS / ESTADOS
+   ------------------------------------------------------------ */
 
 .perfil-estado-mensagem {
     padding:
@@ -896,34 +919,30 @@
     color: var(--cor-texto-fraco);
 
     font-size: 0.75rem;
+
     font-style: italic;
 }
 
-.perfil-playlist-criar {
-    display: flex;
-    align-items: stretch;
 
-    gap: var(--espaco-2);
-}
-
-.perfil-playlist-criar .perfil-filtro {
-    flex: 1;
-}
+/* ------------------------------------------------------------
+   RODAPÉ DA BIBLIOTECA
+   ------------------------------------------------------------ */
 
 .perfil-biblioteca-nota {
     padding:
         var(--espaco-3)
         var(--espaco-4);
 
-    border-top: 1px dashed var(--painel-borda);
+    border-top:
+        1px dashed
+        var(--painel-borda);
 
     color: var(--cor-texto-fraco);
 
-    font-size: 0.68rem;
-    line-height: 1.45;
+    font-size: 0.7rem;
+
+    line-height: 1.5;
 }
-
-
 /* ============================================================
    LOADING VISUAL
    ============================================================ */

@@ -431,182 +431,198 @@
                      JANELA 3 — BIBLIOTECA
                      TRÊS COLUNAS DO PERFIL 1.0
                      ================================================= -->
-                <article class="perfil-janela perfil-janela-biblioteca">
+                <!-- =================================================
+     JANELA 3 — BIBLIOTECA
+     ================================================= -->
+<article class="perfil-janela perfil-janela-biblioteca">
 
-                    <span class="perfil-janela-tab aba-biblioteca">
-                        Biblioteca
-                    </span>
+    <span class="perfil-janela-tab aba-biblioteca">
+        Biblioteca
+    </span>
 
-                    <div class="perfil-painel">
+    <div class="perfil-painel">
 
-                        <div class="perfil-biblioteca-conteudo">
+        <div class="perfil-biblioteca-conteudo">
 
-                            <div class="perfil-biblioteca-colunas">
-
-                                <!-- =================================
-                                     COLUNA 1 — FAVORITA
-                                     ================================= -->
-                                <section class="perfil-coluna">
-
-                                    <div class="perfil-biblioteca-cabecalho">
-
-                                        <h2 class="perfil-coluna-titulo perfil-acento-favorita">
-                                            Música favorita
-                                        </h2>
-
-                                        <button
-                                            id="perfil-favorita-remover"
-                                            class="perfil-link-acao hidden"
-                                            type="button"
-                                        >
-                                            Remover
-                                        </button>
-
-                                    </div>
+            <!-- =================================================
+                 TRÊS COLUNAS
+                 ================================================= -->
+            <div class="perfil-biblioteca-colunas">
 
 
-                                    <p
-                                        id="perfil-favorita-atual"
-                                        class="perfil-selecao-atual"
-                                    >
-                                        Nenhuma música escolhida.
-                                    </p>
+                <!-- =================================================
+                     COLUNA 1 — MÚSICA FAVORITA
+                     ================================================= -->
+                <section class="perfil-coluna">
+
+                    <div class="perfil-biblioteca-cabecalho">
+
+                        <h2 class="perfil-coluna-titulo perfil-acento-favorita">
+                            Música favorita
+                        </h2>
+
+                        <button
+                            id="perfil-favorita-remover"
+                            class="perfil-link-acao hidden"
+                            type="button"
+                        >
+                            Remover
+                        </button>
+
+                    </div>
 
 
-                                    <label
-                                        class="perfil-visually-hidden"
-                                        for="perfil-favorita-filtro"
-                                    >
-                                        Buscar música favorita
-                                    </label>
-
-                                    <input
-                                        id="perfil-favorita-filtro"
-                                        class="perfil-filtro"
-                                        type="search"
-                                        autocomplete="off"
-                                        placeholder="Buscar por título ou artista..."
-                                    >
-
-                                    <div
-                                        id="perfil-favorita-resultados"
-                                        class="perfil-resultados"
-                                        aria-live="polite"
-                                    ></div>
-
-                                </section>
+                    <p
+                        id="perfil-favorita-atual"
+                        class="perfil-selecao-atual"
+                    >
+                        Nenhuma música escolhida.
+                    </p>
 
 
-                                <!-- =================================
-                                     COLUNA 2 — CURTIDAS
-                                     ================================= -->
-                                <section class="perfil-coluna">
+                    <label
+                        class="perfil-visually-hidden"
+                        for="perfil-favorita-filtro"
+                    >
+                        Buscar música favorita
+                    </label>
 
-                                    <div class="perfil-biblioteca-cabecalho">
+                    <input
+                        id="perfil-favorita-filtro"
+                        class="perfil-filtro"
+                        type="search"
+                        autocomplete="off"
+                        placeholder="Buscar por título ou artista..."
+                    >
 
-                                        <h2 class="perfil-coluna-titulo perfil-acento-curtidas">
-                                            Curtidas em destaque
-                                        </h2>
+                    <div
+                        id="perfil-favorita-resultados"
+                        class="perfil-resultados"
+                        aria-live="polite"
+                    ></div>
 
-                                        <span
-                                            id="perfil-curtidas-contador"
-                                            class="perfil-config-contador"
-                                        >
-                                            0/4
-                                        </span>
-
-                                    </div>
-
-
-                                    <div
-                                        id="perfil-curtidas-lista"
-                                        class="perfil-lista-atual"
-                                    ></div>
+                </section>
 
 
-                                    <label
-                                        class="perfil-visually-hidden"
-                                        for="perfil-curtidas-filtro"
-                                    >
-                                        Adicionar música às curtidas em destaque
-                                    </label>
+                <!-- =================================================
+                     COLUNA 2 — CURTIDAS EM DESTAQUE
+                     ================================================= -->
+                <section class="perfil-coluna">
 
-                                    <input
-                                        id="perfil-curtidas-filtro"
-                                        class="perfil-filtro"
-                                        type="search"
-                                        autocomplete="off"
-                                        placeholder="Buscar música para destacar..."
-                                    >
+                    <div class="perfil-biblioteca-cabecalho">
 
-                                    <div
-                                        id="perfil-curtidas-resultados"
-                                        class="perfil-resultados"
-                                        aria-live="polite"
-                                    ></div>
+                        <h2 class="perfil-coluna-titulo perfil-acento-curtidas">
+                            Curtidas em destaque
+                        </h2>
 
-                                </section>
+                        <span
+                            id="perfil-curtidas-contador"
+                            class="perfil-config-contador"
+                        >
+                            0/4
+                        </span>
+
+                    </div>
 
 
-                                <!-- =================================
-                                     COLUNA 3 — PLAYLISTS
-                                     ================================= -->
-                                <section class="perfil-coluna">
-
-                                    <div class="perfil-biblioteca-cabecalho">
-
-                                        <h2 class="perfil-coluna-titulo perfil-acento-playlists">
-                                            Playlists públicas
-                                        </h2>
-
-                                    </div>
+                    <div
+                        id="perfil-curtidas-lista"
+                        class="perfil-lista-atual"
+                    ></div>
 
 
-                                    <form
-                                        id="perfil-playlist-form"
-                                        class="perfil-playlist-criar"
-                                    >
+                    <label
+                        class="perfil-visually-hidden"
+                        for="perfil-curtidas-filtro"
+                    >
+                        Adicionar música às curtidas em destaque
+                    </label>
 
-                                        <label
-                                            class="perfil-visually-hidden"
-                                            for="perfil-playlist-nome"
-                                        >
-                                            Nome da nova playlist
-                                        </label>
+                    <input
+                        id="perfil-curtidas-filtro"
+                        class="perfil-filtro"
+                        type="search"
+                        autocomplete="off"
+                        placeholder="Buscar música para destacar..."
+                    >
 
-                                        <input
-                                            id="perfil-playlist-nome"
-                                            class="perfil-filtro"
-                                            type="text"
-                                            maxlength="60"
-                                            placeholder="Nova playlist..."
-                                        >
+                    <div
+                        id="perfil-curtidas-resultados"
+                        class="perfil-resultados"
+                        aria-live="polite"
+                    ></div>
 
-                                        <button
-                                            class="perfil-btn-salvar"
-                                            type="submit"
-                                        >
-                                            Criar
-                                        </button>
-
-                                    </form>
+                </section>
 
 
-                                    <div
-                                        id="perfil-playlists-lista"
-                                        class="perfil-resultados"
-                                        aria-live="polite"
-                                    ></div>
+                <!-- =================================================
+                     COLUNA 3 — PLAYLISTS
+                     ================================================= -->
+                <section class="perfil-coluna">
 
-                                </section>
+                    <div class="perfil-biblioteca-cabecalho">
 
-                            </div>
+                        <h2 class="perfil-coluna-titulo perfil-acento-playlists">
+                            Playlists públicas
+                        </h2>
+
+                    </div>
 
 
-                            <p class="perfil-biblioteca-nota">
-                                Sua música favorita, destaques e playlists ficam ligados ao seu perfil autenticado.
-                            </p>
+                    <form
+                        id="perfil-playlist-form"
+                        class="perfil-playlist-criar"
+                    >
 
+                        <label
+                            class="perfil-visually-hidden"
+                            for="perfil-playlist-nome"
+                        >
+                            Nome da nova playlist
+                        </label>
+
+                        <input
+                            id="perfil-playlist-nome"
+                            class="perfil-filtro"
+                            type="text"
+                            maxlength="60"
+                            placeholder="Nova playlist..."
+                        >
+
+                        <button
+                            class="perfil-btn-salvar"
+                            type="submit"
+                        >
+                            Criar
+                        </button>
+
+                    </form>
+
+
+                    <div
+                        id="perfil-playlists-lista"
+                        class="perfil-resultados"
+                        aria-live="polite"
+                    ></div>
+
+                </section>
+
+            </div>
+
+
+            <!-- =================================================
+                 RODAPÉ DA BIBLIOTECA
+                 ================================================= -->
+            <p class="perfil-biblioteca-nota">
+                Sua música favorita, destaques e playlists ficam
+                ligados ao seu perfil autenticado.
+            </p>
+
+        </div>
+
+    </div>
+
+</article>
                         </div>
                     </div>
                 </article>
