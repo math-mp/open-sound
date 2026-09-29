@@ -101,7 +101,9 @@ const sucesso = (res, corpo = {}, status = 200) =>
   res.status(status).json({ status: 'sucesso', ...corpo });
 
 const falhaInterna = (res, contexto, erro) => {
-  console.error(`Erro em ${contexto}:`, erro);
+  // Ponto único de log de erro interno: toda rota que chama este helper já
+  // aparece aqui com o endpoint e a mensagem real do Postgres/Storage.
+  logError('ERROR', `Falha em ${contexto}`, { codigo: erro.code, mensagem: erro.message });
   return falha(res, 500, 'Erro interno no servidor.');
 };
 
@@ -127,14 +129,16 @@ async function enviarEmail(para, assunto, texto) {
     });
     return true;
   } catch (erro) {
-    console.error('Erro ao enviar e-mail pelo Nodemailer:', erro);
+    logError('ERROR', 'Falha ao enviar e-mail pelo Nodemailer', { mensagem: erro.message });
     return false;
   }
-}
+};
 
-// O código nunca é logado em produção.
+// O código só é impresso fora de produção, e num log propositalmente
+// destacado — é o que permite testar o fluxo de 2FA na mão. Para removê-lo,
+// basta apagar esta função e as chamadas dela.
 const logarCodigoEmDev = (rotulo, codigo) => {
-  if (!EM_PRODUCAO) console.log(`[DEV] ${rotulo}: ${codigo}`);
+  if (!EM_PRODUCAO) console.log(`[2FA][DEV] ${rotulo}: ${codigo}`);
 };
 
 const criarLimitador = (windowMs, max, mensagem) =>
@@ -878,6 +882,7 @@ app.post(
       const titulo = ehTexto(req.body?.titulo) ? req.body.titulo.trim() : '';
       const arquivoAudio = req.files?.audio?.[0];
       const arquivoCapa = req.files?.capa?.[0];
+      logInfo('UPLOAD', 'Upload iniciado', { usuarioId: req.usuario.id });
 
       if (!titulo) return falha(res, 400, 'Título é obrigatório.');
       if (tamanhoEmCaracteres(titulo) > TITULO_MUSICA_MAX) {
@@ -888,12 +893,19 @@ app.post(
       // O formato vem dos bytes reais, não do Content-Type declarado.
       const tipoAudio = detectarTipoAudio(arquivoAudio.buffer);
       if (!tipoAudio) return falha(res, 400, 'Formato de áudio não suportado. Use MP3, WAV ou OGG.');
+      logInfo('UPLOAD', 'Arquivo de áudio validado', {
+        tipo: tipoAudio.extensao,
+        tamanhoBytes: arquivoAudio.size
+      });
 
       let tipoCapa = null;
       if (arquivoCapa) {
         tipoCapa = detectarTipoImagem(arquivoCapa.buffer);
         if (!tipoCapa) return falha(res, 400, 'Formato de imagem não suportado. Use JPEG, PNG ou WEBP.');
         if (arquivoCapa.size > CAPA_MAX_BYTES) return falha(res, 413, 'A capa passa do limite de 5 MB. Escolha uma menor.');
+        logInfo('UPLOAD', 'Capa validada', { tipo: tipoCapa.extensao, tamanhoBytes: arquivoCapa.size });
+      } else {
+        logInfo('UPLOAD', 'Upload sem capa');
       }
 
       // O nome de artista vem da conta, nunca do cliente.
@@ -904,8 +916,10 @@ app.post(
       const usuarioLogado = resultadoUsuario.rows[0];
 
       if (!usuarioLogado || !usuarioLogado.eh_artista || !usuarioLogado.nome_artista) {
-        return falha(res, 403, 'Cadastre um nome de artista antes de enviar músicas.', { codigo: 'ARTISTA_NAO_CADASTRADO' });
+        logWarn('UPLOAD', 'Upload recusado: conta não é artista', { usuarioId: req.usuario.id });
+        return falha(res, 403, 'Cadastre um nome de artista antes de enviar músicas.', { codigo: 'ARTISTA_NAO_CADASTADO' });
       }
+      logInfo('UPLOAD', 'Usuário autenticado e é artista', { usuarioId: req.usuario.id });
 
       // Nomes gerados pelo servidor: nada de originalname (acentos/espaços
       // quebram a chave do Storage).
@@ -917,10 +931,11 @@ app.post(
         .upload(caminhoAudio, arquivoAudio.buffer, { contentType: tipoAudio.mime });
 
       if (erroUploadAudio) {
-        console.error('Erro ao subir áudio pro Supabase Storage:', erroUploadAudio);
+        logError('ERROR', 'Falha ao enviar áudio ao Storage', { mensagem: erroUploadAudio.message });
         return falha(res, 500, 'Falha ao enviar o arquivo de áudio.');
       }
       caminhosEnviados.push(caminhoAudio);
+      logInfo('UPLOAD', 'Upload de áudio para Storage concluído', { caminho: caminhoAudio });
 
       const urlAudio = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(caminhoAudio).data.publicUrl;
 
@@ -932,10 +947,12 @@ app.post(
           .upload(caminhoCapa, arquivoCapa.buffer, { contentType: tipoCapa.mime });
 
         if (erroUploadCapa) {
-          console.error('Erro ao subir capa (a música seguirá sem capa):', erroUploadCapa);
+          // Melhor-esforço: a música é salva mesmo sem capa.
+          logWarn('UPLOAD', 'Falha ao enviar a capa (música seguirá sem capa)', { mensagem: erroUploadCapa.message });
         } else {
           caminhosEnviados.push(caminhoCapa);
           urlCapa = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(caminhoCapa).data.publicUrl;
+          logInfo('UPLOAD', 'Upload de capa concluído', { caminho: caminhoCapa });
         }
       }
 
@@ -945,11 +962,16 @@ app.post(
         [titulo, usuarioLogado.nome_artista, urlAudio, urlCapa, req.usuario.id]
       );
 
+      logInfo('UPLOAD', 'Registro da música criado no PostgreSQL', { musicaId: resultado.rows[0].id });
+      logInfo('UPLOAD', 'Upload concluído', { musicaId: resultado.rows[0].id });
+
       return sucesso(res, { musica: resultado.rows[0] }, 201);
     } catch (erro) {
       // Não deixa arquivo órfão no bucket se o banco falhou.
       if (caminhosEnviados.length > 0) {
+        logWarn('UPLOAD', 'Iniciando rollback dos arquivos no Storage', { quantidade: caminhosEnviados.length });
         await supabase.storage.from(SUPABASE_BUCKET).remove(caminhosEnviados).catch(() => {});
+        logInfo('UPLOAD', 'Rollback concluído');
       }
       return falhaInterna(res, 'POST /api/musicas', erro);
     }
@@ -964,14 +986,27 @@ app.post('/api/musicas/:id/reproduzir', verificarAutenticacao, async (req, res) 
   if (!idMusica) return falha(res, 400, 'ID de música inválido.');
 
   try {
+    logInfo('PLAY', 'Requisição de reprodução recebida', { musicaId: idMusica, usuarioId: req.usuario.id });
+
+    // Uma consulta só: o "antes" vem do mesmo RETURNING, sem ler a linha antes
+    // de gravar (ler-e-depois-escrever abriria brecha para perda de contagem).
     const resultado = await pool.query(
       'UPDATE musicas SET reproducoes = reproducoes + 1 WHERE id = $1 RETURNING id, reproducoes',
       [idMusica]
     );
-    if (resultado.rows.length === 0) return falha(res, 404, 'Música não encontrada.');
+    if (resultado.rows.length === 0) {
+      logWarn('PLAY', 'Reprodução não contabilizada: música não encontrada', { musicaId: idMusica });
+      return falha(res, 404, 'Música não encontrada.');
+    }
+
+    logInfo('PLAY', 'Reprodução registrada', {
+      musicaId: resultado.rows[0].id,
+      reproducoes: resultado.rows[0].reproducoes
+    });
 
     return sucesso(res, { musica: resultado.rows[0] });
   } catch (erro) {
+    // Só loga: a reprodução da música no cliente NÃO depende desta resposta.
     return falhaInterna(res, 'POST /api/musicas/:id/reproduzir', erro);
   }
 });
@@ -979,6 +1014,7 @@ app.post('/api/musicas/:id/reproduzir', verificarAutenticacao, async (req, res) 
 app.get('/api/musicas', async (req, res) => {
   try {
     const resultado = await pool.query('SELECT * FROM musicas ORDER BY criado_em DESC LIMIT 50');
+    logInfo('SERVER', 'Listagem de músicas', { quantidade: resultado.rows.length });
     return sucesso(res, { musicas: resultado.rows });
   } catch (erro) {
     return falhaInterna(res, 'GET /api/musicas', erro);
@@ -988,12 +1024,14 @@ app.get('/api/musicas', async (req, res) => {
 // Ranking geral por reproduções acumuladas (não é mensal: não há histórico por data).
 app.get('/api/musicas/mais-tocadas', async (req, res) => {
   try {
+    logInfo('RANKING', 'Buscando músicas mais tocadas');
     const resultado = await pool.query(
       `SELECT id, titulo, artista, url_audio, url_capa, reproducoes, usuario_id, criado_em
          FROM musicas
         ORDER BY reproducoes DESC, criado_em DESC
         LIMIT 10`
     );
+    logInfo('RANKING', 'Músicas mais tocadas retornadas', { quantidade: resultado.rows.length });
     return sucesso(res, { musicas: resultado.rows });
   } catch (erro) {
     return falhaInterna(res, 'GET /api/musicas/mais-tocadas', erro);
@@ -1004,6 +1042,7 @@ app.get('/api/musicas/mais-tocadas', async (req, res) => {
 // artistas com o mesmo nome artístico não podem se fundir num só.
 app.get('/api/artistas/mais-ouvidos', async (req, res) => {
   try {
+    logInfo('RANKING', 'Buscando artistas mais ouvidos');
     const resultado = await pool.query(
       `SELECT u.id AS usuario_id,
               u.nome_artista AS artista,
@@ -1018,6 +1057,7 @@ app.get('/api/artistas/mais-ouvidos', async (req, res) => {
         ORDER BY reproducoes DESC, u.nome_artista ASC
         LIMIT 10`
     );
+    logInfo('RANKING', 'Artistas mais ouvidos retornados', { quantidade: resultado.rows.length });
     return sucesso(res, { artistas: resultado.rows });
   } catch (erro) {
     return falhaInterna(res, 'GET /api/artistas/mais-ouvidos', erro);
@@ -1184,6 +1224,7 @@ app.post('/api/playlists', verificarAutenticacao, tratarMulter(uploadCapaPlaylis
 
   try {
     let urlCapa = null;
+    logInfo('PLAYLIST', 'Criação iniciada', { usuarioId: req.usuario.id });
 
     if (req.file) {
       const tipo = detectarTipoImagem(req.file.buffer);
@@ -1195,14 +1236,17 @@ app.post('/api/playlists', verificarAutenticacao, tratarMulter(uploadCapaPlaylis
         .upload(caminho, req.file.buffer, { contentType: tipo.mime });
 
       if (erroUpload) {
-        console.error('Erro ao subir capa da playlist (seguirá sem capa):', erroUpload);
+        // Melhor-esforço: a playlist é criada mesmo sem capa.
+        logWarn('PLAYLIST', 'Falha ao enviar a capa (playlist seguirá sem capa)', { mensagem: erroUpload.message });
       } else {
         caminhoCapa = caminho;
         urlCapa = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(caminho).data.publicUrl;
+        logInfo('PLAYLIST', 'Capa enviada ao Storage', { caminho });
       }
     }
 
     const playlist = await criarPlaylist(req.usuario.id, nome, urlCapa);
+    logInfo('PLAYLIST', 'Playlist criada', { playlistId: playlist.id });
     return sucesso(res, { playlist }, 201);
   } catch (erro) {
     if (caminhoCapa) await supabase.storage.from(SUPABASE_BUCKET).remove([caminhoCapa]).catch(() => {});
@@ -1247,6 +1291,8 @@ async function excluirPlaylistDoUsuario(req, res) {
   if (!idPlaylist) return falha(res, 400, 'ID de playlist inválido.');
 
   try {
+    logInfo('PLAYLIST', 'Exclusão solicitada', { playlistId: idPlaylist, usuarioId: req.usuario.id });
+
     const resultado = await pool.query(
       `DELETE FROM playlists
         WHERE id = $1 AND usuario_id = $2 AND eh_favoritos = FALSE
@@ -1260,12 +1306,16 @@ async function excluirPlaylistDoUsuario(req, res) {
         [idPlaylist, req.usuario.id]
       );
       if (propria.rows[0]?.eh_favoritos) {
+        logWarn('PLAYLIST', 'Exclusão recusada: Favoritos é protegida', { playlistId: idPlaylist });
         return falha(res, 400, 'A playlist de Favoritos não pode ser excluída.');
       }
+      // Mesma resposta para "não existe" e "é de outro": não revela o ID.
+      logWarn('PLAYLIST', 'Exclusão sem efeito: playlist inexistente ou de outro usuário', { playlistId: idPlaylist });
       return falha(res, 404, 'Playlist não encontrada.');
     }
 
     await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, resultado.rows[0].url_capa);
+    logInfo('PLAYLIST', 'Playlist removida', { playlistId: idPlaylist });
     return sucesso(res, { mensagem: 'Playlist excluída.', id: idPlaylist });
   } catch (erro) {
     return falhaInterna(res, 'DELETE playlist', erro);
@@ -1297,6 +1347,7 @@ app.post('/api/playlists/:id/musicas', verificarAutenticacao, async (req, res) =
       [idPlaylist, idMusica]
     );
 
+    logInfo('PLAYLIST', 'Música adicionada à playlist', { playlistId: idPlaylist, musicaId: idMusica });
     return sucesso(res, { mensagem: 'Música adicionada à playlist.' });
   } catch (erro) {
     if (ehMusicaSumida(erro)) return falha(res, 404, 'Música não encontrada.');
@@ -1322,6 +1373,7 @@ app.delete('/api/playlists/:id/musicas/:musicaId', verificarAutenticacao, async 
       [idPlaylist, idMusica]
     );
 
+    logInfo('PLAYLIST', 'Música removida da playlist', { playlistId: idPlaylist, musicaId: idMusica });
     return sucesso(res, { mensagem: 'Música removida da playlist.' });
   } catch (erro) {
     return falhaInterna(res, 'DELETE /api/playlists/:id/musicas/:musicaId', erro);
@@ -1345,6 +1397,7 @@ app.post('/api/musicas/:id/favoritar', verificarAutenticacao, async (req, res) =
       [favoritos.id, idMusica]
     );
 
+    logInfo('PLAYLIST', 'Música favoritada', { usuarioId: req.usuario.id, musicaId: idMusica });
     return sucesso(res, { mensagem: 'Música favoritada.' });
   } catch (erro) {
     if (ehMusicaSumida(erro)) return falha(res, 404, 'Música não encontrada.');
@@ -1475,11 +1528,19 @@ app.put('/api/perfil/bio', verificarAutenticacao, async (req, res) => {
   }
 
   try {
+    logInfo('PERFIL', 'Atualização de bio iniciada', { usuarioId: req.usuario.id });
+
     const resultado = await pool.query(
       'UPDATE usuarios SET bio = $1 WHERE id = $2 RETURNING bio',
       [limpa === '' ? null : limpa, req.usuario.id]
     );
     if (resultado.rows.length === 0) return falha(res, 404, 'Usuário não encontrado.');
+
+    // A bio em si não é logada: é dado pessoal do usuário.
+    logInfo('PERFIL', 'Bio atualizada', {
+      usuarioId: req.usuario.id,
+      caracteres: tamanhoEmCaracteres(resultado.rows[0].bio || '')
+    });
 
     return sucesso(res, { bio: resultado.rows[0].bio });
   } catch (erro) {
@@ -1513,6 +1574,8 @@ app.post(
     // Nome gerado pelo servidor (nunca o originalname do cliente).
     const caminhoNovo = `avatares/${usuarioId}-${Date.now()}.${tipo.extensao}`;
 
+    logInfo('PERFIL', 'Upload de avatar iniciado', { usuarioId, tipo: tipo.extensao, tamanhoBytes: arquivo.size });
+
     try {
       const anterior = await pool.query('SELECT url_avatar FROM usuarios WHERE id = $1', [usuarioId]);
       if (anterior.rows.length === 0) return falha(res, 404, 'Usuário não encontrado.');
@@ -1523,25 +1586,31 @@ app.post(
         .upload(caminhoNovo, arquivo.buffer, { contentType: tipo.mime, cacheControl: '3600' });
 
       if (erroUpload) {
-        console.error('Erro ao subir avatar pro Storage:', erroUpload);
+        logError('ERROR', 'Falha ao enviar avatar ao Storage', { mensagem: erroUpload.message });
         return falha(res, 500, 'Falha ao enviar a imagem.');
       }
+      logInfo('PERFIL', 'Avatar enviado ao Storage', { caminho: caminhoNovo });
 
       const urlNova = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(caminhoNovo).data.publicUrl;
 
       try {
         await pool.query('UPDATE usuarios SET url_avatar = $1 WHERE id = $2', [urlNova, usuarioId]);
+        logInfo('PERFIL', 'Banco atualizado com o novo avatar');
       } catch (erroBanco) {
         // Subiu mas o banco não registrou: desfaz o upload (sem órfão).
+        logWarn('PERFIL', 'Banco falhou; desfazendo upload do avatar', { mensagem: erroBanco.message });
         await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, urlNova);
+        logInfo('PERFIL', 'Rollback do avatar concluído');
         throw erroBanco;
       }
 
       // Só agora que a nova está confirmada é seguro descartar a antiga.
       if (urlAnterior && urlAnterior !== urlNova) {
         await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, urlAnterior);
+        logInfo('PERFIL', 'Avatar anterior removido do Storage');
       }
 
+      logInfo('PERFIL', 'Avatar atualizado com sucesso', { usuarioId });
       return sucesso(res, { avatar_url: urlNova });
     } catch (erro) {
       return falhaInterna(res, 'POST /api/perfil/avatar', erro);
@@ -1551,13 +1620,19 @@ app.post(
 
 app.delete('/api/perfil/avatar', verificarAutenticacao, async (req, res) => {
   try {
+    logInfo('PERFIL', 'Remoção de avatar iniciada', { usuarioId: req.usuario.id });
+
     const anterior = await pool.query('SELECT url_avatar FROM usuarios WHERE id = $1', [req.usuario.id]);
     if (anterior.rows.length === 0) return falha(res, 404, 'Usuário não encontrado.');
 
     // Banco primeiro: mesmo que apagar o arquivo falhe, o perfil já não aponta pra ele.
     await pool.query('UPDATE usuarios SET url_avatar = NULL WHERE id = $1', [req.usuario.id]);
-    await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, anterior.rows[0].url_avatar);
+    logInfo('PERFIL', 'url_avatar atualizado para NULL');
 
+    await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, anterior.rows[0].url_avatar);
+    logInfo('PERFIL', 'Arquivo removido do Storage');
+
+    logInfo('PERFIL', 'Avatar removido', { usuarioId: req.usuario.id });
     return sucesso(res, { avatar_url: null });
   } catch (erro) {
     return falhaInterna(res, 'DELETE /api/perfil/avatar', erro);
@@ -1603,6 +1678,7 @@ app.put('/api/perfil/favorita', verificarAutenticacao, async (req, res) => {
       [req.usuario.id, musicaId]
     );
 
+    logInfo('PERFIL', 'Música favorita salva', { usuarioId: req.usuario.id, musicaId });
     return sucesso(res, { favorita: await lerFavorita(pool, req.usuario.id) });
   } catch (erro) {
     if (ehMusicaSumida(erro)) return falha(res, 404, 'Música não encontrada.');
@@ -1613,6 +1689,7 @@ app.put('/api/perfil/favorita', verificarAutenticacao, async (req, res) => {
 app.delete('/api/perfil/favorita', verificarAutenticacao, async (req, res) => {
   try {
     await pool.query('DELETE FROM perfil_favorita WHERE usuario_id = $1', [req.usuario.id]);
+    logInfo('PERFIL', 'Música favorita removida', { usuarioId: req.usuario.id });
     return sucesso(res, { favorita: null });
   } catch (erro) {
     return falhaInterna(res, 'DELETE /api/perfil/favorita', erro);
@@ -1632,6 +1709,8 @@ app.put('/api/perfil/curtidas', verificarAutenticacao, async (req, res) => {
   if (new Set(ids).size !== ids.length) return falha(res, 400, 'A lista tem músicas repetidas.');
 
   try {
+    logInfo('PERFIL', 'Atualização de curtidas iniciada', { usuarioId: req.usuario.id, quantidade: ids.length });
+
     // A trava serializa requisições do mesmo usuário (senão dois "salvar"
     // simultâneos violavam o UNIQUE ou gravavam uma lista misturada).
     const curtidas = await comTravaDoUsuario(pool, req.usuario.id, async (client) => {
@@ -1651,6 +1730,7 @@ app.put('/api/perfil/curtidas', verificarAutenticacao, async (req, res) => {
       return lerCurtidas(client, req.usuario.id);
     });
 
+    logInfo('PERFIL', 'Curtidas atualizadas com sucesso', { usuarioId: req.usuario.id, quantidade: curtidas.length });
     return sucesso(res, { curtidas });
   } catch (erro) {
     if (erro instanceof UsuarioInexistente) return falha(res, 404, 'Usuário não encontrado.');
@@ -1860,19 +1940,27 @@ app.put('/api/player/state', verificarAutenticacao, async (req, res) => {
 // Rota que não existe responde JSON e loga qual foi — o "404 misterioso"
 // deixa de ser um "Cannot GET ..." em HTML.
 app.use((req, res) => {
-  console.warn(`404 sem rota: ${req.method} ${req.originalUrl}`);
+  logWarn('HTTP', '404 sem rota', { metodo: req.method, rota: req.originalUrl });
   return falha(res, 404, 'Rota não encontrada.');
 });
 
 app.use((erro, req, res, next) => {
   if (erro && erro.type === 'entity.parse.failed') {
+    logWarn('ERROR', 'JSON malformado no corpo da requisição', { rota: req.originalUrl });
     return falha(res, 400, 'Corpo da requisição inválido (JSON malformado).');
   }
   if (erro instanceof multer.MulterError) {
+    logWarn('ERROR', 'Erro do Multer', { rota: req.originalUrl, codigo: erro.code });
     return falha(res, erro.code === 'LIMIT_FILE_SIZE' ? 413 : 400,
       erro.code === 'LIMIT_FILE_SIZE' ? 'O arquivo enviado é grande demais. Escolha um arquivo menor.' : 'Não foi possível ler o arquivo enviado.');
   }
-  console.error('Erro não tratado:', erro);
+  // Última rede de segurança: erro que nenhuma rota capturou.
+  logError('ERROR', 'Erro não tratado', {
+    metodo: req.method,
+    rota: req.originalUrl,
+    codigo: erro.code,
+    mensagem: erro.message
+  });
   return falha(res, 500, 'Erro interno no servidor.');
 });
 
