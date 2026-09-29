@@ -60,9 +60,51 @@ html, body {
     border-radius: var(--raio-medio);
     padding: 5px;
     background-color: #242031;
-}
+  }
 
-.fixed-bar button {
+  /* Botão de avatar do perfil na navbar - padronizado com outros botões */
+  .btn-perfil-avatar {
+    padding: 10px 14px;
+    background: var(--cor-superficie-clara);
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio-medio);
+    box-shadow: var(--sombra-suave);
+    color: var(--cor-texto);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s ease, filter 0.2s ease, background-color 0.3s ease, color 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 44px;
+  }
+
+  .btn-perfil-avatar:hover {
+    filter: brightness(0.96);
+    transform: scale(1.04);
+  }
+
+  .btn-perfil-avatar:active {
+    transform: scale(0.98);
+    filter: brightness(0.9);
+  }
+
+  .btn-perfil-avatar img {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1.5px solid var(--cor-borda);
+    transition: border-color 0.2s ease;
+  }
+
+  .btn-perfil-avatar:hover img {
+    border-color: var(--cor-primaria);
+  }
+
+  .fixed-bar button {
   font-size: 14px;
   font-weight: 700;
   padding: 10px 20px;
@@ -1493,6 +1535,94 @@ body,
 
 .player-seek {
   flex-grow: 1;
+}
+
+/* --- Controle de Volume --- */
+.player-volume {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.btn-volume {
+  border: none;
+  background: transparent;
+  color: var(--cor-texto);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--raio-pequeno);
+  transition: color 0.2s ease, background-color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.btn-volume:hover {
+  color: var(--cor-primaria);
+  background: var(--cor-superficie-clara);
+}
+
+.volume-slider {
+  width: 90px;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--cor-borda);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  transition: width 0.3s ease;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--cor-primaria);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.volume-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: none;
+  border-radius: 50%;
+  background: var(--cor-primaria);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.volume-slider::-moz-range-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.volume-slider::-moz-range-track {
+  height: 4px;
+  background: var(--cor-borda);
+  border-radius: 2px;
+}
+
+/* Animação de entrada/saída do slider de volume */
+.player-volume:hover .volume-slider,
+.player-volume:focus-within .volume-slider {
+  width: 90px;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.player-volume .volume-slider {
+  transition: width 0.3s ease, opacity 0.3s ease;
 }
 
 /*====menu hamburguer (config, e futuramente biblioteca/perfil)====*/

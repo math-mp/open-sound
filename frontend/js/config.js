@@ -47,6 +47,7 @@ const btnConfirmarRedefinicao = document.getElementById('btn-confirmar-redefinic
 const textoFraseEsperada = document.getElementById('texto-frase-esperada');
 const campoFraseConfirmacao = document.getElementById('frase-confirmacao');
 const btnDeletarConta = document.getElementById('btn-deletar-conta');
+const btnSairConfig = document.getElementById('btn-sair-config');
 
 const regexSenha = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@()!%*?&#])[A-Za-z\d@()!%*?&#]{8,}$/;
 
@@ -237,12 +238,22 @@ if (btnDeletarConta) {
       } else {
         alert(dados.mensagem || 'Não foi possível excluir a conta.');
       }
-    } catch (erro) {
-      console.error('Erro de conexão:', erro);
-      alert('Erro de conexão com o servidor.');
-    } finally {
-      btnDeletarConta.disabled = false;
-      btnDeletarConta.textContent = 'Deletar conta permanentemente';
-    }
+} catch (erro) {
+    console.error('Erro de conexão:', erro);
+    alert('Erro de conexão com o servidor.');
+  } finally {
+    btnDeletarConta.disabled = false;
+    btnDeletarConta.textContent = 'Deletar conta permanentemente';
+  }
+});
+
+if (btnSairConfig) {
+  btnSairConfig.addEventListener('click', () => {
+    const confirmou = confirm('Você realmente deseja deslogar da sua conta?');
+    if (!confirmou) return;
+
+    localStorage.removeItem(CHAVE_SESSAO);
+    window.location.href = 'home.html';
   });
+}
 }

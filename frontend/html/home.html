@@ -17,7 +17,7 @@
     <!--navbar superior-->
     <nav class="fixed-bar">
 
-        <!-- parte esquerda navbar-->
+<!-- parte esquerda navbar-->
         <div class="nav-left">
             <!-- Menu hamburguer: hoje só tem Configurações, mas é aqui que
                  Biblioteca/Perfil vão entrar mais pra frente. -->
@@ -25,8 +25,8 @@
                 <button class="btn-navbar" id="btn-hamburguer" aria-label="Abrir menu">☰</button>
 <div id="dropdown-hamburguer" class="dropdown-hamburguer hidden">
                 <a href="minhas-musicas.html" id="link-minhas-musicas" class="item-dropdown">🎵 Minhas Músicas</a>
-                <a href="perfil.html" id="link-perfil" class="item-dropdown">👤 Perfil</a>
                 <a href="config.html" id="link-config" class="item-dropdown">⚙️ Configurações</a>
+                <a href="#" id="link-sair-dropdown" class="item-dropdown">🚪 Sair</a>
             </div>
             </div>
             <button class="btn-navbar" id="btn-biblioteca">Minha Biblioteca</button>
@@ -41,14 +41,14 @@
             </form>
         </div>
 
-        <!-- parte direita navbar-->
+<!-- parte direita navbar-->
         <div class="nav-right">
             <button  class="btn-navbar" id="btn-register">registre-se</button>
             <button  class="btn-navbar" id="btn-entrar">Entrar</button>
-            <!-- Some quando o usuário está logado -->
-            <button class="btn-navbar hidden" id="btn-sair">Sair</button>
+            <button class="btn-navbar btn-perfil-avatar hidden" id="btn-perfil-avatar" aria-label="Perfil">
+                <img id="perfil-avatar-navbar" src="../assets/avatar-padrao.png" alt="Perfil" class="perfil-avatar-navbar-img">
+            </button>
             <button  class="btn-navbar" id="btn-tema">tema</button>
-
         </div>
     </nav> 
     <!--conteudo principal da pag-->
@@ -464,8 +464,8 @@
     </div>
     </div>
 
-    <!-- Barra de player fixa no rodapé — só funcional, sem estilo bonito.
-         Fica escondida até a primeira música ser tocada. -->
+<!-- Barra de player fixa no rodapé — só funcional, sem estilo bonito.
+     Fica escondida até a primeira música ser tocada. -->
     <div id="player-barra" class="player-barra hidden">
         <img id="player-capa" class="player-capa" alt="Capa da música atual">
         <div class="player-info">
@@ -478,6 +478,10 @@
         <span id="player-tempo-total" class="player-tempo">0:00</span>
         <button id="player-favoritar" type="button" class="btn-icone" aria-label="Favoritar">♡</button>
         <button id="player-add-playlist" type="button" class="btn-icone" aria-label="Adicionar à playlist">+</button>
+        <div class="player-volume">
+            <button id="player-volume-btn" type="button" class="btn-volume" aria-label="Volume">🔊</button>
+            <input type="range" id="player-volume" class="volume-slider" min="0" max="1" step="0.01" value="1" aria-label="Controle de volume">
+        </div>
     </div>
 
 </body>

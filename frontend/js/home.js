@@ -132,6 +132,9 @@ const btnFecharLogin = document.getElementById('btn-fechar-login');
 const formLogin = document.getElementById('form-login');
 const btnEntrar = document.getElementById('btn-entrar');
 const btnSair = document.getElementById('btn-sair');
+const btnPerfilAvatar = document.getElementById('btn-perfil-avatar');
+const perfilAvatarImg = document.getElementById('perfil-avatar-navbar');
+const linkSairDropdown = document.getElementById('link-sair-dropdown');
 
 // Elementos do Modal de Upload e do Container Universal de Músicas
 const modalUpload = document.getElementById('modal-upload');
@@ -458,7 +461,12 @@ function atualizarUIAutenticacao() {
 
   if (btnEntrar) btnEntrar.classList.toggle('hidden', logado);
   if (btnRegister) btnRegister.classList.toggle('hidden', logado);
-  if (btnSair) btnSair.classList.toggle('hidden', !logado);
+  if (btnPerfilAvatar) btnPerfilAvatar.classList.toggle('hidden', !logado);
+  if (linkSairDropdown) linkSairDropdown.classList.toggle('hidden', !logado);
+  
+  if (logado) {
+    carregarAvatarPerfil();
+  }
 }
 
 if (btnEntrar && modalLogin) {
@@ -545,9 +553,48 @@ if (btnSair) {
   });
 }
 
+if (linkSairDropdown) {
+  linkSairDropdown.addEventListener('click', (e) => {
+    e.preventDefault();
+    const confirmou = confirm('Você realmente deseja deslogar da sua conta?');
+    if (!confirmou) return;
+
+    localStorage.removeItem(CHAVE_SESSAO);
+    atualizarUIAutenticacao();
+    idsFavoritos.clear();
+    atualizarTodosCoracoes();
+    alert('Você foi deslogado.');
+  });
+}
+
+if (btnPerfilAvatar) {
+  btnPerfilAvatar.addEventListener('click', () => {
+    window.location.href = 'perfil.html';
+  });
+}
+
 // Estado inicial da navbar ao carregar a página
 atualizarUIAutenticacao();
 if (estaLogado()) carregarTemaDoBackend();
+
+// ============================================================
+// CARREGAR AVATAR DO PERFIL NA NAVBAR
+// ============================================================
+async function carregarAvatarPerfil() {
+  if (!estaLogado() || !perfilAvatarImg) return;
+  
+  try {
+    const resposta = await fetchComAutenticacao(`${API_BASE}/api/perfil`);
+    if (resposta.ok) {
+      const { perfil } = await resposta.json();
+      const urlAvatar = perfil.usuario?.avatar_url || '../assets/avatar-padrao.png';
+      perfilAvatarImg.src = urlAvatar;
+    }
+  } catch (erro) {
+    console.error('Erro ao carregar avatar do perfil:', erro);
+    perfilAvatarImg.src = '../assets/avatar-padrao.png';
+  }
+}
 
 // ============================================================
 // MODAL DE LOGIN — MELHORIAS (olho, links, toggle modais)
@@ -946,10 +993,16 @@ const playerPlayPause = document.getElementById('player-play-pause');
 const playerTempoAtual = document.getElementById('player-tempo-atual');
 const playerTempoTotal = document.getElementById('player-tempo-total');
 const playerSeek = document.getElementById('player-seek');
+const playerVolumeBtn = document.getElementById('player-volume-btn');
+const playerVolume = document.getElementById('player-volume');
 
 const elementoAudio = new Audio();
 let botaoAudioAtual = null;
 let arrastandoSeek = false;
+let volumeAntesMudo = 1;
+
+// Inicializa o volume do audio
+elementoAudio.volume = 1;
 
 function formatarTempo(segundosTotais) {
   if (!isFinite(segundosTotais) || segundosTotais < 0) return '0:00';
@@ -1116,6 +1169,75 @@ if (playerPlayPause) {
     }
   });
 }
+
+// --- Controle de Volume ---
+function atualizarIconeVolume() {
+  if (!playerVolumeBtn || !elementoAudio) return;
+  const vol = elementoAudio.volume;
+  const muted = elementoAudio.muted;
+  
+  if (muted || vol === 0) {
+    playerVolumeBtn.textContent = '🔇';
+    playerVolumeBtn.setAttribute('aria-label', 'Volume mutado');
+  } else if (vol < 0.3) {
+    playerVolumeBtn.textContent = '🔈';
+    playerVolumeBtn.setAttribute('aria-label', 'Volume baixo');
+  } else if (vol < 0.7) {
+    playerVolumeBtn.textContent = '🔉';
+    playerVolumeBtn.setAttribute('aria-label', 'Volume médio');
+  } else {
+    playerVolumeBtn.textContent = '🔊';
+    playerVolumeBtn.setAttribute('aria-label', 'Volume alto');
+  }
+}
+
+if (playerVolume) {
+  // Carrega volume salvo do localStorage
+  const volumeSalvo = localStorage.getItem('opensound_volume');
+  if (volumeSalvo !== null) {
+    const vol = parseFloat(volumeSalvo);
+    if (!isNaN(vol)) {
+      elementoAudio.volume = vol;
+      playerVolume.value = vol;
+    }
+  }
+  atualizarIconeVolume();
+
+  playerVolume.addEventListener('input', () => {
+    elementoAudio.volume = playerVolume.value;
+    elementoAudio.muted = false;
+    localStorage.setItem('opensound_volume', elementoAudio.volume);
+    atualizarIconeVolume();
+  });
+
+  playerVolume.addEventListener('change', () => {
+    localStorage.setItem('opensound_volume', elementoAudio.volume);
+  });
+}
+
+if (playerVolumeBtn) {
+  playerVolumeBtn.addEventListener('click', () => {
+    if (elementoAudio.muted) {
+      // Desmutar - restaurar volume anterior
+      elementoAudio.muted = false;
+      elementoAudio.volume = volumeAntesMudo > 0 ? volumeAntesMudo : 1;
+      playerVolume.value = elementoAudio.volume;
+    } else {
+      // Mutar - salvar volume atual e zerar
+      volumeAntesMudo = elementoAudio.volume;
+      elementoAudio.muted = true;
+      playerVolume.value = 0;
+    }
+    localStorage.setItem('opensound_volume', elementoAudio.volume);
+    atualizarIconeVolume();
+  });
+}
+
+// Sincroniza o slider se o volume for alterado programaticamente
+elementoAudio.addEventListener('volumechange', () => {
+  if (playerVolume) playerVolume.value = elementoAudio.volume;
+  atualizarIconeVolume();
+});
 
 // ============================================================
 // FAVORITOS + ADICIONAR À PLAYLIST
