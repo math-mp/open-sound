@@ -10,8 +10,26 @@
     <link rel="stylesheet" href="../css/root.css">
     <link rel="stylesheet" href="../css/theme.css">
     <link rel="stylesheet" href="../css/home.css">
+    <script src="../js/player.js" defer></script>
     <script src="../js/config.js" defer></script>
 </head>
+
+    <!-- Barra de player fixa no rodapé — compartilhada entre páginas via
+         player.js. Fica escondida até existir alguma música tocando ou
+         retomada do localStorage. -->
+    <div id="player-barra" class="player-barra hidden">
+        <img id="player-capa" class="player-capa" alt="Capa da música atual">
+        <div class="player-info">
+            <p id="player-titulo" class="player-titulo"></p>
+            <p id="player-artista" class="player-artista"></p>
+        </div>
+        <button id="player-play-pause" type="button">▶</button>
+        <span id="player-tempo-atual" class="player-tempo">0:00</span>
+        <input type="range" id="player-seek" class="player-seek" min="0" max="100" value="0" step="1">
+        <span id="player-tempo-total" class="player-tempo">0:00</span>
+        <button id="player-favoritar" type="button" class="btn-icone" aria-label="Favoritar">♡</button>
+        <button id="player-add-playlist" type="button" class="btn-icone" aria-label="Adicionar à playlist">＋</button>
+    </div>
 
 <body>
     <nav class="fixed-bar">
