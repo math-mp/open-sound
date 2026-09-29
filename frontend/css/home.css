@@ -407,80 +407,235 @@ body,
     min-width: 0;
 
     padding: 46px 18px 34px;
+
+    /* Permite que o conteúdo do ranking escale pela largura do painel
+       (unidade cqw), mantendo as proporções do mockup. */
+    container-type: inline-size;
 }
 
-/* Lista do ranking de artistas mais ouvidos. min-height pra o painel não
-   virar uma tira fina quando ainda tem pouca coisa dentro. */
+/* =========================================================
+   RANKING DE ARTISTAS
+   Tamanhos em cqw = % da largura do painel .artists,
+   então tudo escala junto (proporção do mockup).
+   ========================================================= */
+
 .lista-artistas {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: clamp(14px, 6cqw, 48px) clamp(8px, 3cqw, 24px);
+
   width: 100%;
-  min-height: 230px;
+  /* ~ mostra 2 cards grandes + um pedaço do 3º (como no mockup) */
+  height: clamp(380px, 100cqw, 860px);
+  padding-right: 8px;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  scrollbar-width: thin;
+  scrollbar-color: var(--aba-artistas) transparent;
 }
+
+.lista-artistas::-webkit-scrollbar {
+  width: 6px;
+}
+
+.lista-artistas::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.lista-artistas::-webkit-scrollbar-thumb {
+  background: var(--aba-artistas);
+  border-radius: 999px;
+}
+
+.lista-artistas::-webkit-scrollbar-thumb:hover {
+  background: var(--cor-secundaria);
+}
+
+.lista-artistas .mensagem-lista {
+  grid-column: 1 / -1;
+}
+
+/* ---------- Item grande (1º–3º) ---------- */
 
 .artista-item {
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
-  gap: 12px;
-
-  width: 100%;
-  padding: 8px 10px;
-
-  border-radius: var(--raio-pequeno);
+  gap: clamp(8px, 3cqw, 24px);
+  min-width: 0;
 }
 
-.artista-item:hover {
-  background: var(--cor-superficie);
+/* Bloco da posição, à esquerda */
+.artista-posicao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: clamp(48px, 16cqw, 130px);
+  aspect-ratio: 1;
+  flex-shrink: 0;
+
+  border-radius: clamp(10px, 3.5cqw, 28px);
+  background: var(--cor-superficie-clara);
+  color: var(--cor-texto);
+
+  font-size: clamp(1.4rem, 7.5cqw, 3.6rem);
+  font-weight: 800;
 }
 
-/* Avatar de iniciais: evita depender de imagem/arquivo externo (o projeto
-   ainda não tem uma pasta assets com foto de artista). */
+/* Card do artista */
+.artista-card {
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 3cqw, 26px);
+
+  flex: 1;
+  min-width: 0;
+  padding: clamp(10px, 3cqw, 26px);
+
+  border-radius: clamp(14px, 5cqw, 40px);
+  border-left: clamp(6px, 1.4cqw, 12px) solid var(--cor-secundaria);
+  background: var(--aba-artistas);
+  color: var(--texto-sobre-pastel);
+  box-shadow: var(--sombra-suave);
+
+  transition: transform var(--transicao-padrao), box-shadow var(--transicao-padrao);
+}
+
+.artista-item:hover .artista-card {
+  transform: translateY(-2px);
+}
+
+/* Avatar de iniciais (fallback mantido) */
 .artista-avatar {
   display: flex;
   align-items: center;
   justify-content: center;
 
-  width: 42px;
-  height: 42px;
+  width: clamp(56px, 22cqw, 180px);
+  aspect-ratio: 1;
   flex-shrink: 0;
 
-  border-radius: var(--raio-circular);
+  border-radius: clamp(10px, 4cqw, 32px);
+  background: var(--cor-superficie-clara);
+  color: var(--cor-texto);
 
-  background: var(--aba-artistas);
-  color: var(--texto-sobre-pastel);
-
-  font-size: 0.9rem;
+  font-size: clamp(1.1rem, 5.5cqw, 2.6rem);
   font-weight: 800;
 }
 
 .artista-info {
   display: flex;
   flex-direction: column;
+  gap: clamp(2px, 0.8cqw, 8px);
 
   min-width: 0;
   flex-grow: 1;
 }
 
 .artista-nome {
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: clamp(1rem, 5.2cqw, 2.6rem);
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--texto-sobre-pastel);
 
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
 }
 
+.artista-detalhe {
+  font-size: clamp(0.72rem, 2.4cqw, 1.1rem);
+  font-weight: 600;
+  color: var(--texto-sobre-pastel);
+  opacity: 0.75;
+}
+
+/* Pílula de reproduções: número grande + rótulo */
 .artista-reproducoes {
-  font-size: 0.78rem;
+  display: inline-flex;
+  flex-direction: column;
+  align-self: flex-start;
+
+  margin-top: clamp(2px, 1cqw, 10px);
+  padding: clamp(4px, 1.2cqw, 12px) clamp(10px, 3cqw, 26px);
+
+  border-radius: clamp(8px, 2.2cqw, 18px);
+  background: var(--aba-generos);
+  color: var(--texto-sobre-pastel);
 }
 
-/* Posição do artista no ranking (1, 2, 3...). */
-.artista-posicao {
-  min-width: 18px;
-  font-size: 0.85rem;
+.artista-reproducoes-valor {
+  font-size: clamp(1.1rem, 6cqw, 3rem);
   font-weight: 800;
-  text-align: right;
+  line-height: 1.05;
+}
+
+.artista-reproducoes-rotulo {
+  font-size: clamp(0.65rem, 2.1cqw, 1rem);
+  font-weight: 700;
+}
+
+/* ---------- Item compacto (4º e 5º), lado a lado ---------- */
+
+.artista-item--compacto {
+  grid-column: auto;
+  gap: clamp(4px, 1.5cqw, 12px);
+}
+
+.artista-item--compacto .artista-posicao {
+  width: clamp(30px, 10cqw, 80px);
+  border-radius: clamp(8px, 2.5cqw, 20px);
+  font-size: clamp(0.95rem, 4.2cqw, 2rem);
+}
+
+.artista-item--compacto .artista-card {
+  gap: clamp(6px, 1.6cqw, 14px);
+  padding: clamp(6px, 1.6cqw, 14px);
+  border-radius: clamp(10px, 3cqw, 24px);
+  border-left-width: clamp(4px, 0.8cqw, 8px);
+  box-shadow: none;
+}
+
+.artista-item--compacto .artista-avatar {
+  width: clamp(30px, 10cqw, 80px);
+  border-radius: clamp(8px, 2.2cqw, 18px);
+  font-size: clamp(0.75rem, 3cqw, 1.4rem);
+}
+
+.artista-item--compacto .artista-nome {
+  font-size: clamp(0.75rem, 3.2cqw, 1.4rem);
+}
+
+.artista-item--compacto .artista-detalhe,
+.artista-item--compacto .artista-reproducoes-rotulo {
+  display: none;
+}
+
+.artista-item--compacto .artista-reproducoes {
+  margin-top: 0;
+  padding: 0;
+  background: none;
+}
+
+.artista-item--compacto .artista-reproducoes::before {
+  content: "♫ ";
+}
+
+.artista-item--compacto .artista-reproducoes-valor {
+  font-size: clamp(0.8rem, 3.2cqw, 1.4rem);
+}
+
+/* Painel estreito: 4º e 5º passam a ocupar a linha inteira */
+@container (max-width: 420px) {
+  .artista-item--compacto {
+    grid-column: 1 / -1;
+  }
 }
 
 
@@ -1002,14 +1157,17 @@ body,
     display: flex;
 
     align-items: center;
+    justify-content: flex-end;
 
     gap: 0;
 
-    /* Largura dinâmica: cresce conforme as músicas anteriores reais vão
-       sendo renderizadas (até 3). É isso que faz a música em destaque
-       começar mais à esquerda e ir se deslocando pra direita conforme o
-       usuário avança, estabilizando quando o bloco atinge 3 itens. */
-    flex: 0 0 auto;
+    /* Largura FIXA (comporta as 3 anteriores no tamanho máximo: 95+80+98).
+       Isso é o que impede o destaque e a escadinha de próximas de ficarem
+       se deslocando pra direita conforme o usuário avança — a partir de
+       agora só o conteúdo dentro desse espaço muda, nunca a posição de
+       quem vem depois dele. */
+    flex: 0 0 273px;
+    width: 273px;
 
     overflow: visible;
 }
@@ -1123,7 +1281,7 @@ body,
 
     position: absolute;
 
-    left: 120px;
+    left: 45px;
     top: 50%;
 
     width: 170px;
@@ -2829,12 +2987,13 @@ body,
   height: 100%;
 }
 
-/* Botões sobre a capa (canto inferior esquerdo). Reaproveitam os mesmos
+/* Botão de adicionar à playlist, ancorado no canto superior direito da
+   CAPA (não do disco de vinil, que fica atrás). Reaproveita os mesmos
    keyframes do carrossel pra entrar/sair junto com a troca de música. */
 .msc-acoes-capa {
   position: absolute;
-  left: 8px;
-  bottom: 8px;
+  right: 8px;
+  top: 8px;
   z-index: 5;
 
   display: flex;
@@ -2845,6 +3004,54 @@ body,
 
 #lista-musicas.saindo .msc-acoes-capa {
   animation: mscSaidaInfo 0.14s ease forwards;
+}
+
+/* Linha com "Tocar" + favoritar, lado a lado. O favoritar usa a mesma
+   cor/formato do Tocar, só que compacto (só o ícone). */
+.msc-info-botoes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.msc-info-botoes .btn-favoritar-destaque {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 38px;
+  height: 38px;
+  padding: 0;
+
+  border: none;
+  border-radius: 50%;
+
+  font-size: 1rem;
+
+  background: var(--cor-primaria);
+  color: var(--texto-sobre-pastel);
+
+  cursor: pointer;
+
+  transition:
+    transform var(--transicao-rapida),
+    filter var(--transicao-rapida),
+    background-color 0.3s ease,
+    color 0.3s ease;
+}
+
+.msc-info-botoes .btn-favoritar-destaque:hover {
+  transform: scale(1.06);
+  filter: brightness(1.05);
+}
+
+.msc-info-botoes .btn-favoritar-destaque:active {
+  transform: scale(0.94);
+}
+
+.msc-info-botoes .btn-favoritar-destaque.ativo {
+  background: var(--cor-erro);
+  color: #fff8f3;
 }
 
 /* Lista de playlists dentro do modal "Adicionar à Playlist". */
