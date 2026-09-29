@@ -9,6 +9,14 @@ const bcrypt = require('bcrypt');
 const multer = require('multer');
 const crypto = require('crypto');
 const { supabase, SUPABASE_BUCKET, garantirBucket } = require('./storage');
+const {
+  tamanhoEmCaracteres,
+  detectarTipoImagem,
+  comTravaDoUsuario,
+  UsuarioInexistente,
+  removerArquivoDoStorage,
+  ehViolacaoDeChave
+} = require('./ajudantes');
 
 const app = express();
 app.use(cors());
@@ -80,7 +88,8 @@ app.post('/api/registro', limitarRegistroIP, async (req, res) => {
       });
     }
 
-    const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+    const codigo = crypto.randomInt(100000, 1000000).toString();
+    console.log(`codigo 2fa ${codigo}`);
     const senhaHash = await bcrypt.hash(password, 10);
     const codigoHash = await bcrypt.hash(codigo, 10);
     const idVerificacao = crypto.randomUUID();
@@ -680,10 +689,19 @@ app.post('/api/usuarios/artista', verificarAutenticacao, async (req, res) => {
 const LIMITE_BIO = 300;
 const LIMITE_CURTIDAS_PERFIL = 4;
 const EXTENSAO_POR_MIME = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+const TAMANHO_MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 
+// Sinaliza, dentro das transações, que uma das músicas enviadas para as
+// curtidas não existe. Vira 404 na rota em vez de 500.
+class MusicaInexistente extends Error {}
+
+// O filtro abaixo só checa o Content-Type declarado pelo cliente. A checagem
+// que decide de verdade é a detectarTipoImagem, feita no corpo da rota: aqui
+// o limite de tamanho é que precisa ser preservado exatamente como estava, e o
+// erro de tamanho específico fica para o tratador global devolver 413.
 const uploadAvatar = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB — é só um avatar
+  limits: { fileSize: TAMANHO_MAX_AVATAR_BYTES },
   fileFilter: (req, file, cb) => {
     if (!EXTENSAO_POR_MIME[file.mimetype]) {
       return cb(new Error('Formato de imagem não suportado. Use JPEG, PNG ou WEBP.'));
@@ -762,7 +780,7 @@ app.put('/api/usuarios/eu/bio', verificarAutenticacao, async (req, res) => {
   }
 
   const bioLimpa = bio.trim();
-  if (bioLimpa.length > LIMITE_BIO) {
+  if (tamanhoEmCaracteres(bioLimpa) > LIMITE_BIO) {
     return res.status(400).json({ status: 'erro', mensagem: `A biografia pode ter no máximo ${LIMITE_BIO} caracteres.` });
   }
 
@@ -777,21 +795,32 @@ app.put('/api/usuarios/eu/bio', verificarAutenticacao, async (req, res) => {
 
 // Troca o avatar: sobe a imagem nova pro Storage, atualiza o banco e só
 // então apaga a antiga (melhor-esforço, mesmo padrão das outras exclusões).
-app.post('/api/usuarios/eu/avatar', verificarAutenticacao, uploadAvatar.single('avatar'), async (req, res) => {
+app.post('/api/usuarios/eu/avatar', verificarAutenticacao, uploadAvatarComErroAmigavel, async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ status: 'erro', mensagem: 'Selecione uma imagem.' });
   }
 
+  // O Content-Type declarado pelo cliente não é prova de nada. Quem decide o
+  // formato é a assinatura real dos primeiros bytes; a extensão do arquivo
+  // também sai daqui, e não do que o navegador alegou.
+  const tipo = detectarTipoImagem(req.file.buffer);
+  if (!tipo) {
+    return res.status(400).json({ status: 'erro', mensagem: 'Formato de imagem não suportado. Use JPEG, PNG ou WEBP.' });
+  }
+
   try {
     const resultadoAnterior = await pool.query('SELECT url_avatar FROM usuarios WHERE id = $1', [req.usuario.id]);
-    const urlAnterior = resultadoAnterior.rows[0]?.url_avatar;
+    if (resultadoAnterior.rows.length === 0) {
+      return res.status(404).json({ status: 'erro', mensagem: 'Usuário não encontrado.' });
+    }
+    const urlAnterior = resultadoAnterior.rows[0].url_avatar;
 
     // Nome gerado pelo servidor (não usa originalname do cliente).
-    const caminhoAvatar = `avatares/${req.usuario.id}-${Date.now()}.${EXTENSAO_POR_MIME[req.file.mimetype]}`;
+    const caminhoAvatar = `avatares/${req.usuario.id}-${Date.now()}.${tipo.extensao}`;
 
     const { error: erroUpload } = await supabase.storage
       .from(SUPABASE_BUCKET)
-      .upload(caminhoAvatar, req.file.buffer, { contentType: req.file.mimetype });
+      .upload(caminhoAvatar, req.file.buffer, { contentType: tipo.mime });
 
     if (erroUpload) {
       console.error('Erro ao subir avatar pro Supabase Storage:', erroUpload);
@@ -801,19 +830,70 @@ app.post('/api/usuarios/eu/avatar', verificarAutenticacao, uploadAvatar.single('
     const { data } = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(caminhoAvatar);
     const urlNova = data.publicUrl;
 
-    await pool.query('UPDATE usuarios SET url_avatar = $1 WHERE id = $2', [urlNova, req.usuario.id]);
-
-    const caminhoAnterior = extrairCaminhoStorage(urlAnterior);
-    if (caminhoAnterior) {
-      const { error: erroRemocao } = await supabase.storage.from(SUPABASE_BUCKET).remove([caminhoAnterior]);
-      if (erroRemocao) {
-        console.error('Erro ao apagar avatar antigo do Storage (troca segue mesmo assim):', erroRemocao);
-      }
+    try {
+      await pool.query('UPDATE usuarios SET url_avatar = $1 WHERE id = $2', [urlNova, req.usuario.id]);
+    } catch (erroBanco) {
+      // A imagem subiu, mas o banco não registrou. Sem isto sobraria um
+      // arquivo órfão no bucket que ninguém mais vai referenciar. O avatar
+      // antigo continua intacto, porque a coluna nunca foi sobrescrita.
+      await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, urlNova);
+      throw erroBanco;
     }
+
+    // Só agora que a nova está confirmada no banco é seguro descartar a
+    // antiga. Falhar aqui é o melhor-esforço: a troca já valeu.
+    await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, urlAnterior);
 
     return res.status(200).json({ status: 'sucesso', url_avatar: urlNova });
   } catch (erro) {
     console.error('Erro ao salvar avatar:', erro);
+    return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
+  }
+});
+
+// O Multer interrompe o stream e solta o erro antes do body ser lido. Esta
+// camada traduz o "passou do tamanho" para 413 com o limite exato desta rota
+// (o erro do Multer não carrega esse número, e a mensagem precisa ser útil).
+// Sem ela, um 2MB e um 25MB dariam a mesma resposta genérica.
+function uploadAvatarComErroAmigavel(req, res, next) {
+  uploadAvatar.single('avatar')(req, res, (erro) => {
+    if (!erro) return next();
+    if (erro instanceof multer.MulterError && erro.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({
+        status: 'erro',
+        mensagem: `A imagem passa do limite de ${TAMANHO_MAX_AVATAR_BYTES / (1024 * 1024)} MB. Escolha uma menor.`
+      });
+    }
+    if (erro instanceof multer.MulterError || erro.message?.includes('suportado')) {
+      return res.status(400).json({ status: 'erro', mensagem: erro.message });
+    }
+    next(erro);
+  });
+}
+
+// Remove o avatar do perfil: apaga o arquivo do Storage e devolve a coluna
+// url_avatar para NULL. A mesma verificação de bytes não se aplica aqui (não
+// entra arquivo novo), mas o usuário continua vindo sempre do token.
+app.delete('/api/usuarios/eu/avatar', verificarAutenticacao, async (req, res) => {
+  try {
+    const resultado = await pool.query('SELECT url_avatar FROM usuarios WHERE id = $1', [req.usuario.id]);
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ status: 'erro', mensagem: 'Usuário não encontrado.' });
+    }
+
+    const urlAnterior = resultado.rows[0].url_avatar;
+    // O banco é a fonte da verdade: zerar a coluna primeiro garante que,
+    // mesmo que a remoção do arquivo falhe, o perfil não continue apontando
+    // para uma imagem que o usuário pediu para tirar.
+    await pool.query('UPDATE usuarios SET url_avatar = NULL WHERE id = $1', [req.usuario.id]);
+
+    // Arquivo já ausente no Storage é o caso normal de quem nunca trocou o
+    // avatar duas vezes: removerArquivoDoStorage devolve false sem quebrar.
+    await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, urlAnterior);
+
+    return res.status(200).json({ status: 'sucesso', url_avatar: null });
+  } catch (erro) {
+    console.error('Erro ao remover avatar:', erro);
     return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
   }
 });
@@ -839,6 +919,13 @@ app.put('/api/usuarios/eu/favorita', verificarAutenticacao, async (req, res) => 
     await pool.query('UPDATE usuarios SET musica_favorita_id = $1 WHERE id = $2', [idMusica, req.usuario.id]);
     return res.status(200).json({ status: 'sucesso', musicaId: idMusica });
   } catch (erro) {
+    // A música pode ter sido apagada entre o SELECT e o UPDATE. A coluna é
+    // REFERENCES musicas(id), então o banco recusa o UPDATE com 23503; sem
+    // isto a usuário receberia 500 por causa de algo que é, na verdade,
+    // "essa música não existe mais".
+    if (ehViolacaoDeChave(erro, ['23503'])) {
+      return res.status(404).json({ status: 'erro', mensagem: 'Música não encontrada.' });
+    }
     console.error('Erro ao salvar música favorita:', erro);
     return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
   }
@@ -861,33 +948,52 @@ app.put('/api/usuarios/eu/curtidas', verificarAutenticacao, async (req, res) => 
     return res.status(400).json({ status: 'erro', mensagem: `Você pode escolher no máximo ${LIMITE_CURTIDAS_PERFIL} músicas curtidas.` });
   }
 
-  const client = await pool.connect();
-
   try {
-    if (ids.length > 0) {
-      const existentes = await client.query('SELECT id FROM musicas WHERE id = ANY($1::int[])', [ids]);
-      if (existentes.rows.length !== ids.length) {
-        return res.status(404).json({ status: 'erro', mensagem: 'Alguma das músicas não existe mais.' });
+    // A trava de linha (comTravaDoUsuario) serializa requisições do MESMO
+    // usuário. Sem ela, dois "salvar" simultâneos faziam DELETE e depois
+    // reinseriam por cima um do outro: ou violavam o UNIQUE(usuario_id,
+    // musica_id) e devolviam 500, ou gravavam uma lista misturada das duas.
+    // Usuários diferentes continuam rodando em paralelo.
+    const gravadas = await comTravaDoUsuario(pool, req.usuario.id, async (client) => {
+      if (ids.length > 0) {
+        const existentes = await client.query('SELECT id FROM musicas WHERE id = ANY($1::int[])', [ids]);
+        if (existentes.rows.length !== ids.length) {
+          throw new MusicaInexistente();
+        }
       }
-    }
 
-    await client.query('BEGIN');
-    await client.query('DELETE FROM perfil_curtidas WHERE usuario_id = $1', [req.usuario.id]);
-    for (let i = 0; i < ids.length; i++) {
-      await client.query(
-        'INSERT INTO perfil_curtidas (usuario_id, musica_id, posicao) VALUES ($1, $2, $3)',
-        [req.usuario.id, ids[i], i + 1]
+      // "Tudo ou nada": a transação aberta em comTravaDoUsuario garante que
+      // uma falha no meio não deixe metade da lista antiga e metade da nova.
+      await client.query('DELETE FROM perfil_curtidas WHERE usuario_id = $1', [req.usuario.id]);
+
+      for (let i = 0; i < ids.length; i++) {
+        await client.query(
+          'INSERT INTO perfil_curtidas (usuario_id, musica_id, posicao) VALUES ($1, $2, $3)',
+          [req.usuario.id, ids[i], i + 1]
+        );
+      }
+
+      const leitura = await client.query(
+        `SELECT m.id, m.titulo, m.artista, m.url_audio, m.url_capa
+         FROM perfil_curtidas pc
+         JOIN musicas m ON m.id = pc.musica_id
+         WHERE pc.usuario_id = $1
+         ORDER BY pc.posicao ASC`,
+        [req.usuario.id]
       );
-    }
-    await client.query('COMMIT');
+      return leitura.rows;
+    });
 
-    return res.status(200).json({ status: 'sucesso', musicaIds: ids });
+    return res.status(200).json({ status: 'sucesso', musicaIds: ids, curtidas: gravadas });
   } catch (erro) {
-    await client.query('ROLLBACK').catch(() => {});
+    if (erro instanceof UsuarioInexistente) {
+      return res.status(404).json({ status: 'erro', mensagem: 'Usuário não encontrado.' });
+    }
+    if (erro instanceof MusicaInexistente || ehViolacaoDeChave(erro, ['23503', '23505'])) {
+      return res.status(404).json({ status: 'erro', mensagem: 'Alguma das músicas não existe mais.' });
+    }
     console.error('Erro ao salvar curtidas do perfil:', erro);
     return res.status(500).json({ status: 'erro', mensagem: 'Erro interno no servidor.' });
-  } finally {
-    client.release();
   }
 });
 
@@ -1628,20 +1734,29 @@ app.delete('/api/playlists/:id', verificarAutenticacao, async (req, res) => {
   }
 
   try {
-    const resultado = await pool.query('SELECT * FROM playlists WHERE id = $1', [idPlaylist]);
-    const playlist = resultado.rows[0];
+    // "AND usuario_id" na própria cláusula do DELETE: só o dono apaga, e a
+    // resposta para "não existe" e "é de outra pessoa" é a mesma (404).
+    // Antes, um 403 para playlist de outro usuário confirmava que aquele ID
+    // existia, o que permite sondar IDs alheios.
+    const resultado = await pool.query(
+      'DELETE FROM playlists WHERE id = $1 AND usuario_id = $2 AND eh_favoritos = FALSE RETURNING id',
+      [idPlaylist, req.usuario.id]
+    );
 
-    if (!playlist) {
+    if (resultado.rows.length === 0) {
+      // Ainda pode ser a de Favoritos do próprio usuário — a única distinção
+      // que pode ser revelada sem vazar nada, porque a busca também é
+      // filtrada por usuario_id.
+      const propria = await pool.query(
+        'SELECT eh_favoritos FROM playlists WHERE id = $1 AND usuario_id = $2',
+        [idPlaylist, req.usuario.id]
+      );
+
+      if (propria.rows[0] && propria.rows[0].eh_favoritos) {
+        return res.status(400).json({ status: 'erro', mensagem: 'A playlist de Favoritos não pode ser excluída.' });
+      }
       return res.status(404).json({ status: 'erro', mensagem: 'Playlist não encontrada.' });
     }
-    if (playlist.usuario_id !== req.usuario.id) {
-      return res.status(403).json({ status: 'erro', mensagem: 'Você não tem acesso a esta playlist.' });
-    }
-    if (playlist.eh_favoritos) {
-      return res.status(400).json({ status: 'erro', mensagem: 'A playlist de Favoritos não pode ser excluída.' });
-    }
-
-    await pool.query('DELETE FROM playlists WHERE id = $1', [idPlaylist]);
     return res.status(200).json({ status: 'sucesso', mensagem: 'Playlist excluída.' });
   } catch (erro) {
     console.error('Erro ao excluir playlist:', erro);
@@ -1784,6 +1899,17 @@ app.get('/api/musicas/favoritos/ids', verificarAutenticacao, async (req, res) =>
 });
 
 app.use((erro, req, res, next) => {
+  // Arquivo acima do limite do Multer é 413 (Payload Too Large), não um 400
+  // genérico: o pedido é sintaticamente válido, o corpo é que não cabe. As
+  // rotas com limite próprio (avatar, capa de playlist) já traduzem antes
+  // com a mensagem exata; aqui fica o resto dos uploads, sem número, porque
+  // o MulterError não carrega o limite que foi estourado.
+  if (erro instanceof multer.MulterError && erro.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({
+      status: 'erro',
+      mensagem: 'O arquivo enviado é grande demais. Escolha um arquivo menor.'
+    });
+  }
   if (erro instanceof multer.MulterError || erro.message?.includes('suportado')) {
     return res.status(400).json({ status: 'erro', mensagem: erro.message });
   }

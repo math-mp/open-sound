@@ -202,8 +202,40 @@ const criarTabelas = async () => {
     console.log('Coluna "musicas.reproducoes" verificada/criada com sucesso no PostgreSQL.');
     console.log('Coluna "recuperacoes_senha.verificado" verificada/criada com sucesso no PostgreSQL.');
   } catch (erro) {
-    console.error('Erro ao criar tabelas no PostgreSQL:', erro);
+    // Propaga para o criarTabelasComRetry decidir se vale repetir.
+    throw erro;
   }
 };
 
-criarTabelas();
+const esperar = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Códigos do Postgres que valem a pena repetir:
+//   42P01 -> relação não existe (a tabela base ainda não existe nesta execução)
+//   40001 / 40P01 -> serialização / deadlock, resolvidos repetindo
+const ERROS_REPETIVEIS = ['42P01', '40001', '40P01'];
+
+// A criação das tabelas é disparada no require deste arquivo, ou seja, em
+// paralelo com o resto do boot do server.js. Uma falha única deixava o banco
+// permanentemente sem tabelas: o processo seguia vivo, imprimia o erro no
+// console e nunca mais tentava — a primeira rota a tocar numa tabela faltante
+// estourava 42P01 para sempre. Repetir resolve a corrida de inicialização e
+// também absorve um banco recém-criado cujo schema ainda está subindo.
+const criarTabelasComRetry = async ({ tentativas = 10, intervaloMs = 1000 } = {}) => {
+  for (let tentativa = 1; tentativa <= tentativas; tentativa++) {
+    try {
+      await criarTabelas();
+      return true;
+    } catch (erro) {
+      const repetivel = erro && ERROS_REPETIVEIS.includes(erro.code);
+      if (!repetivel || tentativa === tentativas) {
+        console.error('Erro ao criar tabelas no PostgreSQL:', erro);
+        return false;
+      }
+      console.warn(`Banco ainda não pronto (${erro.code}). Tentativa ${tentativa}/${tentativas} — repetindo em ${intervaloMs}ms.`);
+      await esperar(intervaloMs);
+    }
+  }
+  return false;
+};
+
+criarTabelasComRetry();
