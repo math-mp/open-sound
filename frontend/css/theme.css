@@ -713,3 +713,31 @@
 .item-playlist-estado {
     color: var(--cor-sucesso);
 }
+/* -----------------------------------------------------
+   GRADE DE CARDS (Biblioteca, Playlist, Minhas Músicas)
+   ----------------------------------------------------- */
+
+.card-playlist,
+.card-musica {
+    background: var(--card-fundo);
+    box-shadow: var(--sombra-suave);
+}
+
+.card-playlist:hover,
+.card-musica:hover {
+    background: var(--card-fundo-hover);
+    box-shadow: var(--sombra-media);
+}
+
+.capa-musica.capa-vazia {
+    background: var(--cor-superficie-clara);
+    color: var(--cor-texto-fraco);
+}
+
+.titulo-musica {
+    color: var(--card-texto);
+}
+
+.artista-musica {
+    color: var(--cor-texto-secundario);
+}

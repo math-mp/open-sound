@@ -2707,3 +2707,73 @@ body,
   font-size: 0.75rem;
   font-weight: 700;
 }
+/*===================================================
+  GRADE DE CARDS (Biblioteca, Playlist, Minhas Músicas)
+  Reintroduz .card-musica/.capa-musica/.info-musica/.titulo-musica/
+  .artista-musica, que sumiram do CSS na reforma pro carrossel — a página
+  "Minhas Músicas" já usava essas classes e ficava sem estilo.
+====================================================*/
+.grade-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 18px;
+  width: 100%;
+  min-height: 120px;
+}
+
+.card-playlist,
+.card-musica {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--raio-medio);
+  overflow: hidden;
+  transition:
+    transform var(--transicao-rapida),
+    background-color 0.3s ease,
+    box-shadow var(--transicao-rapida);
+}
+
+.card-playlist {
+  cursor: pointer;
+}
+
+.card-musica {
+  cursor: default; /* não navega — só mostra info + ações (excluir/remover) */
+}
+
+.card-playlist:hover,
+.card-musica:hover {
+  transform: translateY(-4px);
+}
+
+.capa-musica {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+}
+
+.capa-musica.capa-vazia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem;
+}
+
+.info-musica {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.titulo-musica {
+  font-weight: 700;
+  font-size: 0.92rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artista-musica {
+  font-size: 0.78rem;
+}

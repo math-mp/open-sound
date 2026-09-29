@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minha Biblioteca — openSound</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/root.css">
+    <link rel="stylesheet" href="../css/theme.css">
+    <link rel="stylesheet" href="../css/home.css">
+    <script src="../js/biblioteca.js" defer></script>
+</head>
+
+<body>
+    <nav class="fixed-bar">
+        <div class="nav-left">
+            <a href="home.html" class="btn-navbar" id="link-voltar">← Voltar</a>
+        </div>
+        <div class="nav-center">
+            <span class="titulo-navbar-config">Minha Biblioteca</span>
+        </div>
+        <div class="nav-right">
+            <button class="btn-navbar" id="btn-nova-playlist">+ Nova Playlist</button>
+        </div>
+    </nav>
+
+    <div class="main-ctt-biblioteca">
+        <div class="secao-musicas">
+            <h2 class="secao-titulo aba-biblioteca">Minhas Playlists</h2>
+            <div id="grade-playlists" class="grade-cards">
+                <p class="mensagem-lista">Carregando...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal/Popup de Nova Playlist -->
+    <div id="modal-nova-playlist" class="modal hidden">
+    <div class="conteudo-modal">
+        <button id="btn-fechar-nova-playlist" class="btn-fechar" aria-label="Fechar">×</button>
+
+        <div class="etapa">
+        <h2>Nova Playlist</h2>
+        <form id="form-nova-playlist">
+            <input type="text" id="playlist-nome" placeholder="Nome da playlist" maxlength="255" required>
+
+            <label class="campo-arquivo">
+                Capa (opcional)
+                <input type="file" id="playlist-capa" accept="image/jpeg,image/png,image/webp">
+            </label>
+
+            <button type="submit">Criar</button>
+        </form>
+        </div>
+    </div>
+    </div>
+
+</body>
+</html>
