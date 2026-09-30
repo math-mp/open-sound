@@ -1,0 +1,1612 @@
+/* --- CONFIGURAÇÕES GLOBAIS DE CORES DO TEMA --- */
+:root {
+
+  /* CORES DA PAGINA DE PERFIL */
+  --retro-accent: #ff6ec7; /* Rosa Neon de Destaque */
+  --retro-bars: #221936;   /* Roxo Escuro de Fundo das Barras */
+  
+  /* CORES DA JANELA DE CONFIGURAÇÃO */
+  --config-accent: #ff6ec7; 
+  --config-bars: #221936;   
+}
+
+/* --- ESTILO GERAL DO PERFIL (VAPORWAVE MODERN DARK) --- */
+body {
+margin: 0;
+padding: 0;
+background-color: #0a0612;
+
+/* FUNDO QUADRICULADO (GRID) */
+background-image:
+linear-gradient(rgba(255, 110, 199, 0.04) 1px, transparent 1px),
+linear-gradient(90deg, rgba(255, 110, 199, 0.04) 1px, transparent 1px);
+background-size: 40px 40px;
+background-attachment: fixed;
+background-position: center;
+
+display: flex;
+justify-content: center;
+align-items: center;
+min-height: 100vh;
+
+font-family: Arial, sans-serif;
+color: #e8d5f5;
+overflow-x: hidden;
+}
+
+/* --- GRID FLEX PARA ALINHAR AS DUAS JANELAS RETRÔ --- */
+.main-layout-flex {
+display: flex;
+align-items: flex-start;
+gap: 32px;
+justify-content: center;
+padding: 80px 40px;
+flex-wrap: wrap; /* Permite empilhar em telas menores */
+max-width: 1200px;
+width: 100%;
+}
+
+/* --- BOTÃO HAMBÚRGUER --- */
+.hamburger-menu {
+position: fixed;
+top: 15px;
+left: 15px;
+background: #120a1e;
+border: 1px solid #4dc9ff;
+color: #e8d5f5;
+font-size: 16px;
+padding: 6px 12px;
+cursor: pointer;
+border-radius: 4px;
+z-index: 1000;
+box-shadow: 2px 2px 0px #000;
+font-family: var(--pixel-font), monospace;
+transition: all 0.2s;
+}
+
+.hamburger-menu:hover {
+background: #ff6ec730;
+border-color: #ffff10;
+}
+
+/* --- BARRA LATERAL DIAGONAL BRAWL --- */
+.brawl-sidebar {
+position: fixed;
+top: 0;
+left: 0;
+width: 175px;
+height: calc(100vh - 44px);
+background: rgba(10, 6, 18, 0.96);
+border-right: 3px solid #ff6ec7;
+padding: 90px 12px 20px 18px;
+display: flex;
+flex-direction: column;
+gap: 15px;
+z-index: 150;
+backdrop-filter: blur(8px);
+box-sizing: border-box;
+
+opacity: 0;
+visibility: hidden;
+transform: translateX(-105%) skewX(-3.5deg) translateZ(0);
+transform-origin: left center;
+will-change: transform, opacity;
+transition: transform 0.35s cubic-bezier(0.33, 1, 0.68, 1),
+opacity 0.25s ease,
+visibility 0.35s;
+}
+
+.brawl-sidebar.open {
+opacity: 1;
+visibility: visible;
+transform: translateX(0) skewX(-3.5deg) translateZ(0);
+}
+
+.brawl-btn {
+position: relative;
+margin-top: 12px;
+border: 2px solid #000;
+padding: 8px 10px;
+width: 135px;
+cursor: pointer;
+background: #120a1e;
+display: flex;
+align-items: center;
+border-radius: 0px 4px 4px 4px;
+box-sizing: border-box;
+box-shadow: 3px 3px 0px #000;
+
+transform: skewX(3.5deg) translateX(-20px) translateZ(0);
+opacity: 0;
+will-change: transform, opacity;
+transition: transform 0.4s cubic-bezier(0.33, 1, 0.68, 1),
+opacity 0.3s ease,
+background 0.1s ease,
+box-shadow 0.1s ease;
+}
+
+.brawl-sidebar.open .brawl-btn {
+opacity: 1;
+transform: skewX(3.5deg) translateX(0) translateZ(0);
+}
+
+.brawl-sidebar .brawl-btn:nth-child(1) { transition-delay: 0.05s; }
+.brawl-sidebar .brawl-btn:nth-child(2) { transition-delay: 0.10s; }
+.brawl-sidebar .brawl-btn:nth-child(3) { transition-delay: 0.15s; }
+.brawl-sidebar .brawl-btn:nth-child(4) { transition-delay: 0.20s; }
+
+.brawl-sidebar:not(.open) .brawl-btn {
+transition-delay: 0s;
+transform: skewX(3.5deg) translateX(-30px);
+}
+
+.brawl-sidebar.open .brawl-btn:active,
+.brawl-sidebar.open .brawl-btn.active {
+transform: skewX(3.5deg) translate(2px, 2px) !important;
+box-shadow: 1px 1px 0px #000;
+}
+.brawl-btn::before {
+content: "";
+position: absolute;
+top: -11px; left: -2px;
+
+height: 9px; width: 40px;
+background: #120a1e;
+border: 2px solid #000;
+border-bottom: none;
+border-radius: 4px 8px 0px 0px;
+}
+.brawl-btn-content {
+display: block;
+font-family: var(--pixel-font), monospace;
+font-size: 7px;
+color: #e8d5f5;
+text-shadow: 1px 1px 0 #000;
+font-weight: bold;
+white-space: nowrap;
+}
+.brawl-btn:hover, .brawl-btn:hover::before { background: #1e0f35; }
+.btn-pink { border-color: #ff6ec7; } .btn-pink::before { border-color: #ff6ec7; }
+.btn-blue { border-color: #4dc9ff; } .btn-blue::before { border-color: #4dc9ff; }
+.btn-purple { border-color: #b87fff; } .btn-purple::before { border-color: #b87fff; }
+.btn-mint { border-color: #00f5d4; } .btn-mint::before { border-color: #00f5d4; }
+
+/* --- JANELA DO PERFIL (PERFIL.EXE) --- */
+.profile-container {
+width: 100%;
+max-width: 340px;
+background: transparent;
+display: flex;
+flex-direction: column;
+}
+
+/* ORELHINHA DA ABA */
+.profile-tab-row{
+    display:flex;
+
+    justify-content:flex-start;
+
+    align-items:flex-end;
+
+    width:100%;
+
+    padding:0;
+
+    margin:0;
+
+    flex:none;
+}
+.profile-tab {
+background: var(--retro-accent);
+color: #0a0612;
+font-family: 'Press Start 2P', monospace;
+font-size: 9px;
+padding: 6px 14px;
+border-radius: 0 8px 0 0;
+border-bottom: 2px solid #13101c;
+margin-bottom: 0;
+z-index: 2;
+transition: background 0.2s ease, filter 0.2s ease;
+
+display: inline-flex;
+align-items: center;
+position: relative;
+cursor: pointer;
+padding-right: 26px;
+}
+
+.edit-hint-icon-tab {
+position: absolute;
+right: 8px;
+top: 50%;
+transform: translateY(-50%);
+font-size: 10px;
+opacity: 0;
+pointer-events: none;
+transition: opacity 0.15s ease;
+}
+
+.profile-tab:hover .edit-hint-icon-tab {
+opacity: 0.7;
+}
+
+#profile-tab-title {
+outline: none;
+display: inline-block;
+min-width: 60px;
+min-height: 10px;
+}
+
+/* CONTADOR DE CARACTERES */
+.char-counter {
+position: absolute;
+bottom: 4px;
+right: 8px;
+font-size: 10px;
+color: rgba(255, 255, 255, 0.3);
+font-family: Arial, sans-serif;
+opacity: 0;
+transition: opacity 0.15s ease;
+pointer-events: none;
+z-index: 10;
+}
+
+.editable-container:hover .char-counter,
+.editable-container:focus-within .char-counter{
+
+    opacity:1;
+
+}
+
+.editable-container [contenteditable="true"]:focus {
+  outline: none;
+  background-color: transparent;
+  box-shadow: none;
+  cursor: text;
+}
+
+.editable-container:focus-within {
+  background-color: rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 0 2px var(--retro-accent);
+}
+
+/* CAIXA MÃE DO PERFIL */
+.profile-window-body {
+position: relative;
+background: #13101c;
+border-radius: 0 16px 16px 16px;
+overflow: hidden;
+box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+
+/* SOPORE DE ANIMAÇÕES COBRE-TUDO DO PERFIL */
+.profile-effect-overlay {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+pointer-events: none;
+z-index: 5;
+opacity: 0.35;
+mix-blend-mode: screen;
+}
+
+/* ANIMAÇÃO 1: MATRIX CHUVA */
+.profile-effect-overlay.chuva-matrix {
+background: linear-gradient(rgba(0, 255, 70, 0.15) 50%, transparent 50%),
+linear-gradient(90deg, rgba(0, 255, 70, 0.08) 1px, transparent 1px);
+background-size: 100% 12px, 16px 100%;
+animation: matrixAnimate 15s linear infinite;
+}
+
+@keyframes matrixAnimate {
+from { background-position: 0 0; }
+to { background-position: 0 100%; }
+}
+
+/* ANIMAÇÃO 2: SAKURA LEAVES (Fallback visual usando gradiente radial brilhante animado) */
+.profile-effect-overlay.folhas-sakura {
+background-image: radial-gradient(circle at 20% 30%, rgba(255, 182, 193, 0.4) 0%, transparent 40%),
+radial-gradient(circle at 80% 70%, rgba(255, 105, 180, 0.3) 0%, transparent 50%);
+animation: sakuraMove 8s ease infinite alternate;
+}
+
+@keyframes sakuraMove {
+0% { transform: translate(0, 0) scale(1); }
+100% { transform: translate(10px, 15px) scale(1.1); }
+}
+
+/* ANIMAÇÃO 3: FOGO NEON CYBER */
+.profile-effect-overlay.fogo-neon {
+background-image: linear-gradient(0deg, rgba(255, 0, 128, 0.2) 0%, transparent 60%);
+animation: fireGlow 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes fireGlow {
+0% { opacity: 0.2; }
+100% { opacity: 0.5; }
+}
+
+/* BARRA SUPERIOR ESCURA */
+.profile-dark-bar {
+background: var(--retro-bars);
+height: 34px;
+display: flex;
+justify-content: flex-end;
+align-items: center;
+padding: 0 16px;
+transition: background 0.2s ease;
+}
+
+.profile-controls {
+display: flex;
+align-items: center;
+gap: 8px;
+}
+
+.color-picker-wrapper {
+position: relative;
+cursor: pointer;
+display: flex;
+align-items: center;
+justify-content: center;
+width: 24px;
+height: 24px;
+margin-right: 4px;
+font-size: 16px;
+transition: transform 0.1s ease;
+}
+
+.color-picker-wrapper:hover {
+transform: scale(1.2);
+}
+
+.color-picker-wrapper input[type="color"] {
+position: absolute;
+opacity: 0;
+width: 100%;
+height: 100%;
+cursor: pointer;
+}
+
+.tab-btn {
+background: rgba(255, 255, 255, 0.08);
+color: #fff;
+border: none;
+font-family: 'Press Start 2P', monospace;
+font-size: 9px;
+width: 22px;
+height: 22px;
+display: flex;
+justify-content: center;
+align-items: center;
+cursor: pointer;
+border-radius: 4px;
+}
+
+/* BANNER DE FUNDO */
+.profile-banner {
+width: 100%;
+height: 120px;
+min-height: 120px;
+display: block !important;
+position: relative;
+background: linear-gradient(135deg, #1f0837 0%, #4a0e4e 50%, #0d041a 100%);
+background-size: cover;
+background-position: center;
+transition: background 0.3s ease;
+}
+
+/* EFEITO DE SCANLINES (ATIVADO VIA CHECKBOX) */
+.profile-banner.has-lines::before {
+content: "";
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background: linear-gradient(rgba(255, 110, 199, 0.15) 2px, transparent 2px);
+background-size: 100% 6px;
+pointer-events: none;
+z-index: 1;
+}
+
+/* =========================================
+   OVERLAYS DE EDIÇÃO (ESTILO DISCORD)
+========================================= */
+
+/* Lápis no canto superior direito do Banner */
+.banner-edit-overlay {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  opacity: 0; /* Escondido por padrão */
+  transition: opacity 0.2s ease;
+  cursor: pointer;
+  z-index: 10;
+}
+
+/* Camada escura sobre o Avatar */
+.avatar-edit-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%; /* Mantém redondo igual o avatar */
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  opacity: 0; /* Escondido por padrão */
+  transition: opacity 0.2s ease;
+  cursor: pointer;
+  z-index: 10;
+}
+
+/* Faz os overlays aparecerem ao passar o mouse */
+.profile-banner:hover .banner-edit-overlay {
+  opacity: 1;
+}
+
+.profile-avatar-wrapper:hover .avatar-edit-overlay {
+  opacity: 1;
+}
+
+/* FOTO DE PERFIL E BORDAS CUSTOMIZÁVEIS */
+.avatar-holder {
+position: relative;
+width: 92px;
+height: 92px;
+min-width: 92px;
+border-radius: 50%;
+background: #13101c;
+padding: 6px;
+box-sizing: border-box;
+z-index: 6; /* Acima do overlay de efeitos */
+transition: all 0.25s ease;
+}
+
+.avatar-holder img {
+width: 100%;
+height: 100%;
+border-radius: 50%;
+object-fit: cover;
+transition: border-radius 0.25s ease;
+}
+
+/* --- BORDAS SELECIONADAS NA JANELA DE CONFIGURAÇÃO --- */
+.avatar-holder.neon-cyber {
+border: 3px solid #00f5d4;
+box-shadow: 0 0 15px #00f5d4, inset 0 0 8px #00f5d4;
+}
+
+.avatar-holder.pixel-retro {
+border: 4px double #ffff10;
+border-radius: 12px;
+background: #252131;
+}
+.avatar-holder.pixel-retro img {
+border-radius: 8px;
+}
+
+.avatar-holder.glitch {
+border: 3px solid #ff6ec7;
+animation: glitch-border 0.8s steps(2) infinite;
+}
+
+@keyframes glitch-border {
+0% { border-color: #ff6ec7; box-shadow: -3px 0 #00ffff; }
+50% { border-color: #00ffff; box-shadow: 3px 0 #ff6ec7; }
+100% { border-color: #ffff10; box-shadow: -2px 2px #ff00ff; }
+}
+
+/*==========================================
+    AVATAR + ATIVIDADE
+==========================================*/
+
+.avatar-section{
+
+    position:absolute;
+
+    top:102px;
+
+    left:16px;
+
+    right:16px;
+
+    display:flex;
+
+    align-items:flex-start;
+
+    gap:18px;
+
+    z-index:8;
+
+}
+
+/* TEXTOS INTERNOS DO PERFIL */
+.profile-body {
+padding: 16px;
+background: #13101c;
+}
+
+.user-info-text {
+display: flex;
+flex-direction: column;
+gap: 12px;
+margin-top: 36px;
+}
+
+.user-info-text h1 {
+font-size: 18px;
+color: #f2f3f5;
+margin: 0;
+font-weight: bold;
+word-break: break-word;
+overflow-wrap: break-word;
+transition: font-family 0.2s ease;
+}
+
+.user-bio-box {
+background: #1e182e;
+border-radius: 8px;
+padding: 12px;
+}
+
+.user-bio-box p {
+margin: 0;
+font-size: 14px;
+color: #dbdee1;
+line-height: 1.4;
+white-space: pre-wrap;
+}
+
+/* BASE INFERIOR */
+.profile-base {
+height: 20px;
+background: var(--retro-bars);
+width: 100%;
+transition: background 0.2s ease;
+}
+
+/* CAMPO EDITÁVEL DA BIO E NICK */
+.editable-container {
+position: relative;
+border-radius: 6px;
+transition: background-color 0.15s ease, box-shadow 0.15s ease;
+cursor: pointer;
+padding: 4px 8px 18px 8px;
+margin-left: -8px;
+}
+
+.editable-container:hover {
+background-color: rgba(255, 255, 255, 0.05);
+box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+ 
+/* 2. FOCUS: Ao clicar no texto - A borda "grudadinha" some! */
+.editable-container [contenteditable="true"]:focus {
+  outline: none;
+  background-color: transparent !important; /* Mata o fundo do hover */
+  box-shadow: none !important; /* Mata a borda do hover */
+  cursor: text;
+}
+
+/* 3. FOCUS-WITHIN: Ao clicar - O container pai ganha a borda "afastada" */
+.editable-container:focus-within {
+  background-color: rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 0 2px var(--retro-accent); /* Borda do seu tema */
+  border-radius: 4px;
+}
+
+.edit-hint-icon {
+position: absolute;
+right: 10px;
+top: 40%;
+transform: translateY(-50%);
+font-size: 12px;
+opacity: 0;
+pointer-events: none;
+transition: opacity 0.15s ease;
+}
+
+.editable-container:hover .edit-hint-icon {
+opacity: 0.6;
+}
+
+#user-bio {
+outline: none;
+width: 100%;
+min-height: 20px;
+}
+
+/* --- JANELA DE CONFIGURAÇÕES (CONFIG.EXE) --- */
+.window-wrapper {
+display: flex;
+flex-direction: column;
+}
+
+.config-tab {
+background: var(--config-accent);
+color: #0a0612;
+font-family: 'Press Start 2P', monospace;
+font-size: 9px;
+padding: 6px 14px;
+border-radius: 0 8px 0 0;
+border-bottom: 2px solid #13101c;
+margin-bottom: 0;
+z-index: 2;
+display: inline-block;
+width: fit-content;
+transition: background 0.2s ease;
+}
+
+.edit-profile-container {
+background-color: #13101c;
+border: 1px solid rgba(255, 255, 255, 0.05);
+border-radius: 0 16px 16px 16px;
+width: 450px;
+max-height: 80vh;
+display: flex;
+flex-direction: column;
+box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
+font-family: Arial, sans-serif;
+color: #b9bbbe;
+overflow: hidden;
+position: relative;
+}
+
+.edit-profile-body {
+padding: 24px 20px 20px 20px;
+overflow-y: auto;
+flex: 1;
+min-height: 0;
+scrollbar-width: thin;
+scrollbar-color: var(--retro-accent) #1e182e;
+}
+
+.edit-profile-body::-webkit-scrollbar {
+width: 5px;
+}
+.edit-profile-body::-webkit-scrollbar-track {
+background: #1e182e;
+}
+.edit-profile-body::-webkit-scrollbar-thumb {
+background: var(--retro-accent);
+border-radius: 4px;
+}
+
+.edit-profile-container .profile-top-bar {
+background-color: var(--config-bars);
+padding: 10px 16px;
+display: flex;
+justify-content: flex-end;
+border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+transition: background 0.2s ease;
+}
+
+.window-controls {
+display: flex;
+align-items: center;
+gap: 8px;
+}
+
+.control-btn {
+color: rgba(255, 255, 255, 0.4);
+font-size: 10px;
+cursor: pointer;
+}
+
+.edit-profile-container .profile-bottom-bar {
+height: 14px;
+background-color: var(--config-bars);
+width: 100%;
+flex-shrink: 0;
+transition: background 0.2s ease;
+}
+
+.edit-profile-header h2 {
+font-family: 'Press Start 2P', monospace;
+font-size: 11px;
+color: #fff;
+margin-top: 0;
+margin-bottom: 24px;
+letter-spacing: 1px;
+}
+
+.edit-section h3 {
+font-size: 11px;
+font-weight: bold;
+color: #dee0e3;
+margin-bottom: 12px;
+text-transform: uppercase;
+letter-spacing: 0.5px;
+}
+
+.edit-flex-row {
+display: flex;
+justify-content: space-between;
+align-items: flex-end;
+gap: 16px;
+}
+
+.edit-divider {
+border: none;
+border-top: 1px solid #2d2845;
+margin: 20px 0;
+}
+
+.select-wrapper {
+display: flex;
+flex-direction: column;
+flex: 1;
+box-sizing: border-box;
+}
+
+.select-wrapper label, .color-inputs-group label {
+font-size: 11px;
+margin-bottom: 6px;
+color: #b9bbbe;
+}
+
+.select-wrapper select {
+background-color: #110e1c;
+color: #fff;
+border: 1px solid #2d2845;
+padding: 10px;
+border-radius: 4px;
+outline: none;
+cursor: pointer;
+font-size: 13px;
+width: 100%;
+box-sizing: border-box;
+transition: border-color 0.2s;
+}
+
+.select-wrapper select:focus {
+border-color: var(--retro-accent);
+}
+
+.full-width {
+width: 100%;
+}
+
+.custom-file-upload {
+background-color: #5865F2;
+color: white;
+padding: 10px 16px;
+border-radius: 4px;
+cursor: pointer;
+font-size: 13px;
+font-weight: 500;
+text-align: center;
+transition: background-color 0.2s;
+display: inline-block;
+}
+
+.custom-file-upload:hover {
+background-color: #4752c4;
+}
+
+.custom-file-upload input[type="file"] {
+display: none;
+}
+
+.pickers-inline {
+display: flex;
+gap: 8px;
+}
+
+.pickers-inline input[type="color"] {
+border: none;
+width: 40px;
+height: 38px;
+border-radius: 4px;
+cursor: pointer;
+background: none;
+}
+
+.pickers-inline input[type="color"]::-webkit-color-swatch-wrapper {
+padding: 0;
+}
+
+.pickers-inline input[type="color"]::-webkit-color-swatch {
+border: 1px solid #2d2845;
+border-radius: 4px;
+}
+
+.checkbox-wrapper {
+display: flex;
+align-items: center;
+gap: 10px;
+padding-bottom: 8px;
+}
+
+.switch {
+position: relative;
+display: inline-block;
+width: 40px;
+height: 22px;
+}
+
+.switch input {
+opacity: 0;
+width: 0;
+height: 0;
+}
+
+.slider {
+position: absolute;
+cursor: pointer;
+top: 0; left: 0; right: 0; bottom: 0;
+background-color: #4f545c;
+transition: .2s;
+border-radius: 22px;
+}
+
+.slider:before {
+position: absolute;
+content: "";
+height: 14px;
+width: 14px;
+left: 4px;
+bottom: 4px;
+background-color: white;
+transition: .2s;
+border-radius: 50%;
+}
+
+input:checked + .slider {
+background-color: #3ba55d;
+}
+
+input:checked + .slider:before {
+transform: translateX(18px);
+}
+
+.switch-label {
+font-size: 13px;
+color: #dee0e3;
+}
+
+/* --- NAV BAR GLOBAL INFERIOR --- */
+.global-nav {
+position: fixed;
+bottom: 0;
+left: 0;
+right: 0;
+z-index: 200;
+background: rgba(10, 0, 20, 0.8);
+backdrop-filter: blur(10px);
+border-top: 1px solid rgba(155, 48, 255, 0.4);
+display: flex;
+align-items: center;
+justify-content: center;
+gap: 4px;
+padding: 6px 0;
+height: 44px;
+}
+
+.gnav-btn {
+padding: 6px 16px;
+color: rgba(255, 255, 255, 0.6);
+font-family: var(--pixel-font), monospace;
+font-size: 7px;
+letter-spacing: 1px;
+cursor: pointer;
+border-radius: 4px;
+border: none;
+background: none;
+transition: all 0.3s;
+text-transform: uppercase;
+}
+
+.gnav-btn:hover {
+color: white;
+background: rgba(155, 48, 255, 0.3);
+}
+
+.gnav-btn.active {
+color: var(--neon-cyan, #00eaff);
+background: rgba(0, 234, 255, 0.1);
+border-bottom: 2px solid var(--neon-cyan, #00eaff);
+}
+
+.gnav-separator {
+width: 1px;
+height: 20px;
+background: rgba(155, 48, 255, 0.3);
+}
+
+/* ==========================================================
+   SISTEMA DE JANELAS (SteamWindow)
+========================================================== */
+
+/* A janela inteira possui animações suaves */
+.sw-window{
+
+    transition:
+        transform .18s ease,
+        filter .18s ease;
+
+}
+
+/* Corpo da janela */
+.sw-window .profile-window-body,
+.sw-window .edit-profile-container{
+
+    transition:
+        box-shadow .20s ease,
+        filter .20s ease,
+        transform .20s ease;
+
+}
+
+/* Aba superior */
+.sw-window .profile-tab{
+
+    transition:
+        filter .20s ease,
+        transform .20s ease;
+
+}
+
+
+/* ==========================================================
+   JANELA INATIVA
+========================================================== */
+
+.sw-window{
+
+    filter: brightness(.88);
+
+}
+
+
+/* ==========================================================
+   JANELA ATIVA
+========================================================== */
+
+.sw-window.window-active{
+
+    filter: brightness(1);
+
+}
+
+/* O corpo ganha profundidade */
+.sw-window.window-active .profile-window-body,
+.sw-window.window-active .edit-profile-container{
+
+    transform: translateY(-2px);
+
+    box-shadow:
+        0 16px 40px rgba(0,0,0,.60);
+
+}
+
+/* A aba também acompanha a ativação */
+.sw-window.window-active .profile-tab{
+
+    filter: brightness(1.18);
+
+    transform: translateY(-1px);
+
+}
+
+/* ===========================================
+   Área arrastável
+=========================================== */
+
+.sw-draggable{
+
+    cursor:grab;
+
+    user-select:none;
+
+    width:fit-content;
+
+}
+
+.sw-draggable:active{
+
+    cursor: grabbing;
+
+}
+
+/* ===========================
+   STATUS DO PERFIL
+=========================== */
+
+.profile-status{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:8px;
+
+    margin-top:-4px;
+
+    margin-bottom:10px;
+
+    font-size:13px;
+
+    color:#d7d7d7;
+
+}
+
+.status-dot{
+
+    width:10px;
+
+    height:10px;
+
+    border-radius:50%;
+
+    display:inline-block;
+
+    box-shadow:0 0 8px currentColor;
+
+}
+
+.status-dot.online{
+
+    background:#3ba55d;
+    color:#3ba55d;
+
+}
+
+.status-dot.away{
+
+    background:#f1c232;
+    color:#f1c232;
+
+}
+
+.status-dot.busy{
+
+    background:#e74c3c;
+    color:#e74c3c;
+
+}
+
+.status-dot.offline{
+
+    background:#666;
+    color:#666;
+
+}
+
+.status-dot.gaming{
+
+    background:#00d084;
+    color:#00d084;
+
+}
+
+.status-dot.music{
+
+    background:#9b59b6;
+    color:#9b59b6;
+
+}
+
+.status-dot.coding{
+
+    background:#3498db;
+    color:#3498db;
+
+}
+
+.status-dot.sleep{
+
+    background:#5dade2;
+    color:#5dade2;
+
+}
+
+/*==========================================
+    STATUS ONLINE
+==========================================*/
+
+.status-dot{
+
+    position:absolute;
+
+    bottom:4px;
+
+    right:4px;
+
+    width:18px;
+
+    height:18px;
+
+    border-radius:50%;
+
+    border:4px solid #13101c;
+
+    background:#3ba55d;
+
+}
+
+.status-dot.online{
+
+    background:#3ba55d;
+
+}
+
+.status-dot.away{
+
+    background:#f1c232;
+
+}
+
+.status-dot.busy{
+
+    background:#e74c3c;
+
+}
+
+.status-dot.offline{
+
+    background:#747f8d;
+
+}
+
+/*==========================================
+    ATIVIDADE
+==========================================*/
+
+.profile-activity{
+
+    margin-top:18px;
+
+    background:#262833;
+
+    border-radius:18px;
+
+    padding:10px 16px;
+
+    display:flex;
+
+    align-items:flex-start;
+
+    gap:8px;
+
+    color:white;
+
+    font-size:13px;
+
+    flex:1;
+
+    min-width:0;
+
+    overflow:hidden;
+
+    box-shadow:
+
+        0 2px 8px rgba(0,0,0,.35);
+
+}
+
+#activity-icon{
+
+    font-size:18px;
+
+    cursor:pointer;
+
+    outline:none;
+
+    display:inline-block;
+
+    min-width:18px;
+
+    flex-shrink:0;
+
+    transition:transform 0.15s ease;
+
+}
+
+#activity-icon:hover{
+
+    transform:scale(1.2);
+
+}
+
+#activity-icon:focus{
+
+    transform:scale(1.2);
+
+}
+
+#activity-text{
+
+    display:block;
+
+    overflow:hidden;
+
+    white-space:normal;
+
+    overflow-wrap:break-word;
+
+    line-height:1.3;
+
+    flex:1;
+
+    min-width:0;
+
+}
+
+/* =============================================
+   PLAYER DE MÚSICA (MINI PLAYER RETRÔ)
+============================================= */
+
+.profile-music-player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #0e0b18;
+  border-top: 1px solid rgba(255, 110, 199, 0.2);
+  padding: 8px 14px 10px 14px;
+  position: relative;
+  z-index: 4;
+}
+
+.music-play-btn {
+  background: var(--retro-accent);
+  border: none;
+  color: #0a0612;
+  font-size: 12px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.1s ease, filter 0.1s ease;
+  font-family: monospace;
+}
+
+.music-play-btn:hover {
+  filter: brightness(1.2);
+  transform: scale(1.1);
+}
+
+.music-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.music-title {
+  font-size: 11px;
+  color: #e8d5f5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: 'Press Start 2P', monospace;
+  letter-spacing: 0.3px;
+}
+
+.music-progress-bar {
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.music-progress-fill {
+  height: 100%;
+  background: var(--retro-accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.5s linear;
+  box-shadow: 0 0 6px var(--retro-accent);
+}
+
+.music-note-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.music-volume-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.music-volume-icon {
+  font-size: 12px;
+  opacity: 0.7;
+  width: 14px;
+  text-align: center;
+}
+
+.music-volume-wrapper input[type="range"] {
+  width: 50px;
+  height: 3px;
+  accent-color: var(--retro-accent);
+  cursor: pointer;
+}
+
+/* Estado sem música carregada */
+.profile-music-player.no-track .music-play-btn {
+  opacity: 0.4;
+  cursor: default;
+}
+.profile-music-player.no-track .music-title {
+  opacity: 0.35;
+}
+
+/* =============================================
+   NOVAS BORDAS DO AVATAR
+============================================= */
+
+/* Arco-íris animado */
+.avatar-holder.rainbow-animated {
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  animation: rainbowBorder 3s linear infinite;
+}
+
+@keyframes rainbowBorder {
+  0%   { box-shadow: 0 0 0 3px #ff6ec7; }
+  16%  { box-shadow: 0 0 0 3px #ff9f43; }
+  33%  { box-shadow: 0 0 0 3px #ffff10; }
+  50%  { box-shadow: 0 0 0 3px #00f5d4; }
+  66%  { box-shadow: 0 0 0 3px #4dc9ff; }
+  83%  { box-shadow: 0 0 0 3px #b87fff; }
+  100% { box-shadow: 0 0 0 3px #ff6ec7; }
+}
+
+/* Dourado vintage */
+.avatar-holder.golden-vintage {
+  border: 3px solid #c9a84c;
+  box-shadow:
+    0 0 8px rgba(201, 168, 76, 0.6),
+    inset 0 0 6px rgba(201, 168, 76, 0.2);
+}
+
+/* Holo shimmer */
+.avatar-holder.holo-shimmer {
+  border: 3px solid transparent;
+  animation: holoShimmer 2s ease infinite;
+}
+
+@keyframes holoShimmer {
+  0%   { box-shadow: 0 0 10px #ff6ec7, 0 0 20px #4dc9ff; }
+  50%  { box-shadow: 0 0 10px #4dc9ff, 0 0 20px #b87fff; }
+  100% { box-shadow: 0 0 10px #ff6ec7, 0 0 20px #4dc9ff; }
+}
+
+/* =============================================
+   NOVOS EFEITOS DE OVERLAY
+============================================= */
+
+/* Estrelas cadentes */
+.profile-effect-overlay.estrelas-cadentes {
+  background-image:
+    radial-gradient(1px 1px at 20% 15%, rgba(255,255,255,0.8) 0%, transparent 100%),
+    radial-gradient(1px 1px at 55% 40%, rgba(255,255,255,0.6) 0%, transparent 100%),
+    radial-gradient(1px 1px at 75% 25%, rgba(200,150,255,0.7) 0%, transparent 100%),
+    radial-gradient(1px 1px at 40% 70%, rgba(255,110,199,0.6) 0%, transparent 100%),
+    radial-gradient(1px 1px at 85% 60%, rgba(77,201,255,0.7) 0%, transparent 100%);
+  animation: starsFloat 6s ease-in-out infinite alternate;
+}
+
+@keyframes starsFloat {
+  0%   { transform: translateY(0) scale(1); opacity: 0.4; }
+  100% { transform: translateY(-12px) scale(1.05); opacity: 0.7; }
+}
+
+/* Névoa Cyberpunk */
+.profile-effect-overlay.nevoa-cyberpunk {
+  background:
+    radial-gradient(ellipse at 10% 90%, rgba(184, 127, 255, 0.25) 0%, transparent 55%),
+    radial-gradient(ellipse at 90% 80%, rgba(77, 201, 255, 0.2) 0%, transparent 50%);
+  animation: fogPulse 4s ease-in-out infinite alternate;
+}
+
+@keyframes fogPulse {
+  0%   { opacity: 0.5; transform: scale(1); }
+  100% { opacity: 1;   transform: scale(1.04); }
+}
+
+/* =============================================
+   FUNDO CUSTOMIZÁVEL DO BODY
+============================================= */
+
+/* Quando o usuário escolhe uma imagem/GIF de fundo */
+body.custom-bg {
+  background-color: #0a0612;
+  background-image: var(--custom-bg-url),
+    linear-gradient(rgba(255, 110, 199, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 110, 199, 0.03) 1px, transparent 1px);
+  background-size: cover, 40px 40px, 40px 40px;
+  background-position: center, center, center;
+  background-attachment: fixed, fixed, fixed;
+}
+
+/* Dim overlay para não ofuscar o conteúdo */
+body.custom-bg::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 6, 18, var(--custom-bg-dim, 0.45));
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Slider de dim */
+.dim-slider-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.dim-slider-wrapper label {
+  font-size: 11px;
+  color: #b9bbbe;
+  white-space: nowrap;
+}
+
+.dim-slider-wrapper input[type="range"] {
+  flex: 1;
+  accent-color: var(--retro-accent);
+  cursor: pointer;
+  height: 4px;
+}
+
+/* Botão de remover fundo */
+.btn-remove-bg {
+  background: transparent;
+  border: 1px solid rgba(255, 110, 199, 0.4);
+  color: #ff6ec7;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  margin-top: 8px;
+  width: 100%;
+  transition: background 0.2s;
+}
+
+.btn-remove-bg:hover {
+  background: rgba(255, 110, 199, 0.1);
+}
+/* =============================================
+   CAMADA DE EFEITOS DE WALLPAPER (ESTILO GUNS.LOL)
+============================================= */
+
+.page-bg-effect-layer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+/* ---------- EFEITO 1: NEVE CAINDO (OTIMIZADO PARA GPU) ---------- */
+.page-bg-effect-layer.bg-snow::before {
+  content: "";
+  position: absolute;
+  top: -120px;
+  left: 0;
+  width: 100%;
+  height: calc(100% + 240px);
+  background-image:
+    radial-gradient(2px 2px at 10% 5%, rgba(255,255,255,0.9) 0%, transparent 100%),
+    radial-gradient(2px 2px at 30% 15%, rgba(255,255,255,0.7) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 55% 8%, rgba(255,255,255,0.8) 0%, transparent 100%),
+    radial-gradient(2px 2px at 75% 20%, rgba(255,255,255,0.6) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 92% 10%, rgba(255,255,255,0.85) 0%, transparent 100%);
+  background-repeat: repeat;
+  background-size: 100% 120px;
+  opacity: 0.65;
+  will-change: transform;
+  animation: snowFallGPU 10s linear infinite;
+  backface-visibility: hidden;
+}
+
+@keyframes snowFallGPU {
+  from { transform: translateY(0); }
+  to   { transform: translateY(120px); }
+}
+
+/* ---------- EFEITO 2: PARTÍCULAS FLUTUANTES (VAPORWAVE) ---------- */
+.page-bg-effect-layer.bg-particulas::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image:
+    radial-gradient(2px 2px at 15% 20%, rgba(255,110,199,0.8) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 35% 65%, rgba(77,201,255,0.7) 0%, transparent 100%),
+    radial-gradient(2px 2px at 55% 30%, rgba(184,127,255,0.8) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 75% 75%, rgba(0,245,212,0.7) 0%, transparent 100%),
+    radial-gradient(2px 2px at 90% 15%, rgba(255,110,199,0.6) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 25% 85%, rgba(77,201,255,0.6) 0%, transparent 100%),
+    radial-gradient(2px 2px at 65% 50%, rgba(184,127,255,0.7) 0%, transparent 100%);
+  background-repeat: repeat;
+  background-size: 100% 100%;
+  animation: particulasFloat 12s ease-in-out infinite alternate;
+}
+
+@keyframes particulasFloat {
+  0%   { transform: translateY(0) translateX(0); opacity: 0.5; }
+  50%  { transform: translateY(-20px) translateX(10px); opacity: 0.9; }
+  100% { transform: translateY(0) translateX(-10px); opacity: 0.5; }
+}
+
+/* ---------- EFEITO 3: SCANLINES RETRÔ ---------- */
+.page-bg-effect-layer.bg-scanlines::before {
+  content: "";
+  position: absolute;
+  top: -40px;
+  left: 0;
+  width: 100%;
+  height: calc(100% + 80px);
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(255, 110, 199, 0.06) 0px,
+    rgba(255, 110, 199, 0.06) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  will-change: transform;
+  animation: scanlineDriftGPU 6s linear infinite;
+}
+
+@keyframes scanlineDriftGPU {
+  from { transform: translateY(0); }
+  to   { transform: translateY(40px); }
+}
+
+/* ---------- EFEITO 4: AURORA VAPORWAVE ---------- */
+.page-bg-effect-layer.bg-aurora::before {
+  content: "";
+  position: absolute;
+  top: -20%;
+  left: -20%;
+  width: 140%;
+  height: 140%;
+  background:
+    radial-gradient(ellipse at 20% 20%, rgba(255, 110, 199, 0.18) 0%, transparent 45%),
+    radial-gradient(ellipse at 80% 30%, rgba(77, 201, 255, 0.15) 0%, transparent 45%),
+    radial-gradient(ellipse at 50% 80%, rgba(184, 127, 255, 0.18) 0%, transparent 50%);
+  filter: blur(20px);
+  animation: auroraDrift 10s ease-in-out infinite alternate;
+}
+
+@keyframes auroraDrift {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(3%, -3%) scale(1.08); }
+}

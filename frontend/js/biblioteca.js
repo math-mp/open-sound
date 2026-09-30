@@ -20,12 +20,62 @@ if (!estaLogado()) {
 }
 
 const gradePlaylists = document.getElementById('grade-playlists');
-const btnNovaPlaylist = document.getElementById('btn-nova-playlist');
 const modalNovaPlaylist = document.getElementById('modal-nova-playlist');
 const btnFecharNovaPlaylist = document.getElementById('btn-fechar-nova-playlist');
 const formNovaPlaylist = document.getElementById('form-nova-playlist');
 const campoPlaylistNome = document.getElementById('playlist-nome');
 const campoPlaylistCapa = document.getElementById('playlist-capa');
+const nomeCapaPlaylist = document.getElementById('playlist-capa-nome');
+const ROTULO_CAPA_PADRAO = 'Opcional · JPG, PNG ou WEBP';
+
+// Nome do arquivo escolhido escrito no cartão, como no modal de upload.
+if (campoPlaylistCapa && nomeCapaPlaylist) {
+  campoPlaylistCapa.addEventListener('change', () => {
+    const arquivo = campoPlaylistCapa.files[0];
+    nomeCapaPlaylist.textContent = arquivo ? arquivo.name : ROTULO_CAPA_PADRAO;
+  });
+}
+
+// Primeiro slot da grade: o cartão tracejado de "+". Substitui o botão
+// que ficava no canto da navbar. A área do "+ tem a mesma proporção 1:1
+// da capa de um card normal, então a grade não desalinha com ou sem
+// playlists.
+function criarCardNovaPlaylist() {
+  const card = document.createElement('button');
+  card.type = 'button';
+  card.className = 'card-playlist card-nova-playlist';
+  card.setAttribute('aria-label', 'Criar nova playlist');
+
+  const icone = document.createElement('span');
+  icone.className = 'nova-playlist-icone';
+  icone.setAttribute('aria-hidden', 'true');
+  icone.textContent = '+';
+
+  const info = document.createElement('span');
+  info.className = 'info-musica';
+
+  const titulo = document.createElement('span');
+  titulo.className = 'titulo-musica';
+  titulo.textContent = 'Nova playlist';
+  info.appendChild(titulo);
+
+  card.appendChild(icone);
+  card.appendChild(info);
+
+  card.addEventListener('click', () => {
+    if (modalNovaPlaylist) modalNovaPlaylist.classList.remove('hidden');
+  });
+
+  return card;
+}
+
+// Toda renderização da grade passa por aqui, para o cartão de criar
+// garantir o primeiro slot mesmo quando a lista vem vazia ou dá erro —
+// nos dois casos ele é a única forma de criar uma playlist.
+function limparGrade() {
+  gradePlaylists.innerHTML = '';
+  gradePlaylists.appendChild(criarCardNovaPlaylist());
+}
 
 // Clicar no card leva pra playlist.html, que mostra as músicas. O botão de
 // tocar vive dentro do card, mas para a propagação do clique pra não navegar.
@@ -120,7 +170,7 @@ async function carregarPlaylists() {
     const dados = await resposta.json();
 
     if (!resposta.ok) {
-      gradePlaylists.innerHTML = '';
+      limparGrade();
       const p = document.createElement('p');
       p.className = 'mensagem-lista';
       p.textContent = dados.mensagem || 'Não foi possível carregar suas playlists.';
@@ -128,14 +178,14 @@ async function carregarPlaylists() {
       return;
     }
 
-    gradePlaylists.innerHTML = '';
+    limparGrade();
     dados.playlists.forEach((playlist) => {
       gradePlaylists.appendChild(criarCardPlaylist(playlist));
     });
 
   } catch (erro) {
     console.error('Erro ao carregar playlists:', erro);
-    gradePlaylists.innerHTML = '';
+    limparGrade();
     const p = document.createElement('p');
     p.className = 'mensagem-lista';
     p.textContent = 'Erro de conexão ao carregar suas playlists.';
@@ -145,14 +195,11 @@ async function carregarPlaylists() {
 
 carregarPlaylists();
 
-if (btnNovaPlaylist && modalNovaPlaylist) {
-  btnNovaPlaylist.addEventListener('click', () => modalNovaPlaylist.classList.remove('hidden'));
-}
-
 if (btnFecharNovaPlaylist && modalNovaPlaylist) {
   btnFecharNovaPlaylist.addEventListener('click', () => {
     modalNovaPlaylist.classList.add('hidden');
     if (formNovaPlaylist) formNovaPlaylist.reset();
+    if (nomeCapaPlaylist) nomeCapaPlaylist.textContent = ROTULO_CAPA_PADRAO;
   });
 }
 
@@ -189,7 +236,14 @@ if (formNovaPlaylist) {
       if (resposta.ok) {
         if (modalNovaPlaylist) modalNovaPlaylist.classList.add('hidden');
         formNovaPlaylist.reset();
-        carregarPlaylists();
+        if (nomeCapaPlaylist) nomeCapaPlaylist.textContent = ROTULO_CAPA_PADRAO;
+// Antes da primeira resposta da API o cartão de criar já entra no
+// primeiro slot, com a mensagem de "Carregando..." logo abaixo — assim
+// ele nunca some enquanto a lista não chega.
+if (gradePlaylists) gradePlaylists.prependChild(criarCardNovaPlaylist());
+
+carregarPlaylists();
+
       } else {
         alert(dados.mensagem || 'Não foi possível criar a playlist.');
       }
@@ -199,7 +253,7 @@ if (formNovaPlaylist) {
     } finally {
       if (btnSubmit) {
         btnSubmit.disabled = false;
-        btnSubmit.textContent = 'Criar';
+        btnSubmit.textContent = 'Criar playlist';
       }
     }
   });

@@ -156,33 +156,13 @@ body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
     display: none;
 }
 
-/* BARRA SUPERIOR PASTEL */
-.secao-musicas::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 20px;
-    border-radius: 0 10px 0 0;
-    background: var(--aba-biblioteca);
-    z-index: 2;
-    pointer-events: none;
-}
-
-/* BARRA INFERIOR PASTEL */
-.secao-musicas::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 20px;
-    border-radius: 0 0 10px 10px;
-    background: var(--aba-biblioteca);
-    z-index: 2;
-    pointer-events: none;
-}
+/* As barras superior e inferior NÃO são definidas aqui: elas já vêm
+   prontas (formato, cantos, z-index) do bloco .secao-musicas em
+   home.css, e a cor verde-água vem da regra
+   ".secao-musicas:has(> .aba-biblioteca)" de lá também. A cópia local
+   que existia neste arquivo era idêntica e foi o que deixou a aba
+   desta página certa por acaso, enquanto a biblioteca e a playlist
+   ficavam com a faixa rosa. */
 
 /* =========================================================
    CARROSSEL HORIZONTAL DE MÚSICAS

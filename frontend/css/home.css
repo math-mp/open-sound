@@ -394,6 +394,36 @@ body,
     background: var(--aba-generos);
 }
 
+.secao-titulo.aba-biblioteca {
+    background: var(--aba-biblioteca);
+}
+
+/* A aba "Minhas Playlists" tem cor própria (roxa pastel). A faixa segue
+   a aba pelo mesmo mecanismo das outras: é a classe da aba que manda
+   na cor do painel inteiro. */
+.secao-titulo.aba-playlists {
+    background: var(--aba-playlists);
+}
+
+.secao-musicas:has(> .aba-playlists)::before,
+.secao-musicas:has(> .aba-playlists)::after {
+    background: var(--aba-playlists);
+}
+
+/* A faixa do painel segue a cor da aba dele. Sem esta regra, a aba
+   verde-água da biblioteca caía num painel com faixa ROSA — porque
+   .secao-musicas na home é a seção "Músicas", que é rosa de verdade,
+   mas a biblioteca reaproveita essa classe só como layout.
+
+   A "minhas-músicas" ficava certa por acaso: ela carrega
+   minhas-musicas.css, que tem um override local fazendo a mesma coisa.
+   Aqui a regra é compartilhada, então vale para a biblioteca, para a
+   playlist e para a minhas-músicas. */
+.secao-musicas:has(> .aba-biblioteca)::before,
+.secao-musicas:has(> .aba-biblioteca)::after {
+    background: var(--aba-biblioteca);
+}
+
 
 /* =========================================================
    PAINEL DE TODAS AS MÚSICAS
@@ -847,21 +877,13 @@ body,
   font-size: 0.85rem;
 }
 
-/*====campo de arquivo do modal de upload====*/
-.campo-arquivo {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
+/*====campo de arquivo====
 
-.campo-arquivo input[type="file"] {
-  font-family: inherit;
-  font-size: 0.8rem;
-  font-weight: 400;
-  cursor: pointer;
-}
+   Não existe mais um "campo de arquivo" genérico: os dois modais que
+   escolhem arquivo (enviar música e nova playlist) usam o cartão
+   .btn-upload, definido na seção do modal de upload lá no fim do
+   arquivo. Era o .campo-arquivo, um input[type=file] cru, que ficava
+   com a aparência do navegador dentro do modal. */
 
 /*===preview ao vivo do upload (coluna esquerda do modal)===
    O invólucro é o .upload-preview, definido junto do layout de duas
@@ -2589,7 +2611,8 @@ body,
 /* Formulários com mesmo espaçamento do cadastro */
 #modal-login #form-login,
 #modal-esqueci-senha #form-esqueci-senha,
-#modal-esqueci-senha #form-esqueci-nova-senha {
+#modal-esqueci-senha #form-esqueci-nova-senha,
+#modal-nova-playlist #form-nova-playlist {
     display: flex;
     flex-direction: column;
     gap: 15px; /* igual .form-cadastro */
@@ -3223,6 +3246,16 @@ body,
   width: min(720px, calc(100vw - 24px));
 }
 
+/* Modal de nova playlist (página da biblioteca): coluna única, caixa
+   estreita. Só precisa da altura — o resto é o mesmo de todos. */
+#modal-nova-playlist.modal--aba .modal-quadro {
+  --modal-altura: 340px;
+}
+
+#modal-nova-playlist.modal--aba .conteudo-modal {
+  width: min(360px, calc(100vw - 24px));
+}
+
 /* ===================================================
    MODAL DE UPLOAD — DUAS COLUNAS
 
@@ -3615,6 +3648,73 @@ body,
 
 .card-playlist {
   cursor: pointer;
+}
+
+/*===================================================
+  CARTÃO "CRIAR PLAYLIST" (primeiro slot da biblioteca)
+
+  Substitui o botão que ficava no canto da navbar. Tem o mesmo
+  esqueleto de um card normal — a área do "+ ocupa 1:1, igual à capa
+  — para a grade não ficar com alturas diferentes entre os cards.
+  A diferença é a borda tracejada e o fundo vazio: ele não é uma
+  playlist, é o convite a criar uma.
+====================================================*/
+.card-nova-playlist {
+  display: flex;
+  flex-direction: column;
+
+  width: 100%;
+  padding: 0;
+
+  border: 2px dashed var(--cor-borda);
+  border-radius: var(--raio-medio);
+
+  background: transparent;
+  color: var(--cor-texto);
+
+  font-family: inherit;
+  text-align: center;
+  cursor: pointer;
+
+  overflow: hidden;
+
+  transition:
+    transform var(--transicao-rapida),
+    border-color var(--transicao-rapida),
+    background-color 0.3s ease;
+}
+
+.nova-playlist-icone {
+  aspect-ratio: 1 / 1;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 2.8rem;
+  line-height: 1;
+  /* A Baloo 2 só carrega 500/600/700/800 — 300 cairia numa fonte
+     sintética, que destoa do resto do site. */
+  font-weight: 500;
+
+  color: var(--cor-primaria);
+
+  transition: transform var(--transicao-rapida);
+}
+
+.card-nova-playlist:hover {
+  border-color: var(--cor-primaria);
+  background: var(--cor-superficie-clara);
+  transform: translateY(-4px);
+}
+
+.card-nova-playlist:hover .nova-playlist-icone {
+  transform: scale(1.12);
+}
+
+.card-nova-playlist:focus-visible {
+  outline: 2px solid var(--cor-primaria);
+  outline-offset: 3px;
 }
 
 .card-musica {

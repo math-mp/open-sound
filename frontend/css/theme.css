@@ -88,6 +88,12 @@
     --aba-modal: #ffcfd2;
 
 
+    /* A aba "Minhas Playlists" (página da biblioteca) é roxa pastel, para
+       não se confundir com a verde-água das outras telas de biblioteca. */
+    --aba-playlists: #cfbaf0;
+
+
+
     /* -----------------------------------------------------
        TEXTO SOBRE PASTEL
 
@@ -245,6 +251,9 @@
        quente de propósito: o rosa das músicas, para o popup não se
        confundir com as abas verde-água/lilas/azul das seções. */
     --aba-modal: #ffcfd2;
+
+    --aba-playlists: #cfbaf0;
+
 
 
     /* -----------------------------------------------------
@@ -522,9 +531,9 @@
    UPLOAD: campo de arquivo + preview ao vivo
    ----------------------------------------------------- */
 
-.campo-arquivo {
-    color: var(--cor-texto-secundario);
-}
+/* O seletor de arquivo não tem mais regra própria: os dois modais que
+   o usam passaram a usar o cartão .btn-upload, que já se veste com
+   as variáveis de input daqui (--input-fundo, --input-borda...). */
 
 .preview-upload-capa-wrapper,
 .preview-upload-capa-vazio {
