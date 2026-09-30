@@ -563,8 +563,7 @@ if (btnSair) {
     localStorage.removeItem(CHAVE_SESSAO);
     OS.limparCache();
     atualizarUIAutenticacao();
-    idsFavoritos.clear();        // <- ADICIONAR
-    atualizarTodosCoracoes();    // <- ADICIONAR
+    limparFavoritosLocais();
     alert('Você foi deslogado.');
   });
 }
@@ -578,8 +577,7 @@ if (linkSairDropdown) {
     localStorage.removeItem(CHAVE_SESSAO);
     OS.limparCache();
     atualizarUIAutenticacao();
-    idsFavoritos.clear();
-    atualizarTodosCoracoes();
+    limparFavoritosLocais();
     alert('Você foi deslogado.');
   });
 }
@@ -1003,245 +1001,11 @@ function formatarReproducoes(quantidade) {
 // ============================================================
 // FAVORITOS + ADICIONAR À PLAYLIST
 // ============================================================
-
-const playerFavoritar = document.getElementById('player-favoritar');
-const playerAddPlaylist = document.getElementById('player-add-playlist');
-const modalAddPlaylist = document.getElementById('modal-add-playlist');
-const btnFecharAddPlaylist = document.getElementById('btn-fechar-add-playlist');
-const listaPlaylistsModal = document.getElementById('lista-playlists-modal');
-
-// IDs (números) das músicas favoritadas pela conta logada.
-let idsFavoritos = new Set();
-// IDs com uma requisição em andamento — evita duplo clique no coração.
-const favoritosPendentes = new Set();
-// Música que o modal "Adicionar à Playlist" está tratando agora.
-let musicaParaAdicionar = null;
-
-function criarBotaoIcone(classeExtra, texto, rotulo) {
-  const botao = document.createElement('button');
-  botao.type = 'button';
-  botao.className = classeExtra ? `btn-icone ${classeExtra}` : 'btn-icone';
-  botao.textContent = texto;
-  botao.setAttribute('aria-label', rotulo);
-  botao.title = rotulo;
-  return botao;
-}
-
-function pintarCoracao(botao, favoritado) {
-  if (!botao) return;
-  const rotulo = favoritado ? 'Remover dos favoritos' : 'Favoritar';
-  botao.classList.toggle('ativo', favoritado);
-  botao.textContent = favoritado ? '♥' : '♡';
-  botao.setAttribute('aria-label', rotulo);
-  botao.title = rotulo;
-}
-
-// Repinta o coração do destaque atual e o da barra do player.
-function atualizarTodosCoracoes() {
-  document.querySelectorAll('.btn-favoritar-destaque').forEach((botao) => {
-    pintarCoracao(botao, idsFavoritos.has(Number(botao.dataset.musicaId)));
-  });
-  pintarCoracao(playerFavoritar, !!musicaNoPlayer && idsFavoritos.has(Number(musicaNoPlayer.id)));
-}
-
-// Carga silenciosa: usa fetch puro (e não fetchComAutenticacao) pra que um
-// token expirado NÃO dispare o alert de "sessão expirada" só de abrir a home.
-async function carregarFavoritos() {
-  idsFavoritos = new Set();
-
-  if (estaLogado()) {
-    try {
-      const resposta = await fetch('http://localhost:3000/api/musicas/favoritos/ids', {
-        headers: { Authorization: `Bearer ${obterTokenSessao()}` }
-      });
-      if (resposta.ok) {
-        const dados = await resposta.json();
-        (dados.ids || []).forEach((id) => idsFavoritos.add(Number(id)));
-      }
-    } catch (erro) {
-      console.error('Erro ao carregar favoritos:', erro);
-    }
-  }
-
-  atualizarTodosCoracoes();
-}
-
-// Atualização otimista: o coração muda na hora e volta atrás se o servidor falhar.
-async function alternarFavorito(musica) {
-  if (!musica || !musica.id) return;
-
-  if (!estaLogado()) {
-    alert('Faça login para favoritar músicas.');
-    if (modalLogin) modalLogin.classList.remove('hidden');
-    return;
-  }
-
-  const id = Number(musica.id);
-  if (favoritosPendentes.has(id)) return;
-
-  const eraFavorita = idsFavoritos.has(id);
-  favoritosPendentes.add(id);
-
-  if (eraFavorita) idsFavoritos.delete(id);
-  else idsFavoritos.add(id);
-  atualizarTodosCoracoes();
-
-  try {
-    const resposta = await fetchComAutenticacao(`http://localhost:3000/api/musicas/${id}/favoritar`, {
-      method: eraFavorita ? 'DELETE' : 'POST'
-    });
-    if (!resposta.ok) throw new Error(String(resposta.status));
-  } catch (erro) {
-    if (eraFavorita) idsFavoritos.add(id);
-    else idsFavoritos.delete(id);
-    atualizarTodosCoracoes();
-    // Em 401 o fetchComAutenticacao já avisou — não duplica o alert.
-    if (erro.message !== '401') alert('Não foi possível atualizar seus favoritos.');
-  } finally {
-    favoritosPendentes.delete(id);
-  }
-}
-
-// --- Modal "Adicionar à Playlist" ---
-
-function mostrarMensagemModalPlaylists(texto) {
-  if (!listaPlaylistsModal) return;
-  listaPlaylistsModal.innerHTML = '';
-  const p = document.createElement('p');
-  p.className = 'mensagem-lista';
-  p.textContent = texto;
-  listaPlaylistsModal.appendChild(p);
-}
-
-// textContent em tudo: nome de playlist é texto digitado pelo usuário.
-function criarItemPlaylistModal(playlist, musica) {
-  const item = document.createElement('button');
-  item.type = 'button';
-  item.className = 'item-playlist-modal';
-
-  let capa;
-  if (playlist.url_capa) {
-    capa = document.createElement('img');
-    capa.src = playlist.url_capa;
-    capa.alt = '';
-  } else {
-    capa = document.createElement('span');
-    capa.textContent = playlist.eh_favoritos ? '⭐' : '🎵';
-  }
-  capa.classList.add('item-playlist-capa');
-
-  const nome = document.createElement('span');
-  nome.className = 'item-playlist-nome';
-  nome.textContent = playlist.nome;
-
-  const estado = document.createElement('span');
-  estado.className = 'item-playlist-estado';
-
-  if (playlist.contem_musica) {
-    item.classList.add('adicionada');
-    estado.textContent = '✔ Já está aqui';
-  }
-
-  item.appendChild(capa);
-  item.appendChild(nome);
-  item.appendChild(estado);
-
-  item.addEventListener('click', async () => {
-    if (item.classList.contains('adicionada') || item.disabled) return;
-    item.disabled = true;
-
-    try {
-      const resposta = await fetchComAutenticacao(`http://localhost:3000/api/playlists/${playlist.id}/musicas`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ musicaId: musica.id })
-      });
-      if (!resposta.ok) throw new Error(String(resposta.status));
-
-      item.classList.add('adicionada');
-      estado.textContent = '✔ Adicionada';
-
-      // Adicionar em "Favoritos" pelo modal equivale a favoritar: o coração acompanha.
-      if (playlist.eh_favoritos) {
-        idsFavoritos.add(Number(musica.id));
-        atualizarTodosCoracoes();
-      }
-    } catch (erro) {
-      if (erro.message !== '401') alert('Não foi possível adicionar a música à playlist.');
-    } finally {
-      item.disabled = false;
-    }
-  });
-
-  return item;
-}
-
-async function abrirModalAddPlaylist(musica) {
-  if (!musica || !musica.id) return;
-
-  if (!estaLogado()) {
-    alert('Faça login para adicionar músicas a playlists.');
-    if (modalLogin) modalLogin.classList.remove('hidden');
-    return;
-  }
-
-  musicaParaAdicionar = musica;
-  if (modalAddPlaylist) modalAddPlaylist.classList.remove('hidden');
-  mostrarMensagemModalPlaylists('Carregando...');
-
-  try {
-    const resposta = await fetchComAutenticacao(`http://localhost:3000/api/playlists?musicaId=${musica.id}`);
-    const dados = await resposta.json();
-
-    // Se o usuário fechou o modal ou abriu outra música enquanto carregava, descarta.
-    if (musicaParaAdicionar !== musica) return;
-
-    if (!resposta.ok) {
-      mostrarMensagemModalPlaylists(dados.mensagem || 'Não foi possível carregar suas playlists.');
-      return;
-    }
-
-    listaPlaylistsModal.innerHTML = '';
-    dados.playlists.forEach((playlist) => {
-      listaPlaylistsModal.appendChild(criarItemPlaylistModal(playlist, musica));
-    });
-
-    const dica = document.createElement('p');
-    dica.className = 'link-cadastro';
-    dica.appendChild(document.createTextNode('Quer outra playlist? '));
-    const link = document.createElement('a');
-    link.href = 'biblioteca.html';
-    link.textContent = 'Crie na Biblioteca';
-    dica.appendChild(link);
-    listaPlaylistsModal.appendChild(dica);
-
-  } catch (erro) {
-    console.error('Erro ao carregar playlists:', erro);
-    if (musicaParaAdicionar === musica) {
-      mostrarMensagemModalPlaylists('Erro de conexão ao carregar suas playlists.');
-    }
-  }
-}
-
-if (btnFecharAddPlaylist && modalAddPlaylist) {
-  btnFecharAddPlaylist.addEventListener('click', () => {
-    modalAddPlaylist.classList.add('hidden');
-    musicaParaAdicionar = null;
-  });
-}
-
-// --- Botões da barra do player: agem sobre a música que está tocando ---
-if (playerFavoritar) {
-  playerFavoritar.addEventListener('click', () => {
-    if (musicaNoPlayer) alternarFavorito(musicaNoPlayer);
-  });
-}
-
-if (playerAddPlaylist) {
-  playerAddPlaylist.addEventListener('click', () => {
-    if (musicaNoPlayer) abrirModalAddPlaylist(musicaNoPlayer);
-  });
-}
+// Moraram aqui até os botões da barra do player (o coração e o "＋")
+// existirem só na home. Agora ficam no favoritos.js, que todas as
+// páginas carregam: pintarCoracao(), atualizarTodosCoracoes(),
+// alternarFavorito(), abrirModalAddPlaylist(), criarBotaoIcone(),
+// carregarFavoritos() e limparFavoritosLocais() vêm de lá.
 
 // --- Botão "Minha Biblioteca" da navbar (a página chega na Parte 4) ---
 const btnBiblioteca = document.getElementById('btn-biblioteca');
@@ -1546,9 +1310,11 @@ async function carregarMusicasMaisTocadas() {
 }
 
 // Carga inicial da home: as duas requisições de ranking, uma vez só.
+// Os favoritos NÃO entram aqui: quem carrega é o favoritos.js, que roda
+// em todas as páginas — o carrossel só pinta o coração com o que ele
+// já trouxer.
 carregarMusicasMaisTocadas();
 carregarArtistasMaisOuvidos();
-carregarFavoritos();   
 
 // ============================================================
 // BUSCA INLINE (mesma página — não navega, pra não matar o áudio tocando)
