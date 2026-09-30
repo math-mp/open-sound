@@ -1,7 +1,6 @@
 // Professora, nosso códgo ja virou legado....
 require('dotenv').config();
 const express = require('express');
-const nodemailer = require('nodemailer');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
@@ -67,14 +66,6 @@ if (!JWT_SECRET_SESSAO) {
   throw new Error('JWT_SECRET_SESSAO precisa estar definido no .env. Defina um valor forte antes de subir o servidor.');
 }
 
-// Só desative a verificação de certificado se sua rede/antivírus interceptar
-// TLS: coloque SMTP_INSECURE_TLS=true no .env (apenas em desenvolvimento).
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_PASS },
-  tls: { rejectUnauthorized: process.env.SMTP_INSECURE_TLS !== 'true' }
-});
-
 // ============================================================
 // CONSTANTES E HELPERS GERAIS
 // ============================================================
@@ -134,20 +125,78 @@ function validarSenhaForte(senha) {
   return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@()!%*?&#])[A-Za-z\d@()!%*?&#]{8,}$/.test(senha);
 }
 
+// Envio pela Gmail API (HTTPS, porta 443). O Render bloqueia SMTP de saída
+// (25/465/587) no plano gratuito, então não dá para usar nodemailer/SMTP.
+// O e-mail sai dos servidores do Google, com o Gmail do projeto como remetente.
+// Variáveis: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN, EMAIL_FROM.
+let tokenGoogle = { valor: null, expiraEm: 0 };
+
+async function obterAccessTokenGoogle() {
+  if (tokenGoogle.valor && Date.now() < tokenGoogle.expiraEm - 60 * 1000) {
+    return tokenGoogle.valor;
+  }
+  const resposta = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: process.env.GOOGLE_CLIENT_ID || '',
+      client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
+      refresh_token: process.env.GOOGLE_REFRESH_TOKEN || '',
+      grant_type: 'refresh_token'
+    }),
+    signal: AbortSignal.timeout(10000)
+  });
+  if (!resposta.ok) {
+    throw new Error(`Google OAuth respondeu ${resposta.status}: ${await resposta.text()}`);
+  }
+  const dados = await resposta.json();
+  tokenGoogle = { valor: dados.access_token, expiraEm: Date.now() + dados.expires_in * 1000 };
+  return tokenGoogle.valor;
+}
+
+function montarMensagemMime({ de, para, assunto, texto }) {
+  const b64 = (valor) => Buffer.from(valor, 'utf8').toString('base64');
+  return [
+    `From: =?UTF-8?B?${b64('Open sound')}?= <${de}>`,
+    `To: ${para}`,
+    `Subject: =?UTF-8?B?${b64(assunto)}?=`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/plain; charset="UTF-8"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    b64(texto).replace(/(.{76})/g, '$1\r\n')
+  ].join('\r\n');
+}
+
 async function enviarEmail(para, assunto, texto) {
   try {
-    await transporter.sendMail({
-      from: `"Open sound" <${process.env.GMAIL_USER}>`,
-      to: para,
-      subject: assunto,
-      text: texto
+    // Evita injeção de cabeçalhos: o destinatário não pode ter quebra de linha nem < >.
+    if (/[\r\n<>,;]/.test(para)) throw new Error('Destinatário inválido.');
+
+    const mime = montarMensagemMime({ de: process.env.EMAIL_FROM, para, assunto, texto });
+    const raw = Buffer.from(mime, 'utf8').toString('base64url');
+
+    const resposta = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${await obterAccessTokenGoogle()}`,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({ raw }),
+      signal: AbortSignal.timeout(10000)
     });
+    if (!resposta.ok) {
+      if (resposta.status === 401) tokenGoogle = { valor: null, expiraEm: 0 };
+      throw new Error(`Gmail API respondeu ${resposta.status}: ${await resposta.text()}`);
+    }
+    const dados = await resposta.json().catch(() => ({}));
+    logInfo('EMAIL', 'Gmail API aceitou o e-mail', { para, messageId: dados.id });
     return true;
   } catch (erro) {
-    logError('ERROR', 'Falha ao enviar e-mail pelo Nodemailer', { mensagem: erro.message });
+    logError('ERROR', 'Falha ao enviar e-mail pela Gmail API', { mensagem: erro.message });
     return false;
   }
-};
+}
 
 // O código só é impresso fora de produção, e num log propositalmente
 // destacado — é o que permite testar o fluxo de 2FA na mão. Para removê-lo,
@@ -277,7 +326,7 @@ app.post('/api/registro', limitarRegistroIP, async (req, res) => {
       [idVerificacao, email, senhaHash, nomeUsuario, nomeExibicao || null, codigoHash, expiraEm]
     );
 
-    // O e-mail é enviado em segundo plano: o Gmail leva alguns segundos e a
+    // O e-mail é enviado em segundo plano: o envio leva alguns segundos e a
     // resposta não precisa esperar por ele. Se falhar, o cadastro pendente é
     // mantido de propósito — o usuário usa "Reenviar código" (que avisa o erro
     // na hora) ou o pendente expira sozinho em 10 minutos.
