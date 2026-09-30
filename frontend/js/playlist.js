@@ -94,7 +94,7 @@ function criarCardMusicaPlaylist(musica) {
 
     try {
       const resposta = await fetchComAutenticacao(
-        `${API_URL}/api/playlists/${idPlaylist}/musicas/${musica.id}`,
+        `http://localhost:3000/api/playlists/${idPlaylist}/musicas/${musica.id}`,
         { method: 'DELETE' }
       );
       const dados = await resposta.json();
@@ -146,7 +146,7 @@ async function carregarPlaylist() {
   }
 
   try {
-    const resposta = await fetchComAutenticacao(`${API_URL}/api/playlists/${idPlaylist}`);
+    const resposta = await fetchComAutenticacao(`http://localhost:3000/api/playlists/${idPlaylist}`);
     const dados = await resposta.json();
 
     if (!resposta.ok) {
@@ -225,7 +225,7 @@ if (btnExcluirPlaylist) {
     btnExcluirPlaylist.disabled = true;
 
     try {
-      const resposta = await fetchComAutenticacao(`${API_URL}/api/playlists/${idPlaylist}`, {
+      const resposta = await fetchComAutenticacao(`http://localhost:3000/api/playlists/${idPlaylist}`, {
         method: 'DELETE'
       });
       const dados = await resposta.json();
@@ -324,7 +324,7 @@ function criarItemResultadoBusca(musica) {
     btnAdicionar.textContent = 'Adicionando...';
 
     try {
-      const resposta = await fetchComAutenticacao(`${API_URL}/api/playlists/${idPlaylist}/musicas`, {
+      const resposta = await fetchComAutenticacao(`http://localhost:3000/api/playlists/${idPlaylist}/musicas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ musicaId: musica.id })
@@ -374,7 +374,7 @@ async function buscarMusicasParaPlaylist(termo) {
   mostrarMensagemBusca('Buscando...');
 
   try {
-    const resposta = await fetch(`${API_URL}/api/musicas/buscar?q=${encodeURIComponent(termo)}`);
+    const resposta = await fetch(`http://localhost:3000/api/musicas/buscar?q=${encodeURIComponent(termo)}`);
     const dados = await resposta.json();
 
     if (!resposta.ok) {

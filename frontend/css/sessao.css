@@ -1,0 +1,132 @@
+/* =========================================================
+   OPENSOUND - SESSÃO / IDENTIDADE
+   Mecânica compartilhada do avatar: iniciais enquanto a foto
+   não chega, cross-fade quando entra, e brilho durante a espera.
+   Ver frontend/js/sessao.js (quem escreve o data-os-estado).
+   ========================================================= */
+
+[data-os-avatar] {
+    border-radius: var(--raio-circular);
+    overflow: hidden;
+    background: var(--cor-superficie);
+}
+
+/* O atributo data-sessao é escrito no <head>, antes de o corpo existir,
+   então a navbar já nasce no estado certo: quem está logado nunca chega
+   a ver "Entrar"/"registre-se", e quem não está nunca vê o avatar. */
+html[data-sessao="logado"] [data-os-so-logado],
+html[data-sessao="visitante"] [data-os-so-visitor] {
+    display: none;
+}
+
+.os-avatar {
+    position: relative;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.os-avatar-nav {
+    width: 24px;
+    height: 24px;
+}
+
+.os-avatar-md {
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+}
+
+.os-avatar-sm {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+}
+
+.os-avatar-iniciais {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    display: grid;
+    place-items: center;
+    font-size: 0.75rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    color: #ffffff;
+    background: var(--os-avatar-cor, var(--cor-superficie-clara));
+    transition: opacity var(--transicao-padrao);
+}
+
+.os-avatar-md .os-avatar-iniciais {
+    font-size: 1.25rem;
+}
+
+.os-avatar-sm .os-avatar-iniciais {
+    font-size: 0.9rem;
+}
+
+.os-avatar-gr .os-avatar-iniciais {
+    font-size: 1.75rem;
+}
+
+.os-avatar-img {
+    position: relative;
+    z-index: 1;
+    transition: opacity var(--transicao-padrao);
+}
+
+[data-os-avatar][data-os-estado="carregando"] .os-avatar-img {
+    opacity: 0;
+}
+
+[data-os-avatar][data-os-estado="pronto"] .os-avatar-iniciais {
+    opacity: 0;
+}
+
+[data-os-avatar][data-os-estado="carregando"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    background: linear-gradient(100deg,
+            transparent 20%,
+            rgba(255, 255, 255, 0.14) 50%,
+            transparent 80%);
+    animation: os-brilho 1.1s linear infinite;
+}
+
+@keyframes os-brilho {
+    from {
+        transform: translateX(-100%);
+    }
+
+    to {
+        transform: translateX(100%);
+    }
+}
+
+.btn-perfil-avatar-nome {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+    .btn-perfil-avatar-nome {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    [data-os-avatar][data-os-estado="carregando"]::after {
+        animation: none;
+        background: none;
+    }
+
+    .os-avatar-iniciais,
+    .os-avatar-img {
+        transition: none;
+    }
+}

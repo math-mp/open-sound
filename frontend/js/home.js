@@ -2,7 +2,7 @@
 // TEMA CLARO / ESCURO (salvo no localStorage e sincronizado com backend)
 // ============================================================
 const btnTema = document.getElementById('btn-tema');
-const API_BASE = API_URL;
+const API_BASE = 'http://localhost:3000';
 const CHAVE_SESSAO = 'tokenSessao';
 
 // O sessao.js entra sem `defer` no <head> e define window.OS. Se ele
@@ -331,7 +331,7 @@ if (formRegistro) {
     }
 
     try {
-      const resposta = await fetch(API_URL + '/api/registro', {
+      const resposta = await fetch('http://localhost:3000/api/registro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, nomeUsuario })
@@ -389,7 +389,7 @@ if (btnConfirmar2FA) {
     }
 
     try {
-      const resposta = await fetch(API_URL + '/api/validar-2fa', {
+      const resposta = await fetch('http://localhost:3000/api/validar-2fa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -449,7 +449,7 @@ if (btnReenviar2FA) {
     if (mensagemTimer) mensagemTimer.textContent = 'Enviando novo código...';
 
     try {
-      const resposta = await fetch(API_URL + '/api/reenviar-2fa', {
+      const resposta = await fetch('http://localhost:3000/api/reenviar-2fa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idVerificacao: idVerificacaoAtual })
@@ -513,7 +513,7 @@ if (formLogin) {
     }
 
     try {
-      const resposta = await fetch(API_URL + '/api/login', {
+      const resposta = await fetch('http://localhost:3000/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, lembrarDeMim })
@@ -812,7 +812,7 @@ if (formEsqueciSenha) {
 
     try {
       // TODO: Endpoint não existe ainda no backend — implementar POST /api/auth/esqueci-senha
-      const resposta = await fetch(API_URL + '/api/auth/esqueci-senha', {
+      const resposta = await fetch('http://localhost:3000/api/auth/esqueci-senha', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
@@ -879,7 +879,7 @@ if (btnReenviarEsqueci) {
 
     try {
       // TODO: Endpoint não existe ainda — implementar POST /api/auth/reenviar-esqueci
-      const resposta = await fetch(API_URL + '/api/auth/reenviar-esqueci', {
+      const resposta = await fetch('http://localhost:3000/api/auth/reenviar-esqueci', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idVerificacao: esqueciIdVerificacao })
@@ -915,7 +915,7 @@ if (btnConfirmarEsqueci) {
 
     try {
       // TODO: Endpoint não existe ainda — implementar POST /api/auth/validar-esqueci
-      const resposta = await fetch(API_URL + '/api/auth/validar-esqueci', {
+      const resposta = await fetch('http://localhost:3000/api/auth/validar-esqueci', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ codigo: codigoDigitado, idVerificacao: esqueciIdVerificacao })
@@ -963,7 +963,7 @@ if (formEsqueciNovaSenha) {
 
     try {
       // TODO: Endpoint não existe ainda — implementar POST /api/auth/confirmar-esqueci
-      const resposta = await fetch(API_URL + '/api/auth/confirmar-esqueci', {
+      const resposta = await fetch('http://localhost:3000/api/auth/confirmar-esqueci', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ novaSenha, idVerificacao: esqueciIdVerificacao })
@@ -1251,7 +1251,7 @@ async function carregarMusicas() {
   if (tituloSecaoMusicas) tituloSecaoMusicas.textContent = 'Todas as músicas';
 
   try {
-    const resposta = await fetch(API_URL + '/api/musicas');
+    const resposta = await fetch('http://localhost:3000/api/musicas');
     const dados = await resposta.json();
 
     if (!resposta.ok) {
@@ -1295,7 +1295,7 @@ async function carregarMusicasMaisTocadas() {
   if (tituloSecaoMusicas) tituloSecaoMusicas.textContent = 'Músicas mais tocadas';
 
   try {
-    const resposta = await fetch(API_URL + '/api/musicas/mais-tocadas');
+    const resposta = await fetch('http://localhost:3000/api/musicas/mais-tocadas');
     const dados = await resposta.json();
 
     if (!resposta.ok || !dados.musicas || dados.musicas.length === 0) {
@@ -1390,7 +1390,7 @@ async function buscarPessoas(termo) {
   // O servidor exige ao menos 2 letras; nem vale a pena pedir.
   if (!termo || termo.trim().length < 2) { esconderResultadosDePessoas(); return; }
   try {
-    const resposta = await fetch(`${API_URL}/api/perfil/buscar?q=${encodeURIComponent(termo.trim())}`);
+    const resposta = await fetch(`http://localhost:3000/api/perfil/buscar?q=${encodeURIComponent(termo.trim())}`);
     if (!resposta.ok) { esconderResultadosDePessoas(); return; }
     const dados = await resposta.json();
     renderizarPessoas(dados.pessoas);
@@ -1423,7 +1423,7 @@ async function executarBusca(termo) {
   listaMusicas.appendChild(carregando);
 
   try {
-    const resposta = await fetch(`${API_URL}/api/musicas/buscar?q=${encodeURIComponent(termo)}`);
+    const resposta = await fetch(`http://localhost:3000/api/musicas/buscar?q=${encodeURIComponent(termo)}`);
     const dados = await resposta.json();
 
     if (!resposta.ok) {
@@ -1578,7 +1578,7 @@ async function carregarArtistasMaisOuvidos() {
   if (!listaArtistas) return;
 
   try {
-    const resposta = await fetch(API_URL + '/api/artistas/mais-ouvidos');
+    const resposta = await fetch('http://localhost:3000/api/artistas/mais-ouvidos');
     const dados = await resposta.json();
 
     if (!resposta.ok) {
@@ -1705,7 +1705,7 @@ async function carregarDescobrirMusicas() {
   if (!listaDescobrir) return;
 
   try {
-    const resposta = await fetch(API_URL + '/api/musicas');
+    const resposta = await fetch('http://localhost:3000/api/musicas');
     if (!resposta.ok) throw new Error('Falha ao buscar músicas.');
     const { musicas } = await resposta.json();
 
@@ -1765,7 +1765,7 @@ if (btnUpload) {
 // primeiro (só na primeira vez); se já tiver, vai direto pro upload.
 async function abrirFluxoUpload() {
   try {
-    const resposta = await fetchComAutenticacao(API_URL + '/api/usuarios/eu');
+    const resposta = await fetchComAutenticacao('http://localhost:3000/api/usuarios/eu');
     const dados = await resposta.json();
 
     if (!resposta.ok) {
@@ -1820,7 +1820,7 @@ if (formArtista) {
     }
 
     try {
-      const resposta = await fetchComAutenticacao(API_URL + '/api/usuarios/artista', {
+      const resposta = await fetchComAutenticacao('http://localhost:3000/api/usuarios/artista', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nomeArtista })
@@ -1961,7 +1961,7 @@ if (formUpload) {
     }
 
     try {
-      const resposta = await fetchComAutenticacao(API_URL + '/api/musicas', {
+      const resposta = await fetchComAutenticacao('http://localhost:3000/api/musicas', {
         method: 'POST',
         body: dadosFormulario
       });

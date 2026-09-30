@@ -1,0 +1,3693 @@
+*{
+box-sizing: border-box;
+margin: 0;
+padding: 0;
+}
+
+/* CORREÇÃO (mantida): barra de rolagem horizontal indesejada. A causa era
+   o uso de "100vw" em .main-ctt — essa unidade conta a largura da barra
+   de rolagem vertical do navegador, então ficava alguns pixels mais larga
+   que a tela de verdade. Usamos "width: 100%" + overflow-x:hidden. */
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+/*===navbar fixa===*/
+.fixed-bar {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  position: fixed;   /* Fixa a barra na tela */
+  top: 0;            /* Gruda no topo absoluto */
+  left: 0;           /* Alinha na borda esquerda */
+  width: 100%;       /* Ocupa toda a largura da página */
+  padding: 15px 30px;     /* Espaçamento interno */
+  z-index: 1000;     /* Mantém a barra acima de outros elementos */
+}
+
+/* Os blocos da esquerda e da direita ganham o mesmo peso/espaço */
+.nav-left, .nav-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.nav-right {
+  justify-content: flex-end; /* Joga os botões totalmente para a direita */
+}
+
+/* O bloco do centro fica isolado e centralizado */
+.nav-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Estilo extra opcional para deixar o input de pesquisa bonito e largo */
+.nav-center input[type="search"] {
+  width: 300px;
+  padding: 10px 18px;
+  border-radius: var(--raio-medio);
+  border: none;
+  outline: none;
+  font-family: inherit;
+}
+
+.btn-navbar{
+    border: 5px;
+    border-radius: var(--raio-medio);
+    padding: 5px;
+    background-color: #242031;
+  }
+
+  /* Versão em <a> (o "← Voltar"). As regras acima/.fixed-bar button só
+     alcançam <button>, então o link ficava sem estilo. Espelha o
+     .btn-navbar de minhas-musicas.css para as páginas que usam home.css
+     (biblioteca.html, config.html, playlist.html). */
+  a.btn-navbar {
+    padding: 10px 20px;
+    background: var(--cor-superficie-clara);
+    color: var(--cor-texto);
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio-medio);
+    box-shadow: var(--sombra-suave);
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    transition: transform 0.2s ease, filter 0.2s ease, background-color 0.3s ease, color 0.3s ease;
+  }
+
+  a.btn-navbar:hover {
+    filter: brightness(0.96);
+    transform: scale(1.04);
+  }
+
+  a.btn-navbar:active {
+    transform: scale(0.98);
+  }
+
+  /* Botão de avatar do perfil na navbar - padronizado com outros botões */
+  .btn-perfil-avatar {
+    padding: 10px 14px;
+    background: var(--cor-superficie-clara);
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio-medio);
+    box-shadow: var(--sombra-suave);
+    color: var(--cor-texto);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s ease, filter 0.2s ease, background-color 0.3s ease, color 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 44px;
+  }
+
+  .btn-perfil-avatar:hover {
+    filter: brightness(0.96);
+    transform: scale(1.04);
+  }
+
+  .btn-perfil-avatar:active {
+    transform: scale(0.98);
+    filter: brightness(0.9);
+  }
+
+  .btn-perfil-avatar img {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1.5px solid var(--cor-borda);
+    transition: border-color 0.2s ease;
+  }
+
+  .btn-perfil-avatar:hover img {
+    border-color: var(--cor-primaria);
+  }
+
+  .fixed-bar button {
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--raio-medio);
+  cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease, background-color 0.3s ease, color 0.3s ease;
+}
+
+.fixed-bar button:hover {
+  filter: brightness(0.96);
+  transform: scale(1.04);
+}
+
+.fixed-bar button:active {
+  transform: scale(0.98);
+  filter: brightness(0.9);
+}
+
+/* Transição suave ao trocar de tema (claro/escuro) — evita a mudança
+   brusca de cor quando o botão de tema é clicado. Elementos que já têm
+   uma transição própria (botões com hover, etc.) foram estendidos nas
+   suas regras específicas, em vez de repetidos aqui. */
+body,
+.fixed-bar,
+.secao-titulo,
+.secao-musicas,
+.secao-musicas::before,
+.secao-musicas::after,
+.artists,
+.artists::before,
+.artists::after,
+.genres,
+.genres::before,
+.genres::after,
+.lista-musicas,
+.descobrir-item,
+.descobrir-capa,
+.descobrir-titulo,
+.descobrir-artista,
+.descobrir-duracao,
+.conteudo-modal,
+.conteudo-modal input,
+.player-barra,
+.dropdown-hamburguer,
+.item-dropdown,
+.secao-config,
+.secao-config input,
+.msc-nome,
+.msc-artista,
+.modal {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/*===conteudo principal===*/
+.main-ctt {
+    display: flex;
+    flex-direction: column;
+
+    gap: 70px;
+
+    width: 100%;
+    min-height: 100vh;
+
+    padding-top: 120px;
+    padding-bottom: 100px;
+
+    align-items: center;
+}
+
+/* =========================================================
+   PAINÉIS COM ESTÉTICA DE "ABA"
+   
+   Cada seção funciona como uma pasta/cartão:
+   - painel escuro
+   - aba pastel no topo
+   - faixa pastel na base
+   ========================================================= */
+
+/* =========================================================
+   PAINÉIS / ABAS DO OPENSOUND
+   ========================================================= */
+
+
+/* =========================================================
+   ABA DE TÍTULO
+   ========================================================= */
+
+.secao-titulo {
+    position: absolute;
+
+    top: -36px;
+    left: 0;
+
+    z-index: 10;
+
+    display: flex;
+    align-items: center;
+
+    min-height: 36px;
+
+    padding: 8px 22px;
+
+    border-radius: 12px 12px 0 0;
+
+    font-size: 1.05rem;
+    font-weight: 800;
+
+    color: var(--texto-sobre-pastel);
+
+    white-space: nowrap;
+
+    box-shadow: none;
+}
+
+/*
+ * Não precisamos de uma segunda lingueta.
+ * A própria aba já possui o formato desejado.
+ */
+.secao-titulo::before {
+    display: none;
+}
+
+
+/* =========================================================
+   PAINÉIS
+   ========================================================= */
+
+.secao-musicas,
+.artists,
+.genres {
+    position: relative;
+
+    background: var(--painel-fundo);
+
+    border: 1px solid var(--painel-borda);
+
+    border-radius: 18px;
+
+    box-shadow: var(--painel-sombra);
+
+    /*
+     * Mantém os pseudo-elementos do painel controlados
+     * dentro da própria composição.
+     */
+    isolation: isolate;
+}
+
+
+/* =========================================================
+   BARRA SUPERIOR
+   ========================================================= */
+
+/*
+ * Esta barra deve parecer parte do próprio bloco.
+ */
+.secao-musicas::before,
+.artists::before,
+.genres::before {
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+    left: 0;
+    right: 0;
+
+    height: 20px;
+
+    /*
+     * Canto superior esquerdo = reto
+     * Canto superior direito = arredondado
+     * Canto inferior direito = reto
+     * Canto inferior esquerdo = reto
+     */
+    border-radius: 0 10px 0 0;
+
+    box-shadow: none;
+
+    z-index: 2;
+
+    pointer-events: none;
+}
+
+
+/* =========================================================
+   BARRA INFERIOR
+   ========================================================= */
+
+/*
+ * Funciona como uma base do painel.
+ *
+ * A esquerda é completamente reta, enquanto
+ * o lado direito recebe o arredondamento.
+ */
+.secao-musicas::after,
+.artists::after,
+.genres::after {
+    content: "";
+
+    position: absolute;
+
+    left: 0;
+    right: 0;
+    bottom: 0;
+
+    height: 20px;
+
+    /*
+     * Parte superior inteira = reta
+     * Canto inferior esquerdo = arredondado
+     * Canto inferior direito = arredondado
+     */
+    border-radius: 0 0 10px 10px;
+
+    box-shadow: none;
+
+    z-index: 2;
+
+    pointer-events: none;
+}
+
+
+/* =========================================================
+   CORES DAS BARRAS
+   ========================================================= */
+
+/* Músicas */
+
+.secao-musicas::before,
+.secao-musicas::after {
+    background: var(--painel-faixa-musicas);
+}
+
+
+/* Artistas */
+
+.artists::before,
+.artists::after {
+    background: var(--painel-faixa-artistas);
+}
+
+
+/* Gêneros */
+
+.genres::before,
+.genres::after {
+    background: var(--painel-faixa-generos);
+}
+
+
+/* =========================================================
+   CORES DAS ABAS
+   ========================================================= */
+
+.secao-titulo.aba-musicas {
+    background: var(--aba-musicas);
+}
+
+.secao-titulo.aba-artistas {
+    background: var(--aba-artistas);
+}
+
+.secao-titulo.aba-generos {
+    background: var(--aba-generos);
+}
+
+.secao-titulo.aba-biblioteca {
+    background: var(--aba-biblioteca);
+}
+
+/* A aba "Minhas Playlists" tem cor própria (roxa pastel). A faixa segue
+   a aba pelo mesmo mecanismo das outras: é a classe da aba que manda
+   na cor do painel inteiro. */
+.secao-titulo.aba-playlists {
+    background: var(--aba-playlists);
+}
+
+.secao-musicas:has(> .aba-playlists)::before,
+.secao-musicas:has(> .aba-playlists)::after {
+    background: var(--aba-playlists);
+}
+
+/* A faixa do painel segue a cor da aba dele. Sem esta regra, a aba
+   verde-água da biblioteca caía num painel com faixa ROSA — porque
+   .secao-musicas na home é a seção "Músicas", que é rosa de verdade,
+   mas a biblioteca reaproveita essa classe só como layout.
+
+   A "minhas-músicas" ficava certa por acaso: ela carrega
+   minhas-musicas.css, que tem um override local fazendo a mesma coisa.
+   Aqui a regra é compartilhada, então vale para a biblioteca, para a
+   playlist e para a minhas-músicas. */
+.secao-musicas:has(> .aba-biblioteca)::before,
+.secao-musicas:has(> .aba-biblioteca)::after {
+    background: var(--aba-biblioteca);
+}
+
+
+/* =========================================================
+   PAINEL DE TODAS AS MÚSICAS
+   ========================================================= */
+
+.secao-musicas {
+    width: 85vw;
+
+    /*
+     * Espaço para a barra superior e para os cards.
+     */
+    padding: 46px 20px 34px;
+}
+
+
+/* =========================================================
+   PAINÉIS INFERIORES
+   ========================================================= */
+
+.double-div {
+    display: flex;
+
+    gap: 32px;
+
+    width: 85vw;
+
+    align-items: stretch;
+}
+
+
+/* =========================================================
+   ARTISTAS
+   ========================================================= */
+
+.artists {
+    flex: 1;
+
+    min-width: 0;
+
+    padding: 46px 18px 34px;
+
+    /* Permite que o conteúdo do ranking escale pela largura do painel
+       (unidade cqw), mantendo as proporções do mockup. */
+    container-type: inline-size;
+}
+
+/* =========================================================
+   RANKING DE ARTISTAS
+   Tamanhos em cqw = % da largura do painel .artists,
+   então tudo escala junto (proporção do mockup).
+   ========================================================= */
+
+.lista-artistas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: clamp(14px, 6cqw, 48px) clamp(8px, 3cqw, 24px);
+
+  width: 100%;
+  /* ~ mostra 2 cards grandes + um pedaço do 3º (como no mockup) */
+  height: clamp(380px, 100cqw, 860px);
+  padding-right: 8px;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  scrollbar-width: thin;
+  scrollbar-color: var(--aba-artistas) transparent;
+}
+
+.lista-artistas::-webkit-scrollbar {
+  width: 6px;
+}
+
+.lista-artistas::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.lista-artistas::-webkit-scrollbar-thumb {
+  background: var(--aba-artistas);
+  border-radius: 999px;
+}
+
+.lista-artistas::-webkit-scrollbar-thumb:hover {
+  background: var(--cor-secundaria);
+}
+
+.lista-artistas .mensagem-lista {
+  grid-column: 1 / -1;
+}
+
+/* ---------- Item grande (1º–3º) ---------- */
+
+.artista-item {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 3cqw, 24px);
+  min-width: 0;
+}
+
+/* Bloco da posição, à esquerda */
+.artista-posicao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: clamp(48px, 16cqw, 130px);
+  aspect-ratio: 1;
+  flex-shrink: 0;
+
+  border-radius: clamp(10px, 3.5cqw, 28px);
+  background: var(--cor-superficie-clara);
+  color: var(--cor-texto);
+
+  font-size: clamp(1.4rem, 7.5cqw, 3.6rem);
+  font-weight: 800;
+}
+
+/* Card do artista */
+.artista-card {
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 3cqw, 26px);
+
+  flex: 1;
+  min-width: 0;
+  padding: clamp(10px, 3cqw, 26px);
+
+  border-radius: clamp(14px, 5cqw, 40px);
+  border-left: clamp(6px, 1.4cqw, 12px) solid var(--cor-secundaria);
+  background: var(--aba-artistas);
+  color: var(--texto-sobre-pastel);
+  box-shadow: var(--sombra-suave);
+
+  transition: transform var(--transicao-padrao), box-shadow var(--transicao-padrao);
+}
+
+.artista-item:hover .artista-card {
+  transform: translateY(-2px);
+}
+
+/* Avatar: <img> quando o artista tem foto enviada, <span> com as iniciais
+   quando não tem. O mesmo bloco serve pros dois casos. */
+.artista-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: clamp(56px, 22cqw, 180px);
+  aspect-ratio: 1;
+  flex-shrink: 0;
+
+  border-radius: clamp(10px, 4cqw, 32px);
+  background: var(--cor-superficie-clara);
+  color: var(--cor-texto);
+
+  font-size: clamp(1.1rem, 5.5cqw, 2.6rem);
+  font-weight: 800;
+
+  object-fit: cover;
+}
+
+.artista-info {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(2px, 0.8cqw, 8px);
+
+  min-width: 0;
+  flex-grow: 1;
+}
+
+.artista-nome {
+  font-size: clamp(1rem, 5.2cqw, 2.6rem);
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--texto-sobre-pastel);
+
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+}
+
+.artista-detalhe {
+  font-size: clamp(0.72rem, 2.4cqw, 1.1rem);
+  font-weight: 600;
+  color: var(--texto-sobre-pastel);
+  opacity: 0.75;
+}
+
+/* Pílula de reproduções: número grande + rótulo */
+.artista-reproducoes {
+  display: inline-flex;
+  flex-direction: column;
+  align-self: flex-start;
+
+  margin-top: clamp(2px, 1cqw, 10px);
+  padding: clamp(4px, 1.2cqw, 12px) clamp(10px, 3cqw, 26px);
+
+  border-radius: clamp(8px, 2.2cqw, 18px);
+  background: var(--aba-generos);
+  color: var(--texto-sobre-pastel);
+}
+
+.artista-reproducoes-valor {
+  font-size: clamp(1.1rem, 6cqw, 3rem);
+  font-weight: 800;
+  line-height: 1.05;
+}
+
+.artista-reproducoes-rotulo {
+  font-size: clamp(0.65rem, 2.1cqw, 1rem);
+  font-weight: 700;
+}
+
+/* ---------- Item compacto (4º e 5º), lado a lado ---------- */
+
+.artista-item--compacto {
+  grid-column: auto;
+  gap: clamp(4px, 1.5cqw, 12px);
+}
+
+.artista-item--compacto .artista-posicao {
+  width: clamp(30px, 10cqw, 80px);
+  border-radius: clamp(8px, 2.5cqw, 20px);
+  font-size: clamp(0.95rem, 4.2cqw, 2rem);
+}
+
+.artista-item--compacto .artista-card {
+  gap: clamp(6px, 1.6cqw, 14px);
+  padding: clamp(6px, 1.6cqw, 14px);
+  border-radius: clamp(10px, 3cqw, 24px);
+  border-left-width: clamp(4px, 0.8cqw, 8px);
+  box-shadow: none;
+}
+
+.artista-item--compacto .artista-avatar {
+  width: clamp(30px, 10cqw, 80px);
+  border-radius: clamp(8px, 2.2cqw, 18px);
+  font-size: clamp(0.75rem, 3cqw, 1.4rem);
+}
+
+.artista-item--compacto .artista-nome {
+  font-size: clamp(0.75rem, 3.2cqw, 1.4rem);
+}
+
+.artista-item--compacto .artista-detalhe,
+.artista-item--compacto .artista-reproducoes-rotulo {
+  display: none;
+}
+
+.artista-item--compacto .artista-reproducoes {
+  margin-top: 0;
+  padding: 0;
+  background: none;
+}
+
+.artista-item--compacto .artista-reproducoes::before {
+  content: "♫ ";
+}
+
+.artista-item--compacto .artista-reproducoes-valor {
+  font-size: clamp(0.8rem, 3.2cqw, 1.4rem);
+}
+
+/* Painel estreito: 4º e 5º passam a ocupar a linha inteira */
+@container (max-width: 420px) {
+  .artista-item--compacto {
+    grid-column: 1 / -1;
+  }
+}
+
+
+/* =========================================================
+   GÊNEROS
+   ========================================================= */
+
+.genres {
+    flex: 1;
+
+    min-width: 0;
+
+    padding: 46px 18px 34px;
+}
+
+/*===modal register css====*/
+
+/* O formato dos popups (.modal, .conteudo-modal, .etapa, .btn-fechar),
+   o .hidden que esconde/mostra eles e a lista de playlists do modal
+   "Adicionar à Playlist" moram no modal-playlist.css: o modal de
+   adicionar à playlist é montado pelo favoritos.js em todas as páginas,
+   não só nesta. */
+
+/*====conteudo campo senha modal register====*/
+.campo-senha {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.campo-senha input {
+  width: 100%;
+  padding-right: 40px; /* espaço para o botão não sobrepor o texto */
+  box-sizing: border-box;
+}
+
+.btn-olho {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.regras-senha {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.82rem;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.regras-senha li {
+  transition: color 0.2s ease;
+}
+
+/*====grade OTP (2FA)====*/
+.grade-otp {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.input-otp {
+  width: 38px;
+  height: 48px;
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: 800;
+  border-radius: var(--raio-pequeno);
+  border: none;
+  outline: none;
+  font-family: inherit;
+}
+
+/*====checkbox "lembrar de mim" do login====*/
+.campo-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+/*====textos do modal de cadastro de artista e do modal de upload====*/
+.texto-artista-info {
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.upload-artista-atual {
+  font-size: 0.85rem;
+}
+
+/*====campo de arquivo====
+
+   Não existe mais um "campo de arquivo" genérico: os dois modais que
+   escolhem arquivo (enviar música e nova playlist) usam o cartão
+   .btn-upload, definido na seção do modal de upload lá no fim do
+   arquivo. Era o .campo-arquivo, um input[type=file] cru, que ficava
+   com a aparência do navegador dentro do modal. */
+
+/*===preview ao vivo do upload (coluna esquerda do modal)===
+   O invólucro é o .upload-preview, definido junto do layout de duas
+   colunas mais abaixo no arquivo. */
+.preview-upload-capa-wrapper {
+  width: 160px;
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: var(--raio-medio);
+  overflow: hidden;
+}
+
+.preview-upload-capa {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.preview-upload-capa-vazio {
+  font-size: 0.7rem;
+  text-align: center;
+  padding: 4px;
+}
+
+.preview-upload-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex-grow: 1;
+}
+
+.preview-upload-titulo {
+  font-weight: 700;
+  font-size: 0.9rem;
+  word-break: break-word;
+}
+
+.preview-upload-artista {
+  font-size: 0.8rem;
+}
+
+.preview-upload-audio {
+  font-size: 0.75rem;
+  word-break: break-word;
+}
+
+/*===================================================
+  CARROSSEL "TODAS AS MÚSICAS" (destaque + mini-capas)
+  Fica dentro do painel .secao-musicas, que já cuida da
+  aba/faixas — aqui é só o conteúdo interno.
+====================================================*/
+
+/*===================================================
+  CARROSSEL "TODAS AS MÚSICAS"
+  
+  Estrutura visual:
+  
+  [ seta ] [ destaque ] [ mini-capas ] [ seta ]
+  
+  A primeira música recebe destaque.
+  As demais aparecem como uma faixa de capas.
+===================================================*/
+
+
+/* ===================================================
+   ANIMAÇÕES DE ENTRADA
+   Disparadas sempre que os elementos são recriados
+   (a cada troca de música).
+   =================================================== */
+
+@keyframes mscEntradaInfo {
+    from {
+        opacity: 0;
+        transform: translateX(14px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+
+@keyframes mscEntradaCapa {
+    from {
+        opacity: 0;
+        transform: translateX(26px) scale(0.8);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+/* O vinil "abre": gira e cresce até a posição final, dando a sensação de
+   ter sido revelado por trás da capa nova. */
+@keyframes mscEntradaVinil {
+    from {
+        opacity: 0;
+        transform: translateY(-50%) scale(0.55) rotate(-35deg);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(-50%) scale(1) rotate(0deg);
+    }
+}
+
+
+@keyframes mscMoverDireita {
+    from {
+        opacity: 0;
+        transform: translateX(18px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+
+/* ===================================================
+   ANIMAÇÕES DE SAÍDA
+   Disparadas pela classe .saindo, que o JS aplica em
+   #lista-musicas por um instante antes de trocar de
+   música (ver focarMusica em home.js).
+   =================================================== */
+
+@keyframes mscSaidaCapa {
+    from {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(-34px) scale(0.72);
+    }
+}
+
+/* O vinil "fecha": encolhe e gira de volta antes de sumir. */
+@keyframes mscSaidaVinil {
+    from {
+        opacity: 1;
+        transform: translateY(-50%) scale(1) rotate(0deg);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateY(-50%) scale(0.55) rotate(25deg);
+    }
+}
+
+@keyframes mscSaidaInfo {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(-18px);
+    }
+}
+
+@keyframes mscSaidaLateral {
+    from {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0.15;
+    }
+}
+
+.msc-destaque::before {
+    animation: mscEntradaVinil 0.4s ease;
+}
+
+#lista-musicas.saindo .msc-capa-img {
+    animation: mscSaidaCapa 0.16s ease forwards;
+}
+
+#lista-musicas.saindo .msc-destaque::before {
+    animation: mscSaidaVinil 0.16s ease forwards;
+}
+
+#lista-musicas.saindo .msc-info {
+    animation: mscSaidaInfo 0.14s ease forwards;
+}
+
+#lista-musicas.saindo .msc-mini,
+#lista-musicas.saindo .msc-carrossel-item {
+    animation: mscSaidaLateral 0.14s ease forwards;
+}
+
+
+/* ===================================================
+   CONTROLE GERAL
+   =================================================== */
+
+/* ============================================================
+   BUSCA: FAIXA DE PESSOAS
+
+   Aparece só durante a busca, acima do carrossel de músicas. Fica
+   numa faixa à parte porque a lista de pessoas não cabe no formato
+   "destaque + setas" do carrossel.
+   ============================================================ */
+.busca-pessoas {
+  width: 100%;
+  margin-bottom: 18px;
+}
+
+.busca-pessoas-titulo {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cor-texto-fraco);
+  margin-bottom: 10px;
+}
+
+.busca-pessoas-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.busca-pessoa-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 8px 14px 8px 8px;
+
+  border: 1px solid var(--cor-borda);
+  border-radius: 999px;
+
+  background: var(--cor-superficie);
+  color: var(--cor-texto);
+  text-decoration: none;
+
+  transition:
+    border-color var(--transicao-rapida),
+    transform var(--transicao-rapida);
+}
+
+.busca-pessoa-link:hover {
+  border-color: var(--cor-primaria);
+  transform: translateY(-2px);
+}
+
+.busca-pessoa-link:focus-visible {
+  outline: 2px solid var(--cor-primaria);
+  outline-offset: 2px;
+}
+
+.busca-pessoa-nome {
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.busca-pessoa-arroba {
+  font-size: 0.75rem;
+  color: var(--cor-texto-fraco);
+  white-space: nowrap;
+}
+
+.carrossel-controle {
+    display: flex;
+    align-items: center;
+
+    width: 100%;
+
+    gap: 12px;
+
+    min-width: 0;
+}
+
+
+/* ===================================================
+   SETAS
+   =================================================== */
+
+.msc-seta {
+    flex-shrink: 0;
+
+    width: 42px;
+    height: 42px;
+
+    border-radius: 50%;
+    border: 1px solid var(--cor-borda);
+
+    font-size: 1.35rem;
+    font-weight: 800;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+
+    transition:
+        transform var(--transicao-rapida),
+        filter var(--transicao-rapida),
+        background-color 0.3s ease,
+        color 0.3s ease;
+}
+
+.msc-seta:hover {
+    transform: scale(1.08);
+    filter: brightness(1.08);
+}
+
+.msc-seta:active {
+    transform: scale(0.94);
+}
+
+
+/* ===================================================
+   ÁREA DO CARROSSEL
+   =================================================== */
+
+.lista-musicas {
+    display: flex;
+    align-items: center;
+
+    flex: 1;
+
+    min-width: 0;
+    min-height: 205px;
+
+    gap: 14px;
+
+    padding: 4px 0;
+
+    overflow: hidden;
+}
+
+/* ===================================================
+   MINI-CAPAS ANTERIORES
+  
+   No mockup elas não aparecem.
+   A navegação continua funcionando pelo JS;
+   estamos apenas escondendo visualmente as anteriores.
+   =================================================== */
+
+.msc-anteriores {
+    display: flex;
+
+    align-items: center;
+    justify-content: flex-end;
+
+    gap: 0;
+
+    /* Largura FIXA (comporta as 3 anteriores no tamanho máximo: 95+80+98).
+       Isso é o que impede o destaque e a escadinha de próximas de ficarem
+       se deslocando pra direita conforme o usuário avança — a partir de
+       agora só o conteúdo dentro desse espaço muda, nunca a posição de
+       quem vem depois dele. */
+    flex: 0 0 273px;
+    width: 273px;
+
+    overflow: visible;
+}
+
+.msc-mini {
+    width: 68px;
+    height: 68px;
+
+    flex: 0 0 68px;
+
+    object-fit: cover;
+
+    border-radius: 0;
+
+    cursor: pointer;
+
+    filter:
+        saturate(0.65)
+        brightness(0.9);
+
+    position: relative;
+
+    margin-left: -20px;
+
+    transition:
+        opacity var(--transicao-padrao),
+        transform var(--transicao-padrao),
+        filter var(--transicao-padrao);
+}
+
+/* Tamanho por distância da música em destaque. Como a ordem no DOM é
+   antiga→mais recente, a distância é contada a partir do FINAL da lista
+   (nth-last-child), já que quem fica colado no destaque é sempre o
+   último elemento, não importa quantas anteriores existam no momento. */
+.msc-anteriores .msc-mini:nth-last-child(1) {
+    width: 140px;
+    height: 140px;
+    flex-basis: 140px;
+    margin-left: -42px;
+    z-index: 10;
+}
+
+.msc-anteriores .msc-mini:nth-last-child(2) {
+    width: 115px;
+    height: 115px;
+    flex-basis: 115px;
+    margin-left: -35px;
+    z-index: 9;
+}
+
+.msc-anteriores .msc-mini:nth-last-child(3) {
+    width: 95px;
+    height: 95px;
+    flex-basis: 95px;
+    margin-left: -29px;
+    z-index: 8;
+}
+
+.msc-mini:first-child {
+    margin-left: 0 !important;
+    z-index: 8;
+}
+
+.msc-mini:hover {
+    opacity: 1;
+
+    filter:
+        saturate(1)
+        brightness(1.05);
+
+    transform:
+        translateY(-3px)
+        scale(1.03);
+
+    z-index: 20;
+}
+
+
+/* ===================================================
+   MÚSICA EM DESTAQUE
+   =================================================== */
+
+.msc-destaque {
+    position: relative;
+
+    display: flex;
+    align-items: center;
+
+    flex: 0 0 500px;
+    min-width: 500px;
+
+    gap: 45px;
+
+    flex-shrink: 0;
+
+    isolation: isolate;
+}
+
+
+/* ===================================================
+   DISCO / VINIL DECORATIVO
+   ===================================================
+
+   O JS atual cria somente a capa.
+   Portanto, o vinil é desenhado pelo CSS, sem criar
+   ID novo e sem alterar a estrutura do backend.
+   =================================================== */
+
+.msc-destaque::before {
+    content: "";
+
+    position: absolute;
+
+    left: 45px;
+    top: 50%;
+
+    width: 170px;
+    height: 170px;
+
+    transform: translateY(-50%);
+
+    border-radius: 50%;
+
+    background:
+        radial-gradient(
+            circle at center,
+            #dedede 0 8%,
+            #bdbdbd 8.5% 11%,
+            #202020 11.5% 13%,
+            #262626 13.5% 100%
+        );
+
+    box-shadow:
+        inset 0 0 0 2px rgba(255,255,255,0.08),
+        var(--sombra-media);
+
+    z-index: -1;
+}
+
+
+/* ===================================================
+   CAPA PRINCIPAL
+   =================================================== */
+
+.msc-capa-img {
+    width: 185px;
+    height: 185px;
+
+    object-fit: cover;
+
+    border-radius: 0;
+
+    flex-shrink: 0;
+
+    box-shadow: var(--sombra-media);
+
+    position: relative;
+    z-index: 2;
+
+    animation: mscEntradaCapa 0.35s ease;
+}
+
+
+/* ===================================================
+   INFORMAÇÕES DA MÚSICA
+   =================================================== */
+
+.msc-info {
+    display: flex;
+
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    text-align: center;
+
+    /*
+     * A informação tem uma área física própria.
+     * Ela nunca pode invadir a região da capa/vinil.
+     */
+    width: 230px;
+    min-width: 0;
+    max-width: 230px;
+
+    gap: 4px;
+
+    position: relative;
+    z-index: 3;
+
+    overflow: hidden;
+
+    animation: mscEntradaInfo 0.35s ease;
+}
+
+.msc-nome {
+    width: 100%;
+    max-width: 230px;
+
+    font-size: 1.65rem;
+    font-weight: 800;
+
+    line-height: 1.1;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+
+    /*
+     * Permite quebra de linha para nomes grandes.
+     */
+    white-space: normal;
+
+    overflow-wrap: anywhere;
+
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+
+.msc-artista {
+    width: 100%;
+    max-width: 230px;
+
+    font-size: 1.05rem;
+    font-weight: 500;
+
+    margin-bottom: 8px;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    white-space: nowrap;
+}
+
+
+.msc-info .btn-play {
+    margin: 0;
+}
+
+
+/* ===================================================
+   FAIXA DE PRÓXIMAS MÚSICAS
+   =================================================== */
+
+.msc-carrossel {
+    display: flex;
+    align-items: center;
+
+    flex: 1;
+
+    min-width: 0;
+
+    height: 140px;
+
+    position: relative;
+
+    overflow: hidden;
+
+    gap: 0;
+}
+
+
+/* ===================================================
+   MINI-CAPAS
+   =================================================== */
+
+.msc-carrossel-item {
+    width: 68px;
+    height: 68px;
+
+    object-fit: cover;
+
+    flex: 0 0 68px;
+
+    border-radius: 0;
+
+    cursor: pointer;
+
+    opacity: 1;
+
+    margin-left: -20px;
+
+    position: relative;
+
+    transition:
+        transform var(--transicao-rapida),
+        filter var(--transicao-rapida);
+
+    animation: mscMoverDireita 0.3s ease;
+}
+
+.msc-carrossel .msc-carrossel-item:first-child {
+    margin-left: 0 !important;
+}
+
+/* Tamanho por distância da música em destaque: a 1ª próxima (colada no
+   destaque) é a maior, e cada uma depois fica progressivamente menor —
+   dando a sensação de profundidade/escada pedida no plano. */
+.msc-carrossel-item:nth-child(1) {
+    width: 140px;
+    height: 140px;
+    flex-basis: 140px;
+    margin-left: 0 !important;
+    z-index: 10;
+}
+
+.msc-carrossel-item:nth-child(2) {
+    width: 115px;
+    height: 115px;
+    flex-basis: 115px;
+    margin-left: -35px;
+    z-index: 9;
+}
+
+.msc-carrossel-item:nth-child(3) {
+    width: 95px;
+    height: 95px;
+    flex-basis: 95px;
+    margin-left: -29px;
+    z-index: 8;
+}
+
+.msc-carrossel-item:nth-child(4) {
+    width: 80px;
+    height: 80px;
+    flex-basis: 80px;
+    margin-left: -24px;
+    z-index: 7;
+}
+
+.msc-carrossel-item:nth-child(5) {
+    width: 68px;
+    height: 68px;
+    flex-basis: 68px;
+    margin-left: -20px;
+    z-index: 6;
+}
+
+.msc-carrossel-item:nth-child(6) {
+    width: 58px;
+    height: 58px;
+    flex-basis: 58px;
+    margin-left: -17px;
+    z-index: 5;
+    opacity: 0.4;
+}
+
+.msc-carrossel::after {
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+    right: 0;
+
+    width: 85px;
+    height: 100%;
+
+    /*
+     * Transparente → mesma cor do painel.
+     *
+     * A variável faz o efeito acompanhar
+     * automaticamente o tema escuro/claro.
+     */
+    background: linear-gradient(
+        to right,
+        rgba(45, 40, 56, 0),
+        var(--painel-fundo)
+    );
+
+    z-index: 20;
+
+    pointer-events: none;
+}
+
+
+/* ===================================================
+   PAINEL DE MÚSICAS — AJUSTE INTERNO
+   =================================================== */
+
+.secao-musicas {
+    width: 85vw;
+
+    padding: 46px 18px 34px;
+}
+
+/*===================================================
+  BOTÃO DE TOCAR (usado no destaque do carrossel)
+====================================================*/
+.btn-play {
+    border: none;
+    border-radius: 999px;
+
+    padding: 8px 16px;
+
+    background: var(--cor-primaria);
+    color: var(--texto-sobre-pastel);
+
+    font-size: 0.85rem;
+    font-weight: 800;
+
+    transition:
+        transform var(--transicao-rapida),
+        filter var(--transicao-rapida);
+}
+
+.btn-play:hover {
+    transform: scale(1.03);
+    filter: brightness(1.05);
+}
+
+/*===================================================
+  BOTÃO DE EXCLUIR (Minhas Músicas)
+====================================================*/
+.btn-excluir-musica {
+    margin: 0 10px 10px;
+
+    border: none;
+    border-radius: 999px;
+
+    padding: 8px;
+
+    font-size: 0.85rem;
+    font-weight: 800;
+
+    transition:
+        transform var(--transicao-rapida),
+        filter var(--transicao-rapida);
+}
+
+.btn-excluir-musica:hover:not(:disabled) {
+    transform: scale(1.03);
+    filter: brightness(1.05);
+}
+
+.btn-excluir-musica:disabled {
+    cursor: not-allowed;
+    transform: none !important;
+    filter: grayscale(0.6) brightness(0.8) !important;
+}
+
+.card-musica .mensagem-cooldown {
+    padding: 0 10px 10px;
+    text-align: left;
+}
+
+/*===================================================
+  PÁGINA "MINHAS MÚSICAS"
+====================================================*/
+.main-ctt-biblioteca {
+    display: flex;
+    flex-direction: column;
+
+    width: 100%;
+    min-height: 100vh;
+
+    padding-top: 120px;
+    padding-bottom: 60px;
+
+    align-items: center;
+}
+
+/*===================================================
+  BARRA DE PLAYER FIXA (rodapé)
+====================================================*/
+.player-barra {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 24px;
+  z-index: 900; /* abaixo da navbar (1000), acima do conteúdo da página */
+}
+
+.player-capa {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--raio-pequeno);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.player-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 100px;
+  max-width: 160px;
+  flex-shrink: 0;
+}
+
+.player-titulo {
+  font-weight: 700;
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-artista {
+  font-size: 0.75rem;
+}
+
+#player-play-pause {
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.player-tempo {
+  font-size: 0.75rem;
+  min-width: 35px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* Pular música — mesmo formato dos outros botões de ícone da barra. */
+#player-proxima {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--cor-texto-secundario);
+  font-size: 1rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+#player-proxima:hover {
+  background: var(--cor-superficie-hover);
+  color: var(--cor-primaria);
+  transform: scale(1.08);
+}
+
+#player-proxima:active {
+  transform: scale(0.95);
+}
+
+.player-seek {
+  flex-grow: 1;
+}
+
+/* --- Controle de Volume --- */
+.player-volume {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.btn-volume {
+  border: none;
+  background: transparent;
+  color: var(--cor-texto);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--raio-pequeno);
+  transition: color 0.2s ease, background-color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.btn-volume:hover {
+  color: var(--cor-primaria);
+  background: var(--cor-superficie-clara);
+}
+
+.volume-slider {
+  width: 90px;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--cor-borda);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  transition: width 0.3s ease;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--cor-primaria);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.volume-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: none;
+  border-radius: 50%;
+  background: var(--cor-primaria);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.volume-slider::-moz-range-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.volume-slider::-moz-range-track {
+  height: 4px;
+  background: var(--cor-borda);
+  border-radius: 2px;
+}
+
+/* Animação de entrada/saída do slider de volume */
+.player-volume:hover .volume-slider,
+.player-volume:focus-within .volume-slider {
+  width: 90px;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.player-volume .volume-slider {
+  transition: width 0.3s ease, opacity 0.3s ease;
+}
+
+/*====menu hamburguer (config, e futuramente biblioteca/perfil)====*/
+.menu-hamburguer {
+  position: relative;
+}
+
+.dropdown-hamburguer {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  border-radius: var(--raio-medio);
+  min-width: 180px;
+  overflow: hidden;
+  z-index: 1001; /* acima da navbar (1000) */
+}
+
+.item-dropdown {
+  display: block;
+  padding: 10px 16px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/*===================================================
+  PÁGINA DE CONFIGURAÇÕES
+====================================================*/
+.titulo-navbar-config {
+  font-weight: 700;
+}
+
+.main-ctt-config {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 120px 20px 60px;
+}
+
+.secao-config {
+  border-radius: var(--raio-grande);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--sombra-suave);
+}
+
+.secao-config form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.secao-config input[type="text"],
+.secao-config input[type="password"] {
+  padding: 10px 14px;
+  border-radius: var(--raio-pequeno);
+  border: none;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.secao-config button {
+  padding: 10px 20px;
+  border-radius: var(--raio-medio);
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease, background-color 0.3s ease, color 0.3s ease;
+}
+
+.secao-config button:hover {
+  filter: brightness(0.96);
+  transform: scale(1.02);
+}
+
+.btn-perigo {
+  align-self: flex-start;
+}
+
+.mensagem-cooldown {
+  font-size: 0.85rem;
+}
+
+/* Botão de redefinir senha durante o cooldown de 24h — escurecido e
+   sem clique, como pedido. */
+.botao-desabilitado,
+.secao-config button:disabled {
+  cursor: not-allowed !important;
+  transform: none !important;
+  filter: grayscale(0.6) brightness(0.75) !important;
+}
+
+
+/* ===================================================
+   MODAL DE CADASTRO
+   =================================================== */
+
+/* A geometria do modal de cadastro (largura, altura, animação) está na
+   seção "MODAIS COM ABA" mais abaixo, junto dos outros dois. Aqui só
+   fica o que é interno ao formulário de cadastro. */
+
+/* Área interna rolável do cadastro */
+#modal-registro #etapa-registro {
+    width: 100%;
+    height: 100%;
+
+    display: flex;
+    flex-direction: column;
+
+    overflow: hidden;
+
+    padding-right: 0;
+}
+
+/* A animação de entrada dos popups (cadastroEntrada) foi para o
+   modal-playlist.css, junto com o formato do modal. */
+
+/* ===================================================
+   AJUSTES DOS CAMPOS DO CADASTRO
+   =================================================== */
+
+#modal-registro .input-com-icone {
+    position: relative;
+    width: 100%;
+}
+
+#modal-registro .input-com-icone input {
+    width: 100%;
+    height: 44px;
+
+    padding-top: 0 !important;
+    padding-right: 42px !important;
+    padding-bottom: 0 !important;
+    padding-left: 48px !important;
+
+    border: 1px solid var(--cor-borda);
+    border-radius: 11px;
+
+    outline: none;
+
+    background: var(--cor-fundo-secundario);
+    color: var(--cor-texto);
+
+    font-family: inherit;
+    font-size: .9rem;
+}
+
+#modal-registro .input-com-icone input::placeholder {
+    color: var(--cor-texto-fraco);
+}
+
+#modal-registro .input-com-icone input:focus {
+    border-color: var(--cor-primaria);
+
+    box-shadow:
+        0 0 0 3px rgba(241, 192, 232, .12);
+
+    background: var(--cor-superficie-hover);
+}
+
+#modal-registro .form-cadastro {
+    display: flex;
+    flex-direction: column;
+
+    gap: 11px;
+
+    min-height: 0;
+
+    flex: 1;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    padding-right: 8px;
+}
+
+/* ===================================================
+   SCROLLBAR DO FORMULÁRIO DE CADASTRO
+   =================================================== */
+
+#modal-registro .form-cadastro {
+    scrollbar-width: thin;
+    scrollbar-color: var(--cor-primaria) transparent;
+}
+
+#modal-registro .form-cadastro::-webkit-scrollbar {
+    width: 6px;
+}
+
+#modal-registro .form-cadastro::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#modal-registro .form-cadastro::-webkit-scrollbar-thumb {
+    background: var(--cor-primaria);
+    border-radius: 999px;
+}
+
+#modal-registro .form-cadastro::-webkit-scrollbar-thumb:hover {
+    background: var(--cor-secundaria);
+}
+
+/* Ícone */
+
+#modal-registro .icone-campo {
+    position: absolute;
+
+    left: 16px;
+    top: 50%;
+
+    width: 17px;
+    height: 17px;
+
+    transform: translateY(-50%);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    pointer-events: none;
+
+    color: var(--cor-texto-fraco);
+
+    z-index: 2;
+}
+
+#modal-registro .icone-campo svg {
+    display: block;
+
+    width: 17px;
+    height: 17px;
+
+    stroke: currentColor;
+    stroke-width: 1.8;
+
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+
+/* ---------------------------------------------------
+   CABEÇALHO
+   --------------------------------------------------- */
+
+#modal-registro #etapa-registro h2 {
+    flex-shrink: 0;
+
+    margin: 0 42px 14px 0;
+
+    font-size: 1.55rem;
+    line-height: 1.1;
+
+    font-weight: 800;
+
+    color: var(--cor-texto);
+
+    text-align: left;
+}
+
+
+/* ---------------------------------------------------
+   CAMPOS
+   --------------------------------------------------- */
+
+.form-cadastro {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.campo-cadastro {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.campo-cadastro > label {
+    font-size: .9rem;
+    font-weight: 700;
+
+    color: var(--cor-texto);
+}
+
+
+/* ---------------------------------------------------
+   INPUT COM ÍCONE
+   --------------------------------------------------- */
+
+.input-com-icone {
+    position: relative;
+
+    display: flex;
+    align-items: center;
+
+    width: 100%;
+}
+
+.input-com-icone input {
+    width: 100%;
+    height: 48px;
+
+    padding: 0 44px 0 46px;
+
+    border: 1px solid var(--cor-borda);
+    border-radius: 12px;
+
+    outline: none;
+
+    background: var(--cor-fundo-secundario);
+    color: var(--cor-texto);
+
+    font-size: .95rem;
+
+    transition:
+        border-color var(--transicao-rapida),
+        box-shadow var(--transicao-rapida),
+        background-color var(--transicao-rapida);
+}
+
+.input-com-icone input::placeholder {
+    color: var(--cor-texto-fraco);
+}
+
+.input-com-icone input:focus {
+    border-color: var(--cor-primaria);
+
+    box-shadow:
+        0 0 0 3px rgba(241, 192, 232, .12);
+
+    background: var(--cor-superficie-hover);
+}
+
+
+/* ---------------------------------------------------
+   ÍCONES
+   --------------------------------------------------- */
+
+.icone-campo {
+    position: absolute;
+    left: 15px;
+
+    width: 18px;
+    height: 18px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    pointer-events: none;
+
+    color: var(--cor-texto-fraco);
+}
+
+.icone-campo svg {
+    width: 18px;
+    height: 18px;
+
+    stroke: currentColor;
+
+    stroke-width: 1.8;
+
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+
+/* ---------------------------------------------------
+   OLHO DA SENHA
+   --------------------------------------------------- */
+
+.input-senha-cadastro .btn-olho {
+    position: absolute;
+    right: 8px;
+
+    width: 34px;
+    height: 34px;
+
+    padding: 0;
+
+    border: none;
+    border-radius: 9px;
+
+    background: transparent;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    color: var(--cor-texto-fraco);
+
+    transition:
+        background-color var(--transicao-rapida),
+        transform var(--transicao-rapida);
+}
+
+.input-senha-cadastro .btn-olho:hover {
+    background: var(--cor-superficie-clara);
+
+    transform: scale(1.05);
+}
+
+
+/* ---------------------------------------------------
+   LIMITE DO USUÁRIO
+   --------------------------------------------------- */
+
+.limite-usuario {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    gap: 8px;
+
+    font-size: .72rem;
+    color: var(--cor-texto-fraco);
+}
+
+.contador-usuario {
+    font-weight: 700;
+}
+
+
+/* ---------------------------------------------------
+   REGRAS DA SENHA
+   --------------------------------------------------- */
+
+#modal-registro .regras-senha {
+    display: flex;
+    flex-direction: column;
+
+    gap: 4px;
+
+    margin-top: 3px;
+    padding: 0;
+
+    list-style: none;
+}
+
+#modal-registro .regras-senha li {
+    margin: 0;
+    padding: 0;
+
+    font-size: .78rem;
+    line-height: 1.35;
+
+    font-weight: 600;
+
+    color: var(--cor-texto-fraco);
+}
+
+
+/* ---------------------------------------------------
+   TERMOS DE USO
+   --------------------------------------------------- */
+
+.termos-uso {
+    display: flex;
+    flex-direction: column;
+
+    gap: 9px;
+
+    margin-top: 2px;
+}
+
+.termos-box {
+    max-height: 105px;
+
+    overflow-y: auto;
+
+    padding: 12px 13px;
+
+    border: 1px solid var(--cor-borda);
+
+    border-radius: 11px;
+
+    background: var(--cor-fundo-secundario);
+
+    color: var(--cor-texto-secundario);
+
+    font-size: .75rem;
+
+    line-height: 1.45;
+}
+
+.termos-box strong {
+    display: block;
+
+    margin-bottom: 5px;
+
+    color: var(--cor-texto);
+
+    font-size: .82rem;
+}
+
+.termos-box p {
+    margin-bottom: 5px;
+}
+
+.termos-box p:last-child {
+    margin-bottom: 0;
+}
+
+.termos-placeholder {
+    color: var(--cor-texto-fraco);
+}
+
+.aceite-termos {
+    display: flex;
+    align-items: flex-start;
+
+    gap: 8px;
+
+    cursor: pointer;
+
+    font-size: .75rem;
+    line-height: 1.35;
+
+    color: var(--cor-texto-secundario);
+}
+
+.aceite-termos input {
+    flex-shrink: 0;
+
+    width: 15px;
+    height: 15px;
+
+    margin-top: 1px;
+
+    accent-color: var(--cor-primaria);
+
+    cursor: pointer;
+}
+
+
+/* ---------------------------------------------------
+   BOTÃO
+   --------------------------------------------------- */
+
+#modal-registro .btn-cadastrar {
+    width: 100%;
+    min-height: 48px;
+
+    margin-top: 3px;
+
+    border: none;
+    border-radius: 13px;
+
+    background:
+        linear-gradient(
+            90deg,
+            var(--pastel-rosa),
+            var(--pastel-pessego)
+        );
+
+    color: var(--texto-sobre-pastel);
+
+    font-size: .98rem;
+    font-weight: 800;
+
+    transition:
+        transform var(--transicao-rapida),
+        filter var(--transicao-rapida),
+        box-shadow var(--transicao-rapida);
+}
+
+#modal-registro .btn-cadastrar:hover {
+    transform: translateY(-1px);
+
+    filter: brightness(1.04);
+
+    box-shadow:
+        0 7px 18px rgba(241, 192, 232, .18);
+}
+
+#modal-registro .btn-cadastrar:active {
+    transform: translateY(1px) scale(.99);
+}
+
+
+/* ===================================================
+   MODAL DE LOGIN — ESTILOS MELHORADOS
+   =================================================== */
+
+/* A largura do login e a animação dele vêm da seção "MODAIS COM ABA"
+   mais abaixo. O "esqueci senha" não usa aba, então segue com a
+   geometria própria. */
+#modal-esqueci-senha .conteudo-modal {
+    width: min(360px, calc(100vw - 36px));
+    max-height: calc(100vh - 56px);
+    height: min(540px, calc(100vh - 56px));
+}
+
+/* Formulários com mesmo espaçamento do cadastro */
+#modal-login #form-login,
+#modal-esqueci-senha #form-esqueci-senha,
+#modal-esqueci-senha #form-esqueci-nova-senha,
+#modal-nova-playlist #form-nova-playlist {
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* igual .form-cadastro */
+}
+
+/* BOTÃO FECHAR — ver a regra genérica .btn-fechar no fim do arquivo */
+
+/* CAMPOS DO LOGIN / ESQUECI SENHA */
+#modal-login .campo-login,
+#modal-esqueci-senha .campo-login {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+#modal-login .campo-login > label,
+#modal-esqueci-senha .campo-login > label {
+    font-size: .9rem;
+    font-weight: 700;
+    color: var(--cor-texto);
+}
+
+#modal-login .input-com-icone,
+#modal-esqueci-senha .input-com-icone {
+    position: relative;
+    width: 100%;
+}
+
+#modal-login .input-com-icone input,
+#modal-esqueci-senha .input-com-icone input {
+    width: 100% !important;
+    height: 48px !important;
+    padding: 0 44px 0 46px !important;
+    border: 1px solid var(--cor-borda) !important;
+    border-radius: 12px !important;
+    outline: none !important;
+    background: var(--cor-fundo-secundario) !important;
+    color: var(--cor-texto) !important;
+    font-family: inherit !important;
+    font-size: .95rem !important;
+    transition:
+        border-color var(--transicao-rapida),
+        box-shadow var(--transicao-rapida),
+        background-color var(--transicao-rapida) !important;
+}
+
+#modal-login .input-com-icone input::placeholder,
+#modal-esqueci-senha .input-com-icone input::placeholder {
+    color: var(--cor-texto-fraco) !important;
+}
+
+#modal-login .input-com-icone input:focus,
+#modal-esqueci-senha .input-com-icone input:focus {
+    border-color: var(--cor-primaria) !important;
+    box-shadow: 0 0 0 3px rgba(241, 192, 232, .12) !important;
+    background: var(--cor-superficie-hover) !important;
+}
+
+/* ÍCONES NOS INPUTS */
+#modal-login .icone-campo,
+#modal-esqueci-senha .icone-campo {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    width: 18px;
+    height: 18px;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    color: var(--cor-texto-fraco);
+    z-index: 2;
+}
+
+#modal-login .icone-campo svg,
+#modal-esqueci-senha .icone-campo svg {
+    display: block;
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* OLHO DA SENHA — LOGIN E ESQUECI */
+#modal-login .input-senha-login .btn-olho,
+#modal-esqueci-senha .input-senha-login .btn-olho {
+    position: absolute;
+    right: 8px;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: none;
+    border-radius: 9px;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--cor-texto-fraco);
+    transition:
+        background-color var(--transicao-rapida),
+        transform var(--transicao-rapida);
+}
+
+#modal-login .input-senha-login .btn-olho:hover,
+#modal-esqueci-senha .input-senha-login .btn-olho:hover {
+    background: var(--cor-superficie-clara);
+    transform: scale(1.05);
+}
+
+/* OPÇÕES DO LOGIN (lembrar + esqueci) — mais espaçamento */
+.login-opcoes {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+}
+
+#modal-login .campo-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    color: var(--cor-texto-secundario);
+}
+
+.link-esqueci {
+    font-size: 0.85rem;
+    color: var(--cor-primaria);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color var(--transicao-rapida);
+}
+
+.link-esqueci:hover {
+    color: var(--cor-primaria-hover);
+    text-decoration: underline;
+}
+
+/* BOTÃO ENTRAR DO MODAL — mesmo estilo do cadastrar */
+#modal-login .btn-entrar-modal,
+#modal-esqueci-senha .btn-entrar-modal {
+    width: 100% !important;
+    min-height: 48px !important;
+    margin-top: 3px !important;
+    border: none !important;
+    border-radius: 13px !important;
+    background: linear-gradient(90deg, var(--pastel-rosa), var(--pastel-pessego)) !important;
+    color: var(--texto-sobre-pastel) !important;
+    font-size: .98rem !important;
+    font-weight: 800 !important;
+    cursor: pointer !important;
+    transition: transform var(--transicao-rapida), filter var(--transicao-rapida), box-shadow var(--transicao-rapida) !important;
+}
+
+#modal-login .btn-entrar-modal:hover,
+#modal-esqueci-senha .btn-entrar-modal:hover {
+    transform: translateY(-1px) !important;
+    filter: brightness(1.04) !important;
+    box-shadow: 0 7px 18px rgba(241, 192, 232, .18) !important;
+}
+
+#modal-login .btn-entrar-modal:active,
+#modal-esqueci-senha .btn-entrar-modal:active {
+    transform: translateY(1px) scale(.99) !important;
+}
+
+/* LINK "NÃO POSSUI CONTA / VOLTAR" — o formato (.link-cadastro) foi para
+   o modal-playlist.css, porque o modal "Adicionar à Playlist" também usa
+   ele na dica "Crie na Biblioteca". */
+
+/* TEXTO EXPLICATIVO ESQUECI SENHA */
+.texto-esqueci {
+    font-size: .85rem;
+    line-height: 1.4;
+    color: var(--cor-texto-secundario);
+    margin-top: -4px;
+}
+
+/* EMAIL MASCARADO */
+#esqueci-email-mascarado {
+    color: var(--cor-primaria);
+    font-weight: 700;
+}
+
+/* REGRAS DE SENHA — ETAPA NOVA SENHA */
+#esqueci-regras-senha {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 3px;
+    padding: 0;
+    list-style: none;
+}
+
+#esqueci-regras-senha li {
+    margin: 0;
+    padding: 0;
+    font-size: .78rem;
+    line-height: 1.35;
+    font-weight: 600;
+    color: var(--cor-texto-fraco);
+    transition: color 0.2s ease;
+}
+
+#esqueci-regras-senha li.valido {
+    color: var(--cor-sucesso);
+}
+
+/* RESPONSIVO — MODAIS LOGIN/ESQUECI */
+@media (max-width: 520px) {
+    #modal-login .conteudo-modal,
+    #modal-esqueci-senha .conteudo-modal {
+        width: calc(100vw - 24px);
+        padding: 25px 21px;
+    }
+}
+
+
+/* ---------------------------------------------------
+   RESPONSIVO
+   --------------------------------------------------- */
+
+@media (max-width: 520px) {
+
+    #modal-registro .conteudo-modal {
+        width: calc(100vw - 24px);
+
+        padding: 25px 21px;
+    }
+
+    #modal-registro #etapa-registro h2 {
+        font-size: 1.6rem;
+    }
+}
+
+/*===================================================
+   BOTÕES DE AÇÃO DOS MODAIS
+   .btn-modal-acao      — ação principal (degradê pastel)
+   .btn-modal-secundario — ação de apoio (reenviar código)
+
+   O degradê é o mesmo do "Cadastrar" e do "Entrar"; aqui ele vira
+   uma classe para os botões que NÃO estão dentro de um <form> e
+   portanto não são type="submit" (os botões de confirmar e reenviar
+   código ficavam sem estilo nenhum).
+====================================================*/
+.btn-modal-acao {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 3px;
+  border: none;
+  border-radius: 13px;
+  background: linear-gradient(90deg, var(--pastel-rosa), var(--pastel-pessego));
+  color: var(--texto-sobre-pastel);
+  font-family: inherit;
+  font-size: .98rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform var(--transicao-rapida),
+    filter var(--transicao-rapida),
+    box-shadow var(--transicao-rapida);
+}
+
+.btn-modal-acao:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+  box-shadow: 0 7px 18px rgba(241, 192, 232, .18);
+}
+
+.btn-modal-acao:active {
+  transform: translateY(1px) scale(.99);
+}
+
+.btn-modal-acao:disabled {
+  cursor: not-allowed;
+  filter: grayscale(.6) brightness(.85);
+  box-shadow: none;
+  transform: none;
+}
+
+.btn-modal-secundario {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--cor-borda);
+  border-radius: 13px;
+  background: transparent;
+  color: var(--cor-texto-secundario);
+  font-family: inherit;
+  font-size: .9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background-color var(--transicao-rapida),
+    color var(--transicao-rapida),
+    border-color var(--transicao-rapida);
+}
+
+.btn-modal-secundario:hover:not(:disabled) {
+  background: var(--cor-superficie-clara);
+  color: var(--cor-texto);
+}
+
+.btn-modal-secundario:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+/* ===================================================
+   MODAIS COM ABA — REGRA NOVA
+
+   A partir daqui o modal deixa de "aparecer e sumir" e passa a ter a
+   mesma identidade dos painéis do carrossel: duas faixas de cor na
+   borda (uma em cima, outra embaixo) e uma aba com o nome do conteúdo
+   pendurada acima.
+
+   A animação sai da própria caixa: fechada ela tem 56px de altura — as
+   duas faixas de 28px encostadas no meio da tela, porque o overlay
+   centraliza a caixa. Ao abrir, a caixa cresce e as faixas se separam
+   sozinhas, revelando o conteúdo. Fechar é o mesmo caminho ao contrário.
+
+   Nenhuma medição em JavaScript: é só a altura da caixa animando.
+
+   Modais que usam esta regra: registro, login e upload
+   (marcados com a classe .modal--aba no HTML).
+   =================================================== */
+
+.modal--aba {
+  --ease-modal: cubic-bezier(.22, .9, .24, 1);
+
+  /* O padding de cima (46px) abre espaço para a aba de 34px que fica
+     pendurada acima da caixa; os 20px laterais e os 30px de baixo
+     mantêm o respiro que o .modal já usava. */
+  padding: 46px 20px 30px;
+}
+
+/* Nestes modais a classe .hidden deixa de ser display:none — sem isso
+   não dá para animar, porque display não transiciona. Ela continua
+   significando "fechado", só muda o mecanismo.
+
+   No fechamento o overlay demora um pouco mais que a caixa (.42s contra
+   .44s da altura, mas o desbotamento é perceptivelmente mais lento):
+   assim as faixas ainda aparecem se juntando no centro antes de a tela
+   escurecer de vez. */
+.modal--aba.hidden {
+  display: flex !important;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity .42s var(--ease-modal),
+    visibility 0s linear .42s;
+}
+
+.modal--aba:not(.hidden) {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity .34s var(--ease-modal),
+    visibility 0s linear 0s;
+}
+
+/* ---- A caixa que abre e fecha ----
+   Quem colapsa é o .modal-quadro, e NÃO o .conteudo-modal.
+
+   O quadro não pode ter overflow:hidden, senão a aba que fica ACIMA
+   dele seria cortada (é o que acontecia antes). Quem corta o conteúdo é
+   o .conteudo-modal, que acompanha a altura do quadro com height:100%
+   e recorta o que passar. */
+.modal--aba .modal-quadro {
+  position: relative;
+
+  --modal-fechada: 56px;   /* exatamente duas faixas de 28px */
+  --modal-altura: 420px;
+
+  height: var(--modal-fechada);
+  max-height: calc(100vh - 110px);
+
+  transition: height .44s var(--ease-modal);
+}
+
+.modal--aba:not(.hidden) .modal-quadro {
+  height: var(--modal-altura);
+}
+
+/* overflow:hidden vem da regra genérica .conteudo-modal — é ela que
+   esconde o conteúdo enquanto a altura anima. */
+.modal--aba .conteudo-modal {
+  height: 100%;
+
+  padding: 44px 22px 32px;
+
+  justify-content: center;
+
+  /* a animação antiga de entrada não bate com a de agora */
+  animation: none;
+}
+
+/* ---- As duas faixas (a "pasta") ----
+   Mesma receita do painel do carrossel (.secao-musicas): a faixa de
+   cima NÃO arredonda o lado esquerdo. É ela que se emenda na lingueta,
+   e um canto redondo ali abriria um vão embaixo da aba — foi
+   exatamente o que aconteceu na primeira versão.
+
+   Os cantos arredondados ficam do lado contrário, onde não tem nada
+   em cima: em cima à direita, embaixo nos dois.
+
+   O z-index é obrigatório: o .conteudo-modal também é posicionado
+   (position:relative, para o botão de fechar ficar preso nele) e, sem
+   isso, ele pintaria por cima da faixa de cima — que é o ::before, e
+   pseudo-elemento ::before vem antes do conteúdo na ordem de pintura.
+   O ::after ficaria visível, e só a de cima sumiria. */
+.modal--aba .modal-quadro::before,
+.modal--aba .modal-quadro::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 28px;
+  background: var(--aba-modal);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.modal--aba .modal-quadro::before {
+  top: 0;
+  border-radius: 0 10px 0 0;
+}
+
+.modal--aba .modal-quadro::after {
+  bottom: 0;
+  border-radius: 0 0 10px 10px;
+}
+
+/* ---- A aba com o nome do conteúdo ----
+   Fica acima da caixa, não dentro: por isso vive no .modal-quadro.
+   O top:-26px (e não -34px) faz a lingueta descer 8px por cima da
+   faixa: as duas peças viram uma só, sem costura no meio. */
+.modal--aba .modal-aba-titulo {
+  position: absolute;
+  top: -26px;
+  left: 0;
+  z-index: 3;
+
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 6px 22px;
+
+  border-radius: 12px 12px 0 0;
+
+  background: var(--aba-modal);
+  color: var(--texto-sobre-pastel);
+
+  font-size: .92rem;
+  font-weight: 800;
+  white-space: nowrap;
+
+  opacity: 0;
+  transform: translateY(12px);
+
+  transition:
+    opacity .2s ease,
+    transform .3s var(--ease-modal);
+}
+
+.modal--aba:not(.hidden) .modal-aba-titulo {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: .24s;
+}
+
+/* ---- O conteúdo e o X só aparecem depois que a caixa abriu ---- */
+.modal--aba .conteudo-modal > .etapa {
+  opacity: 0;
+  transform: translateY(12px);
+  /* Se o conteúdo for maior que a caixa, ele rola em vez de ser cortado. */
+  min-height: 0;
+  overflow-y: auto;
+  transition:
+    opacity .2s ease,
+    transform .34s var(--ease-modal);
+}
+
+.modal--aba:not(.hidden) .conteudo-modal > .etapa {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: .2s;
+}
+
+/* ---- Rolagem dentro dos modais ----
+   Mesma barra fina e rosa do formulário de cadastro. Na prática quase
+   nunca aparece — as alturas foram dimensionadas para o conteúdo caber
+   inteiro — mas ela existe para telas baixas, onde a caixa éLimiteda
+   pelo max-height e o conteúdo realmente não cabe. */
+.modal--aba .conteudo-modal > .etapa,
+.modal--aba .form-cadastro {
+    scrollbar-width: thin;
+    scrollbar-color: var(--cor-primaria) transparent;
+}
+
+.modal--aba .conteudo-modal > .etapa::-webkit-scrollbar,
+.modal--aba .form-cadastro::-webkit-scrollbar {
+    width: 6px;
+}
+
+.modal--aba .conteudo-modal > .etapa::-webkit-scrollbar-track,
+.modal--aba .form-cadastro::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.modal--aba .conteudo-modal > .etapa::-webkit-scrollbar-thumb,
+.modal--aba .form-cadastro::-webkit-scrollbar-thumb {
+    background: var(--cor-primaria);
+    border-radius: 999px;
+}
+
+.modal--aba .conteudo-modal > .etapa::-webkit-scrollbar-thumb:hover,
+.modal--aba .form-cadastro::-webkit-scrollbar-thumb:hover {
+    background: var(--cor-secundaria);
+}
+
+.modal--aba .btn-fechar {
+  /* fica inteiro em cima da faixa de cima, com o x escuro sobre o pastel.
+     right:12px (e não 6px) para o x não invadir a curva do canto
+     direito da faixa, que começa 10px da borda. */
+  top: 0;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  border-radius: 0 0 0 10px;
+  font-size: 1.2rem;
+  color: var(--texto-sobre-pastel);
+  opacity: 0;
+  transition:
+    opacity .2s ease,
+    background-color var(--transicao-rapida),
+    color var(--transicao-rapida),
+    transform var(--transicao-rapida);
+}
+
+.modal--aba:not(.hidden) .btn-fechar {
+  opacity: 1;
+  transition-delay: .24s;
+}
+
+.modal--aba .btn-fechar:hover {
+  background: rgba(0, 0, 0, .08);
+  color: var(--texto-sobre-pastel);
+}
+
+/* ---- Tamanho de cada modal ---- */
+/* A altura vive no .modal-quadro porque é lá que o height anima.
+   A variável tem que ser declarada no MESMO elemento (ou num ancestral):
+   declarar aqui no .conteudo-modal não funcionaria, porque variável CSS
+   desce a hierarquia, não sobe — o quadro ficaria com os 420px padrão. */
+#modal-registro.modal--aba .modal-quadro {
+  --modal-altura: 580px;
+}
+
+#modal-login.modal--aba .modal-quadro {
+  --modal-altura: 460px;
+}
+
+#modal-upload.modal--aba .modal-quadro {
+  --modal-altura: 470px;
+}
+
+#modal-registro.modal--aba .conteudo-modal,
+#modal-login.modal--aba .conteudo-modal {
+  width: min(360px, calc(100vw - 24px));
+}
+
+#modal-upload.modal--aba .conteudo-modal {
+  width: min(720px, calc(100vw - 24px));
+}
+
+/* Modal de nova playlist (página da biblioteca): coluna única, caixa
+   estreita. Só precisa da altura — o resto é o mesmo de todos. */
+#modal-nova-playlist.modal--aba .modal-quadro {
+  --modal-altura: 340px;
+}
+
+#modal-nova-playlist.modal--aba .conteudo-modal {
+  width: min(360px, calc(100vw - 24px));
+}
+
+/* ===================================================
+   MODAL DE UPLOAD — DUAS COLUNAS
+
+   Esquerda: preview ao vivo (capa + título/artista/arquivo).
+   Meio: uma linha branca fina.
+   Direita: o que a pessoa preenche e o botão de enviar.
+   =================================================== */
+
+.upload-form {
+  width: 100%;
+}
+
+.upload-colunas {
+  display: flex;
+  align-items: stretch;
+  gap: 18px;
+  width: 100%;
+}
+
+.upload-preview {
+  flex: 0 0 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  min-width: 0;
+}
+
+.upload-divisor {
+  flex: 0 0 1px;
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    var(--linha-divisoria) 16%,
+    var(--linha-divisoria) 84%,
+    transparent
+  );
+}
+
+.upload-opcoes {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.campo-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.campo-upload label {
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--cor-texto);
+}
+
+.campo-upload input[type="text"] {
+  min-height: 44px;
+  width: 100%;
+}
+
+/* Botão de escolha de arquivo: o input fica por cima, invisível mas do
+   mesmo tamanho, então o clique abre o seletor, o teclado consegue focar
+   e a validação de "obrigatório" aparece no lugar certo. */
+.btn-upload {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  min-height: 56px;
+  padding: 10px 14px;
+
+  border: 1px dashed var(--cor-borda);
+  border-radius: 14px;
+  background: var(--input-fundo);
+  color: var(--cor-texto);
+
+  cursor: pointer;
+
+  transition:
+    background-color var(--transicao-rapida),
+    border-color var(--transicao-rapida),
+    transform var(--transicao-rapida);
+}
+
+.btn-upload:hover {
+  background: var(--input-fundo-hover);
+  border-color: var(--cor-primaria);
+}
+
+.btn-upload:focus-within {
+  border-style: solid;
+  border-color: var(--cor-primaria);
+  box-shadow: 0 0 0 3px rgba(241, 192, 232, .12);
+}
+
+.btn-upload input[type="file"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+
+.btn-upload-icone {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--cor-superficie-clara);
+  color: var(--cor-primaria);
+}
+
+.btn-upload-icone svg {
+  width: 19px;
+  height: 19px;
+}
+
+.btn-upload-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  text-align: left;
+}
+
+.btn-upload-texto strong {
+  font-size: .87rem;
+  font-weight: 700;
+}
+
+.btn-upload-texto small {
+  font-size: .74rem;
+  color: var(--cor-texto-fraco);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* O preview é uma coluna: capa grande em cima (tamanho definido em
+   .preview-upload-capa-wrapper, lá no bloco do preview), textos embaixo. */
+.preview-upload-capa-vazio {
+  font-size: .8rem;
+}
+
+.preview-upload-info {
+  align-items: center;
+  text-align: center;
+  gap: 3px;
+}
+
+.preview-upload-titulo {
+  font-size: .95rem;
+}
+
+.preview-upload-artista {
+  font-size: .82rem;
+}
+
+.preview-upload-audio {
+  font-size: .74rem;
+}
+
+/* ---- Telas estreitas: as colunas viram uma só ---- */
+@media (max-width: 640px) {
+  /* Empilhando as colunas o conteúdo fica mais alto, então a caixa
+     precisa crescer — e a variável vai no .modal-quadro, que é quem
+     consome (ver nota perto dos tamanhos, no fim da seção). */
+  #modal-upload.modal--aba .modal-quadro {
+    --modal-altura: 560px;
+  }
+
+  .upload-colunas {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .upload-preview {
+    flex: none;
+  }
+
+  .upload-divisor {
+    flex: none;
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--linha-divisoria) 16%,
+      var(--linha-divisoria) 84%,
+      transparent
+    );
+  }
+}
+
+
+/*===================================================
+  PLAYLISTS / FAVORITOS
+====================================================*/
+
+/* Botão de ícone genérico (coração e "adicionar à playlist"): o formato
+   base mora em theme.css, que todas as páginas carregam — aqui só
+   sobrou o que é exclusivo da home. */
+
+/* Wrapper da capa do destaque: mesma geometria da capa (185px) e o mesmo
+   empilhamento que ela tinha, só que agora dá pra ancorar botões nela. */
+.msc-capa-wrapper {
+  position: relative;
+  z-index: 2;
+
+  flex-shrink: 0;
+
+  width: 185px;
+  height: 185px;
+}
+
+.msc-capa-wrapper .msc-capa-img {
+  width: 100%;
+  height: 100%;
+}
+
+/* Botão de adicionar à playlist, ancorado no canto superior direito da
+   CAPA (não do disco de vinil, que fica atrás). Reaproveita os mesmos
+   keyframes do carrossel pra entrar/sair junto com a troca de música. */
+.msc-acoes-capa {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  z-index: 5;
+
+  display: flex;
+  gap: 8px;
+
+  animation: mscEntradaInfo 0.35s ease;
+}
+
+#lista-musicas.saindo .msc-acoes-capa {
+  animation: mscSaidaInfo 0.14s ease forwards;
+}
+
+/* Linha com "Tocar" + favoritar, lado a lado. O favoritar usa a mesma
+   cor/formato do Tocar, só que compacto (só o ícone). */
+.msc-info-botoes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.msc-info-botoes .btn-favoritar-destaque {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 38px;
+  height: 38px;
+  padding: 0;
+
+  border: none;
+  border-radius: 50%;
+
+  font-size: 1rem;
+
+  background: var(--cor-primaria);
+  color: var(--texto-sobre-pastel);
+
+  cursor: pointer;
+
+  transition:
+    transform var(--transicao-rapida),
+    filter var(--transicao-rapida),
+    background-color 0.3s ease,
+    color 0.3s ease;
+}
+
+.msc-info-botoes .btn-favoritar-destaque:hover {
+  transform: scale(1.06);
+  filter: brightness(1.05);
+}
+
+.msc-info-botoes .btn-favoritar-destaque:active {
+  transform: scale(0.94);
+}
+
+.msc-info-botoes .btn-favoritar-destaque.ativo {
+  background: var(--cor-erro);
+  color: #fff8f3;
+}
+
+/* A lista de playlists do modal "Adicionar à Playlist"
+   (.lista-playlists-modal, .item-playlist-modal, .item-playlist-capa,
+   .item-playlist-nome, .item-playlist-estado) foi para o
+   modal-playlist.css: esse modal é montado pelo favoritos.js em todas
+   as páginas, não só na home. */
+/*===================================================
+   GRADE DE CARDS (Biblioteca, Playlist, Minhas Músicas)
+  Reintroduz .card-musica/.capa-musica/.info-musica/.titulo-musica/
+  .artista-musica, que sumiram do CSS na reforma pro carrossel — a página
+  "Minhas Músicas" já usava essas classes e ficava sem estilo.
+====================================================*/
+.grade-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 18px;
+  width: 100%;
+  min-height: 120px;
+}
+
+.card-playlist,
+.card-musica {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--raio-medio);
+  overflow: hidden;
+  transition:
+    transform var(--transicao-rapida),
+    background-color 0.3s ease,
+    box-shadow var(--transicao-rapida);
+}
+
+.card-playlist {
+  cursor: pointer;
+}
+
+/*===================================================
+  CARTÃO "CRIAR PLAYLIST" (primeiro slot da biblioteca)
+
+  Substitui o botão que ficava no canto da navbar. Tem o mesmo
+  esqueleto de um card normal — a área do "+ ocupa 1:1, igual à capa
+  — para a grade não ficar com alturas diferentes entre os cards.
+  A diferença é a borda tracejada e o fundo vazio: ele não é uma
+  playlist, é o convite a criar uma.
+====================================================*/
+.card-nova-playlist {
+  display: flex;
+  flex-direction: column;
+
+  width: 100%;
+  padding: 0;
+
+  border: 2px dashed var(--cor-borda);
+  border-radius: var(--raio-medio);
+
+  background: transparent;
+  color: var(--cor-texto);
+
+  font-family: inherit;
+  text-align: center;
+  cursor: pointer;
+
+  overflow: hidden;
+
+  transition:
+    transform var(--transicao-rapida),
+    border-color var(--transicao-rapida),
+    background-color 0.3s ease;
+}
+
+.nova-playlist-icone {
+  aspect-ratio: 1 / 1;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 2.8rem;
+  line-height: 1;
+  /* A Baloo 2 só carrega 500/600/700/800 — 300 cairia numa fonte
+     sintética, que destoa do resto do site. */
+  font-weight: 500;
+
+  color: var(--cor-primaria);
+
+  transition: transform var(--transicao-rapida);
+}
+
+.card-nova-playlist:hover {
+  border-color: var(--cor-primaria);
+  background: var(--cor-superficie-clara);
+  transform: translateY(-4px);
+}
+
+.card-nova-playlist:hover .nova-playlist-icone {
+  transform: scale(1.12);
+}
+
+.card-nova-playlist:focus-visible {
+  outline: 2px solid var(--cor-primaria);
+  outline-offset: 3px;
+}
+
+.card-musica {
+  cursor: default; /* não navega — só mostra info + ações (excluir/remover) */
+}
+
+.card-playlist:hover,
+.card-musica:hover {
+  transform: translateY(-4px);
+}
+
+.capa-musica {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+}
+
+.capa-musica.capa-vazia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem;
+}
+
+.info-musica {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.titulo-musica {
+  font-weight: 700;
+  font-size: 0.92rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artista-musica {
+  font-size: 0.78rem;
+}
+
+/*===================================================
+  TOCAR PLAYLIST + BUSCA DE MÚSICAS
+  ====================================================*/
+
+/* Botão que joga a playlist inteira na fila. Vive dentro do card e dentro
+   dos resultados da busca, então precisa se adaptar aos dois lugares. */
+.btn-play-card {
+  margin: 0 10px 10px;
+  padding: 8px 12px;
+
+  border: none;
+  border-radius: 999px;
+
+  background: var(--cor-primaria);
+  color: var(--texto-sobre-pastel);
+
+  font-size: 0.82rem;
+  font-weight: 800;
+  white-space: nowrap;
+
+  transition:
+    transform var(--transicao-rapida),
+    filter var(--transicao-rapida);
+}
+
+.btn-play-card:hover:not(:disabled) {
+  transform: scale(1.03);
+  filter: brightness(1.05);
+}
+
+.btn-play-card:disabled {
+  cursor: not-allowed;
+  transform: none !important;
+  filter: grayscale(0.6) brightness(0.8) !important;
+}
+
+/* A capa do card ocupa a largura toda; o botão encosta embaixo dela. */
+.card-playlist .btn-play-card {
+  margin-top: 2px;
+}
+
+/* --- Bloco de busca da página da playlist --- */
+.busca-playlist {
+  width: 100%;
+  margin-top: var(--espaco-6);
+
+  padding: var(--espaco-5);
+  border-radius: var(--raio-medio);
+
+  background-color: var(--cor-fundo-secundario);
+}
+
+.busca-playlist-titulo {
+  margin-bottom: var(--espaco-3);
+
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.busca-playlist-form {
+  display: flex;
+  gap: var(--espaco-3);
+}
+
+.busca-playlist-input {
+  flex: 1;
+  min-width: 0;
+
+  padding: 10px 16px;
+  border: none;
+  border-radius: var(--raio-medio);
+  outline: none;
+
+  font-family: inherit;
+  font-size: 0.95rem;
+}
+
+.busca-playlist-input:focus {
+  box-shadow: 0 0 0 2px var(--cor-primaria);
+}
+
+.busca-playlist-form button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.busca-playlist-resultados {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-2);
+
+  margin-top: var(--espaco-4);
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.item-busca-playlist {
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-3);
+
+  padding: var(--espaco-2);
+  border-radius: var(--raio-medio);
+
+  background-color: var(--cor-fundo);
+}
+
+.item-busca-capa {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+
+  border-radius: var(--raio-pequeno);
+  object-fit: cover;
+}
+
+.item-busca-capa-vazia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 1.3rem;
+}
+
+.item-busca-texto {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-busca-playlist .btn-play-card {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+
+/* ===================================================
+   DESCUBRA NOVAS MÚSICAS (lista com capa, título, artista e duração)
+
+   Nenhuma regra acima é alterada: estas classes são novas e não colidem
+   com o ranking de artistas nem com o carrossel. A lista de músicas rola
+   por dentro do painel em vez de esticar a página inteira.
+   ================================================= */
+
+.lista-descobrir {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espaco-2);
+    list-style: none;
+    max-height: 420px;
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    scrollbar-width: thin;
+    scrollbar-color: var(--aba-generos) transparent;
+}
+
+.lista-descobrir::-webkit-scrollbar {
+    width: 6px;
+}
+
+.lista-descobrir::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.lista-descobrir::-webkit-scrollbar-thumb {
+    background: var(--aba-generos);
+    border-radius: 999px;
+}
+
+.lista-descobrir .mensagem-lista {
+    text-align: center;
+    padding: 24px 12px;
+}
+
+.descobrir-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--espaco-3);
+    padding: var(--espaco-2) var(--espaco-3);
+    border-radius: var(--raio-pequeno);
+    cursor: pointer;
+    transition: background var(--transicao-rapida);
+}
+
+.descobrir-item:hover {
+    background: var(--cor-superficie-hover);
+}
+
+.descobrir-capa {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--raio-pequeno);
+    object-fit: cover;
+}
+
+/* Sem capa: o mesmo quadradinho com 🎵 usado nas outras grades do projeto. */
+.descobrir-capa-vazia {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--cor-superficie-clara);
+    color: var(--cor-texto-fraco);
+}
+
+.descobrir-info {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.descobrir-titulo {
+    font-weight: 700;
+    color: var(--card-texto);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.descobrir-artista {
+    font-size: 0.78rem;
+    color: var(--cor-texto-secundario);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.descobrir-duracao {
+    font-size: 0.75rem;
+    color: var(--cor-texto-fraco);
+    font-variant-numeric: tabular-nums;
+}

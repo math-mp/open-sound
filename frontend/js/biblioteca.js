@@ -133,7 +133,7 @@ function criarCardPlaylist(playlist) {
     btnTocar.textContent = 'Carregando...';
 
     try {
-      const resposta = await fetchComAutenticacao(`${API_URL}/api/playlists/${playlist.id}`);
+      const resposta = await fetchComAutenticacao(`http://localhost:3000/api/playlists/${playlist.id}`);
       const dados = await resposta.json();
 
       if (!resposta.ok) {
@@ -166,7 +166,7 @@ async function carregarPlaylists() {
   if (!gradePlaylists) return;
 
   try {
-    const resposta = await fetchComAutenticacao(API_URL + '/api/playlists');
+    const resposta = await fetchComAutenticacao('http://localhost:3000/api/playlists');
     const dados = await resposta.json();
 
     if (!resposta.ok) {
@@ -226,7 +226,7 @@ if (formNovaPlaylist) {
     }
 
     try {
-      const resposta = await fetchComAutenticacao(API_URL + '/api/playlists', {
+      const resposta = await fetchComAutenticacao('http://localhost:3000/api/playlists', {
         method: 'POST',
         body: dadosFormulario
       });

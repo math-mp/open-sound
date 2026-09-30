@@ -1,0 +1,844 @@
+/* =========================================================
+   MINHAS MÚSICAS - Biblioteca do Usuário
+   Estética de painel com aba/pasta pastel (igual à Home)
+   Carrossel horizontal com até 6 cards visíveis
+   ========================================================= */
+
+/* A página não carrega home.css, então a navbar e o utilitário .hidden
+   (usado pelo cooldown) precisam morar aqui. */
+
+html, body {
+    overflow-x: hidden;
+    width: 100%;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Transição suave ao trocar de tema (claro/escuro). */
+body,
+.fixed-bar,
+.secao-titulo,
+.secao-musicas,
+.secao-musicas::before,
+.secao-musicas::after,
+.card-musica,
+.titulo-musica,
+.artista-musica {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* =========================================================
+   NAVBAR FIXA
+   ========================================================= */
+
+.fixed-bar {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 15px 30px;
+    z-index: 1000;
+
+    background: var(--cor-superficie);
+    box-shadow: var(--sombra-suave);
+}
+
+.nav-left,
+.nav-right {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.nav-right {
+    justify-content: flex-end;
+}
+
+.nav-center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.titulo-navbar-config {
+    font-weight: 700;
+    color: var(--cor-texto);
+}
+
+.btn-navbar {
+    padding: 10px 20px;
+    background: var(--cor-superficie-clara);
+    color: var(--cor-texto);
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio-medio);
+    box-shadow: var(--sombra-suave);
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: transform 0.2s ease, filter 0.2s ease, background-color 0.3s ease, color 0.3s ease;
+}
+
+.btn-navbar:hover {
+    filter: brightness(0.96);
+    transform: scale(1.04);
+}
+
+.btn-navbar:active {
+    transform: scale(0.98);
+}
+
+/* =========================================================
+   CONTAINER PRINCIPAL DA PÁGINA
+   ========================================================= */
+
+.main-ctt-biblioteca {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 100vh;
+    padding-top: 120px;
+    padding-bottom: 60px;
+    align-items: center;
+}
+
+/* Quando o player aparece, ele é fixo no rodapé e passaria por cima da
+   faixa pastel de baixo do painel. O :has() reserva esse espaço extra
+   sem precisar de uma classe alternada pelo JS.
+   O :has() fica no body porque a barra do player é o PRIMEIRO filho dele
+   (mesma ordem das outras páginas) — um :has(~ ...) aqui nunca casaria. */
+body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
+    padding-bottom: 110px;
+}
+
+/* =========================================================
+   PAINEL DA BIBLIOTECA (estilo aba/pasta pastel)
+   Reutiliza variáveis de root.css e theme.css
+   ========================================================= */
+
+.secao-musicas {
+    position: relative;
+    width: 85vw;
+    max-width: 1200px;
+    background: var(--painel-fundo);
+    border: 1px solid var(--painel-borda);
+    border-radius: 18px;
+    box-shadow: var(--painel-sombra);
+    isolation: isolate;
+    padding: 46px 20px 34px;
+}
+
+/* ABA DO TÍTULO - topo esquerdo */
+.secao-titulo.aba-biblioteca {
+    position: absolute;
+    top: -36px;
+    left: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 8px 22px;
+    border-radius: 12px 12px 0 0;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--texto-sobre-pastel);
+    white-space: nowrap;
+    background: var(--aba-biblioteca);
+    box-shadow: none;
+}
+
+.secao-titulo.aba-biblioteca::before {
+    display: none;
+}
+
+/* As barras superior e inferior NÃO são definidas aqui: elas já vêm
+   prontas (formato, cantos, z-index) do bloco .secao-musicas em
+   home.css, e a cor verde-água vem da regra
+   ".secao-musicas:has(> .aba-biblioteca)" de lá também. A cópia local
+   que existia neste arquivo era idêntica e foi o que deixou a aba
+   desta página certa por acaso, enquanto a biblioteca e a playlist
+   ficavam com a faixa rosa. */
+
+/* =========================================================
+   CARROSSEL HORIZONTAL DE MÚSICAS
+   ========================================================= */
+
+.carrossel-controle {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 12px;
+    min-width: 0;
+    margin-bottom: 8px;
+}
+
+/* SETAS DE NAVEGAÇÃO */
+.msc-seta {
+    flex-shrink: 0;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--cor-borda);
+    background: var(--cor-superficie-clara);
+    color: var(--cor-texto);
+    font-size: 1.35rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform var(--transicao-rapida), filter var(--transicao-rapida), background-color 0.3s ease, color 0.3s ease;
+}
+
+.msc-seta:hover:not(:disabled) {
+    transform: scale(1.08);
+    filter: brightness(1.08);
+    background: var(--cor-primaria);
+    color: var(--texto-sobre-pastel);
+}
+
+.msc-seta:active:not(:disabled) {
+    transform: scale(0.94);
+}
+
+.msc-seta:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* ÁREA DO CARROSSEL - rolagem horizontal
+
+   O padding horizontal é 0 de propósito: com padding à esquerda, a posição
+   de snap do primeiro card deixaria de bater com scrollLeft = 0 e o
+   scroll-snap puxaria o card de volta a cada clique na seta. O respiro
+   visual vem do padding do painel. */
+.lista-minhas-musicas-carrossel {
+    display: flex;
+    align-items: stretch;
+    flex: 1;
+    min-width: 0;
+    min-height: 250px;
+    gap: 16px;
+    padding: 4px 0 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-behavior: smooth;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+    scrollbar-color: var(--cor-primaria) transparent;
+}
+
+.lista-minhas-musicas-carrossel::-webkit-scrollbar {
+    height: 8px;
+}
+
+.lista-minhas-musicas-carrossel::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.lista-minhas-musicas-carrossel::-webkit-scrollbar-thumb {
+    background: var(--cor-primaria);
+    border-radius: 999px;
+}
+
+.lista-minhas-musicas-carrossel::-webkit-scrollbar-thumb:hover {
+    background: var(--cor-primaria-hover);
+}
+
+/* INDICADORES DE PÁGINA (1 2 3 4 5 6) */
+.carrossel-indicadores {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    min-height: 24px;
+}
+
+.carrossel-indicador {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid var(--cor-borda);
+    background: var(--cor-superficie-clara);
+    color: var(--cor-texto);
+    font-size: 0.8rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform var(--transicao-rapida), filter var(--transicao-rapida), background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+.carrossel-indicador:hover {
+    transform: scale(1.08);
+    filter: brightness(1.08);
+    border-color: var(--cor-primaria);
+}
+
+.carrossel-indicador.ativo {
+    background: var(--cor-primaria);
+    color: var(--texto-sobre-pastel);
+    border-color: var(--cor-primaria);
+}
+
+/* =========================================================
+   CARDS DE MÚSICA (horizontal)
+   ========================================================= */
+
+.card-musica {
+    flex: 0 0 170px;
+    min-width: 170px;
+    max-width: 170px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--card-fundo);
+    border: 1px solid var(--card-borda);
+    border-radius: var(--raio-medio);
+    box-shadow: var(--sombra-suave);
+    padding: 12px 10px 16px;
+    gap: 10px;
+    transition: background var(--transicao-padrao), box-shadow var(--transicao-padrao), transform var(--transicao-rapida);
+    scroll-snap-align: start;
+}
+
+.card-musica:hover {
+    background: var(--card-fundo-hover);
+    box-shadow: var(--sombra-media);
+    transform: translateY(-2px);
+}
+
+.capa-musica {
+    width: 140px;
+    height: 140px;
+    object-fit: cover;
+    border-radius: var(--raio-pequeno);
+    flex-shrink: 0;
+    box-shadow: var(--sombra-suave);
+}
+
+.capa-musica.capa-vazia {
+    background: var(--cor-superficie-clara);
+    color: var(--cor-texto-fraco);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+}
+
+.info-musica {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    width: 100%;
+    min-width: 0;
+    gap: 2px;
+}
+
+.titulo-musica {
+    width: 100%;
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: var(--card-texto);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.artista-musica {
+    width: 100%;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--cor-texto-secundario);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* =========================================================
+   BOTÕES DE AÇÃO (Excluir / Tocar)
+   ========================================================= */
+
+.card-acoes {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 4px;
+}
+
+.btn-acao {
+    flex: 1;
+    max-width: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: none;
+    border-radius: 999px;
+    padding: 8px 10px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform var(--transicao-rapida), filter var(--transicao-rapida), background-color 0.3s ease, color 0.3s ease;
+    white-space: nowrap;
+}
+
+.btn-acao:hover:not(:disabled) {
+    transform: scale(1.05);
+    filter: brightness(1.05);
+}
+
+.btn-acao:active:not(:disabled) {
+    transform: scale(0.96);
+}
+
+.btn-acao:disabled {
+    cursor: not-allowed;
+    transform: none !important;
+    filter: grayscale(0.6) brightness(0.8) !important;
+}
+
+/* Botão Tocar - cor primária pastel */
+.btn-tocar {
+    background: var(--cor-primaria);
+    color: var(--texto-sobre-pastel);
+}
+
+.btn-tocar:hover:not(:disabled) {
+    background: var(--cor-primaria-hover);
+}
+
+/* Botão Excluir - cor de erro */
+.btn-excluir {
+    background: var(--cor-erro);
+    color: var(--texto-sobre-pastel);
+}
+
+.btn-excluir:hover:not(:disabled) {
+    background: var(--cor-erro);
+    filter: brightness(1.05);
+}
+
+/* Ícones nos botões */
+.btn-acao-icone {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* Durante a requisição de exclusão sobra só a lixeira, pra o card não
+   mudar de largura no meio da animação. */
+.btn-excluir.excluindo .btn-acao-rotulo {
+    display: none;
+}
+
+.btn-acao svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* A lixeira e o play são desenhados só com traço (fill:none no SVG),
+   então o fill precisa ser transparente pra não virar um borrão. */
+.btn-tocar svg,
+.btn-excluir svg {
+    fill: none;
+}
+
+/* O play é um triângulo sólido: um traço dele ficaria invisível. */
+.btn-tocar svg path {
+    fill: currentColor;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+}
+
+/* Estado "tocando": destaca o botão que está com o áudio carregado. */
+.btn-tocar.tocando {
+    background: var(--cor-primaria-hover);
+    filter: brightness(1.08);
+}
+
+/* Durante a requisição de exclusão. */
+.btn-excluir.excluindo {
+    cursor: progress;
+    opacity: 0.7;
+}
+
+/* =========================================================
+   MENSAGEM DE COOLDOWN
+   ========================================================= */
+
+.mensagem-cooldown {
+    width: 100%;
+    padding: 0 6px 4px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--cor-erro);
+    text-align: center;
+    line-height: 1.3;
+}
+
+.mensagem-cooldown.hidden {
+    display: none;
+}
+
+/* =========================================================
+   ESTADO VAZIO / CARREGANDO / ERRO
+   ========================================================= */
+
+.mensagem-lista {
+    width: 100%;
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--cor-texto-fraco);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+/* =========================================================
+   BARRA DE PLAYER FIXA (rodapé)
+
+   Mesma estrutura de classes/IDs do player da Home, pra que o botão
+   "Tocar" dos cards e a barra se comportem igual.
+   ========================================================= */
+
+.player-barra {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 24px;
+    z-index: 900; /* abaixo da navbar (1000), acima do conteúdo */
+
+    background: var(--player-fundo);
+    border-top: 1px solid var(--player-borda);
+    box-shadow: var(--sombra-media);
+    color: var(--cor-texto);
+}
+
+.player-capa {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--raio-pequeno);
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.player-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 100px;
+    max-width: 160px;
+    flex-shrink: 0;
+}
+
+.player-titulo {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--cor-texto);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.player-artista {
+    font-size: 0.75rem;
+    color: var(--cor-texto-secundario);
+}
+
+#player-play-pause {
+    border: none;
+    border-radius: var(--raio-circular);
+    width: 36px;
+    height: 36px;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+
+    background: var(--cor-primaria);
+    color: var(--texto-sobre-pastel);
+
+    transition: transform var(--transicao-rapida), filter var(--transicao-rapida);
+}
+
+#player-play-pause:hover {
+    transform: scale(1.06);
+    filter: brightness(1.05);
+}
+
+/* Pular música */
+#player-proxima {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--cor-texto-secundario);
+    font-size: 1rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background var(--transicao-rapida), color var(--transicao-rapida), transform var(--transicao-rapida);
+}
+
+#player-proxima:hover {
+    background: var(--cor-superficie-hover);
+    color: var(--cor-primaria);
+    transform: scale(1.08);
+}
+
+#player-proxima:active {
+    transform: scale(0.95);
+}
+
+.player-tempo {
+    font-size: 0.75rem;
+    min-width: 35px;
+    text-align: center;
+    flex-shrink: 0;
+    color: var(--cor-texto-fraco);
+    font-variant-numeric: tabular-nums;
+}
+
+.player-seek {
+    flex-grow: 1;
+    accent-color: var(--cor-primaria);
+}
+
+/* --- Controle de Volume --- */
+
+.player-volume {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.btn-volume {
+    border: none;
+    background: transparent;
+    color: var(--cor-texto);
+    font-size: 1rem;
+    padding: 4px 8px;
+    border-radius: var(--raio-pequeno);
+    flex-shrink: 0;
+    transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.btn-volume:hover {
+    color: var(--cor-primaria);
+    background: var(--cor-superficie-clara);
+}
+
+.volume-slider {
+    width: 90px;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--cor-borda);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+}
+
+.volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--cor-primaria);
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.volume-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.volume-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border: none;
+    border-radius: 50%;
+    background: var(--cor-primaria);
+    cursor: pointer;
+}
+
+.volume-slider::-moz-range-track {
+    height: 4px;
+    background: var(--cor-borda);
+    border-radius: 2px;
+}
+
+/* --- Botões de ícone da barra (favoritar, add playlist, fila) ---
+   Mesmas regras da home: a barra é montada pelo player.js em todas as
+   páginas, então o formato desses botões também precisa existir aqui. As
+   cores vêm do theme.css (.player-barra .btn-icone). */
+.btn-icone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 34px;
+    height: 34px;
+    padding: 0;
+
+    border: none;
+    border-radius: var(--raio-circular);
+
+    font-size: 1.1rem;
+    font-weight: 800;
+    line-height: 1;
+
+    flex-shrink: 0;
+    cursor: pointer;
+
+    transition:
+        transform var(--transicao-rapida),
+        filter var(--transicao-rapida),
+        background-color 0.3s ease,
+        color 0.3s ease;
+}
+
+.btn-icone:hover {
+    transform: scale(1.1);
+}
+
+.btn-icone:active {
+    transform: scale(0.94);
+}
+
+/* O PAINEL DA FILA fica no theme.css, que todas as paginas carregam.
+   Aqui era uma copia identica, regra por regra; como esta folha entra
+   depois do tema, a copia acabava vencendo por ordem de carga, sem
+   acrescentar nada. Sao as mesmas 28 regras, valor por valor. */
+
+/* =========================================================
+   RESPONSIVO
+   ========================================================= */
+
+@media (max-width: 900px) {
+    .secao-musicas {
+        width: 92vw;
+        padding: 40px 16px 28px;
+    }
+
+    .card-musica {
+        flex: 0 0 155px;
+        min-width: 155px;
+        max-width: 155px;
+    }
+
+    .capa-musica {
+        width: 125px;
+        height: 125px;
+    }
+}
+
+@media (max-width: 600px) {
+    .secao-musicas {
+        width: 96vw;
+        padding: 36px 12px 24px;
+        border-radius: 14px;
+    }
+
+    .secao-titulo.aba-biblioteca {
+        padding: 6px 16px;
+        font-size: 0.95rem;
+        top: -32px;
+        border-radius: 10px 10px 0 0;
+    }
+
+    .secao-musicas::before,
+    .secao-musicas::after {
+        height: 16px;
+    }
+
+    .carrossel-controle {
+        gap: 8px;
+    }
+
+    .msc-seta {
+        width: 36px;
+        height: 36px;
+        font-size: 1.15rem;
+    }
+
+    .card-musica {
+        flex: 0 0 140px;
+        min-width: 140px;
+        max-width: 140px;
+        padding: 10px 8px 14px;
+        gap: 8px;
+    }
+
+    .capa-musica {
+        width: 112px;
+        height: 112px;
+    }
+
+    .titulo-musica {
+        font-size: 0.8rem;
+    }
+
+    .artista-musica {
+        font-size: 0.68rem;
+    }
+
+    .btn-acao {
+        max-width: 62px;
+        padding: 7px 8px;
+        font-size: 0.7rem;
+    }
+
+    .carrossel-indicador {
+        width: 24px;
+        height: 24px;
+        font-size: 0.72rem;
+    }
+
+    /* No celular o player fica só com o essencial: capa, título e play.
+       Seek e volume são os primeiros a sumir porque são os menos usados
+       e os que mais estreitam a barra. */
+    .player-barra {
+        padding: 8px 12px;
+        gap: 10px;
+    }
+
+    .player-info {
+        flex: 1;
+        max-width: none;
+    }
+
+    .player-seek,
+    .player-tempo,
+    .player-volume {
+        display: none;
+    }
+}
