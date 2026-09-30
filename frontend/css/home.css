@@ -706,15 +706,28 @@ body,
     z-index: 1100;
 }
 
-/* Caixa principal do popup */
+/* Caixa principal do popup.
+   Largura, altura, borda de rolagem e animação valem para TODOS os
+   modais — cada um ajusta só o que é dele (o cadastro e o upload, por
+   exemplo, são mais altos). Antes essas partes estavam em regras por id
+   e os modais novos ficavam sem cartão nenhum. */
 .conteudo-modal {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  padding: 30px;
+  padding: 20px;
   border-radius: var(--raio-grande);
   position: relative;
-  width: 320px;
+  width: min(360px, calc(100vw - 36px));
+  max-height: calc(100vh - 56px);
+  overflow: hidden;
+  animation: cadastroEntrada .25s ease;
+}
+
+/* O upload é o único com preview de capa, então precisa de mais largura
+   que os outros. */
+#modal-upload .conteudo-modal {
+  width: min(420px, calc(100vw - 36px));
 }
 
 .conteudo-modal h2 {
@@ -741,51 +754,12 @@ body,
   cursor: pointer;
 }
 
-/* BOTÃO DE FECHAR MODAL REGISTRO */
+/* BOTÃO DE FECHAR
 
-#modal-registro .btn-fechar {
-    position: absolute;
-
-    top: 9px;
-    right: 10px;
-
-    width: 36px;
-    height: 36px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    padding: 0;
-
-    border: none;
-    border-radius: 10px;
-
-    background: transparent;
-
-    color: var(--cor-texto);
-
-    font-size: 1.45rem;
-    line-height: 1;
-    font-weight: 800;
-
-    cursor: pointer;
-
-    z-index: 20;
-
-    transition:
-        background-color var(--transicao-rapida),
-        color var(--transicao-rapida),
-        transform var(--transicao-rapida);
-}
-
-#modal-registro .btn-fechar:hover {
-    background: var(--cor-superficie-clara);
-
-    color: var(--cor-texto);
-
-    transform: scale(1.08);
-}
+   O formato do × é o mesmo em todos os modais, então mora na regra
+   genérica .btn-fechar (lá no fim do arquivo). Antes ele era repetido
+   por id — registro/login/esqueci tinham a versão completa e artista/
+   upload/add-playlist ficavam só com um texto solto no canto. */
 
 .etapa{
   display: flex;
@@ -889,23 +863,17 @@ body,
   cursor: pointer;
 }
 
-/*===preview ao vivo do upload (estilo SoundCloud)====*/
-.preview-upload {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  border-radius: var(--raio-medio);
-  padding: 12px;
-}
-
+/*===preview ao vivo do upload (coluna esquerda do modal)===
+   O invólucro é o .upload-preview, definido junto do layout de duas
+   colunas mais abaixo no arquivo. */
 .preview-upload-capa-wrapper {
-  width: 64px;
-  height: 64px;
+  width: 160px;
+  height: 160px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  border-radius: var(--raio-pequeno);
+  border-radius: var(--raio-medio);
   overflow: hidden;
 }
 
@@ -2114,29 +2082,9 @@ body,
    MODAL DE CADASTRO
    =================================================== */
 
-#modal-registro .conteudo-modal {
-    position: relative;
-
-    width: min(360px, calc(100vw - 36px));
-
-    height: min(540px, calc(100vh - 56px));
-    max-height: calc(100vh - 56px);
-
-    padding: 20px;
-
-    border-radius: 20px;
-
-    background: var(--cor-superficie);
-    border: 1px solid var(--cor-borda);
-
-    box-shadow:
-        0 20px 60px rgba(0, 0, 0, .35),
-        0 0 0 1px rgba(255, 255, 255, .02);
-
-    overflow: hidden;
-
-    animation: cadastroEntrada .25s ease;
-}
+/* A geometria do modal de cadastro (largura, altura, animação) está na
+   seção "MODAIS COM ABA" mais abaixo, junto dos outros dois. Aqui só
+   fica o que é interno ao formulário de cadastro. */
 
 /* Área interna rolável do cadastro */
 #modal-registro #etapa-registro {
@@ -2629,26 +2577,12 @@ body,
    MODAL DE LOGIN — ESTILOS MELHORADOS
    =================================================== */
 
-#modal-login .conteudo-modal,
+/* A largura do login e a animação dele vêm da seção "MODAIS COM ABA"
+   mais abaixo. O "esqueci senha" não usa aba, então segue com a
+   geometria própria. */
 #modal-esqueci-senha .conteudo-modal {
     width: min(360px, calc(100vw - 36px));
     max-height: calc(100vh - 56px);
-    padding: 20px;
-    border-radius: 20px;
-    background: var(--cor-superficie);
-    border: 1px solid var(--cor-borda);
-    box-shadow:
-        0 20px 60px rgba(0, 0, 0, .35),
-        0 0 0 1px rgba(255, 255, 255, .02);
-    overflow: hidden;
-    animation: cadastroEntrada .25s ease;
-}
-
-#modal-login .conteudo-modal {
-    height: auto;
-}
-
-#modal-esqueci-senha .conteudo-modal {
     height: min(540px, calc(100vh - 56px));
 }
 
@@ -2661,39 +2595,7 @@ body,
     gap: 15px; /* igual .form-cadastro */
 }
 
-/* BOTÃO FECHAR — ambos modais */
-#modal-login .btn-fechar,
-#modal-esqueci-senha .btn-fechar {
-    position: absolute;
-    top: 9px;
-    right: 10px;
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    border: none;
-    border-radius: 10px;
-    background: transparent;
-    color: var(--cor-texto);
-    font-size: 1.45rem;
-    line-height: 1;
-    font-weight: 800;
-    cursor: pointer;
-    z-index: 20;
-    transition:
-        background-color var(--transicao-rapida),
-        color var(--transicao-rapida),
-        transform var(--transicao-rapida);
-}
-
-#modal-login .btn-fechar:hover,
-#modal-esqueci-senha .btn-fechar:hover {
-    background: var(--cor-superficie-clara);
-    color: var(--cor-texto);
-    transform: scale(1.08);
-}
+/* BOTÃO FECHAR — ver a regra genérica .btn-fechar no fim do arquivo */
 
 /* CAMPOS DO LOGIN / ESQUECI SENHA */
 #modal-login .campo-login,
@@ -2944,58 +2846,598 @@ body,
 }
 
 /*===================================================
-  BOTÃO DE FECHAR GENÉRICO (restaurado)
-  Os modais de artista, upload e "adicionar à playlist" usam esta
-  regra; registro/login/esqueci têm as próprias, por id.
+   BOTÃO DE FECHAR (todos os modais)
+   O formato é único e compartilhado: registro, login, esqueci,
+   artista, upload, adicionar à playlist e nova playlist usam
+   esta regra, sem nenhuma variação por id.
 ====================================================*/
 .btn-fechar {
   position: absolute;
-  top: 10px;
-  right: 14px;
-  cursor: pointer;
-  font-size: 1.1rem;
-  background: none;
+  top: 9px;
+  right: 10px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--cor-texto);
+  font-size: 1.45rem;
+  line-height: 1;
+  font-weight: 800;
+  cursor: pointer;
+  z-index: 20;
+  transition:
+    background-color var(--transicao-rapida),
+    color var(--transicao-rapida),
+    transform var(--transicao-rapida);
 }
+
+.btn-fechar:hover {
+  background: var(--cor-superficie-clara);
+  color: var(--cor-texto);
+  transform: scale(1.08);
+}
+
+/*===================================================
+   BOTÕES DE AÇÃO DOS MODAIS
+   .btn-modal-acao      — ação principal (degradê pastel)
+   .btn-modal-secundario — ação de apoio (reenviar código)
+
+   O degradê é o mesmo do "Cadastrar" e do "Entrar"; aqui ele vira
+   uma classe para os botões que NÃO estão dentro de um <form> e
+   portanto não são type="submit" (os botões de confirmar e reenviar
+   código ficavam sem estilo nenhum).
+====================================================*/
+.btn-modal-acao {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 3px;
+  border: none;
+  border-radius: 13px;
+  background: linear-gradient(90deg, var(--pastel-rosa), var(--pastel-pessego));
+  color: var(--texto-sobre-pastel);
+  font-family: inherit;
+  font-size: .98rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform var(--transicao-rapida),
+    filter var(--transicao-rapida),
+    box-shadow var(--transicao-rapida);
+}
+
+.btn-modal-acao:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+  box-shadow: 0 7px 18px rgba(241, 192, 232, .18);
+}
+
+.btn-modal-acao:active {
+  transform: translateY(1px) scale(.99);
+}
+
+.btn-modal-acao:disabled {
+  cursor: not-allowed;
+  filter: grayscale(.6) brightness(.85);
+  box-shadow: none;
+  transform: none;
+}
+
+.btn-modal-secundario {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--cor-borda);
+  border-radius: 13px;
+  background: transparent;
+  color: var(--cor-texto-secundario);
+  font-family: inherit;
+  font-size: .9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background-color var(--transicao-rapida),
+    color var(--transicao-rapida),
+    border-color var(--transicao-rapida);
+}
+
+.btn-modal-secundario:hover:not(:disabled) {
+  background: var(--cor-superficie-clara);
+  color: var(--cor-texto);
+}
+
+.btn-modal-secundario:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+/* ===================================================
+   MODAIS COM ABA — REGRA NOVA
+
+   A partir daqui o modal deixa de "aparecer e sumir" e passa a ter a
+   mesma identidade dos painéis do carrossel: duas faixas de cor na
+   borda (uma em cima, outra embaixo) e uma aba com o nome do conteúdo
+   pendurada acima.
+
+   A animação sai da própria caixa: fechada ela tem 56px de altura — as
+   duas faixas de 28px encostadas no meio da tela, porque o overlay
+   centraliza a caixa. Ao abrir, a caixa cresce e as faixas se separam
+   sozinhas, revelando o conteúdo. Fechar é o mesmo caminho ao contrário.
+
+   Nenhuma medição em JavaScript: é só a altura da caixa animando.
+
+   Modais que usam esta regra: registro, login e upload
+   (marcados com a classe .modal--aba no HTML).
+   =================================================== */
+
+.modal--aba {
+  --ease-modal: cubic-bezier(.22, .9, .24, 1);
+
+  /* O padding de cima (46px) abre espaço para a aba de 34px que fica
+     pendurada acima da caixa; os 20px laterais e os 30px de baixo
+     mantêm o respiro que o .modal já usava. */
+  padding: 46px 20px 30px;
+}
+
+/* Nestes modais a classe .hidden deixa de ser display:none — sem isso
+   não dá para animar, porque display não transiciona. Ela continua
+   significando "fechado", só muda o mecanismo.
+
+   No fechamento o overlay demora um pouco mais que a caixa (.42s contra
+   .44s da altura, mas o desbotamento é perceptivelmente mais lento):
+   assim as faixas ainda aparecem se juntando no centro antes de a tela
+   escurecer de vez. */
+.modal--aba.hidden {
+  display: flex !important;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity .42s var(--ease-modal),
+    visibility 0s linear .42s;
+}
+
+.modal--aba:not(.hidden) {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity .34s var(--ease-modal),
+    visibility 0s linear 0s;
+}
+
+/* ---- A caixa que abre e fecha ----
+   Quem colapsa é o .modal-quadro, e NÃO o .conteudo-modal.
+
+   O quadro não pode ter overflow:hidden, senão a aba que fica ACIMA
+   dele seria cortada (é o que acontecia antes). Quem corta o conteúdo é
+   o .conteudo-modal, que acompanha a altura do quadro com height:100%
+   e recorta o que passar. */
+.modal--aba .modal-quadro {
+  position: relative;
+
+  --modal-fechada: 56px;   /* exatamente duas faixas de 28px */
+  --modal-altura: 420px;
+
+  height: var(--modal-fechada);
+  max-height: calc(100vh - 110px);
+
+  transition: height .44s var(--ease-modal);
+}
+
+.modal--aba:not(.hidden) .modal-quadro {
+  height: var(--modal-altura);
+}
+
+/* overflow:hidden vem da regra genérica .conteudo-modal — é ela que
+   esconde o conteúdo enquanto a altura anima. */
+.modal--aba .conteudo-modal {
+  height: 100%;
+
+  padding: 44px 22px 32px;
+
+  justify-content: center;
+
+  /* a animação antiga de entrada não bate com a de agora */
+  animation: none;
+}
+
+/* ---- As duas faixas (a "pasta") ----
+   Mesma receita do painel do carrossel (.secao-musicas): a faixa de
+   cima NÃO arredonda o lado esquerdo. É ela que se emenda na lingueta,
+   e um canto redondo ali abriria um vão embaixo da aba — foi
+   exatamente o que aconteceu na primeira versão.
+
+   Os cantos arredondados ficam do lado contrário, onde não tem nada
+   em cima: em cima à direita, embaixo nos dois.
+
+   O z-index é obrigatório: o .conteudo-modal também é posicionado
+   (position:relative, para o botão de fechar ficar preso nele) e, sem
+   isso, ele pintaria por cima da faixa de cima — que é o ::before, e
+   pseudo-elemento ::before vem antes do conteúdo na ordem de pintura.
+   O ::after ficaria visível, e só a de cima sumiria. */
+.modal--aba .modal-quadro::before,
+.modal--aba .modal-quadro::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 28px;
+  background: var(--aba-modal);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.modal--aba .modal-quadro::before {
+  top: 0;
+  border-radius: 0 10px 0 0;
+}
+
+.modal--aba .modal-quadro::after {
+  bottom: 0;
+  border-radius: 0 0 10px 10px;
+}
+
+/* ---- A aba com o nome do conteúdo ----
+   Fica acima da caixa, não dentro: por isso vive no .modal-quadro.
+   O top:-26px (e não -34px) faz a lingueta descer 8px por cima da
+   faixa: as duas peças viram uma só, sem costura no meio. */
+.modal--aba .modal-aba-titulo {
+  position: absolute;
+  top: -26px;
+  left: 0;
+  z-index: 3;
+
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 6px 22px;
+
+  border-radius: 12px 12px 0 0;
+
+  background: var(--aba-modal);
+  color: var(--texto-sobre-pastel);
+
+  font-size: .92rem;
+  font-weight: 800;
+  white-space: nowrap;
+
+  opacity: 0;
+  transform: translateY(12px);
+
+  transition:
+    opacity .2s ease,
+    transform .3s var(--ease-modal);
+}
+
+.modal--aba:not(.hidden) .modal-aba-titulo {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: .24s;
+}
+
+/* ---- O conteúdo e o X só aparecem depois que a caixa abriu ---- */
+.modal--aba .conteudo-modal > .etapa {
+  opacity: 0;
+  transform: translateY(12px);
+  /* Se o conteúdo for maior que a caixa, ele rola em vez de ser cortado. */
+  min-height: 0;
+  overflow-y: auto;
+  transition:
+    opacity .2s ease,
+    transform .34s var(--ease-modal);
+}
+
+.modal--aba:not(.hidden) .conteudo-modal > .etapa {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: .2s;
+}
+
+/* ---- Rolagem dentro dos modais ----
+   Mesma barra fina e rosa do formulário de cadastro. Na prática quase
+   nunca aparece — as alturas foram dimensionadas para o conteúdo caber
+   inteiro — mas ela existe para telas baixas, onde a caixa éLimiteda
+   pelo max-height e o conteúdo realmente não cabe. */
+.modal--aba .conteudo-modal > .etapa,
+.modal--aba .form-cadastro {
+    scrollbar-width: thin;
+    scrollbar-color: var(--cor-primaria) transparent;
+}
+
+.modal--aba .conteudo-modal > .etapa::-webkit-scrollbar,
+.modal--aba .form-cadastro::-webkit-scrollbar {
+    width: 6px;
+}
+
+.modal--aba .conteudo-modal > .etapa::-webkit-scrollbar-track,
+.modal--aba .form-cadastro::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.modal--aba .conteudo-modal > .etapa::-webkit-scrollbar-thumb,
+.modal--aba .form-cadastro::-webkit-scrollbar-thumb {
+    background: var(--cor-primaria);
+    border-radius: 999px;
+}
+
+.modal--aba .conteudo-modal > .etapa::-webkit-scrollbar-thumb:hover,
+.modal--aba .form-cadastro::-webkit-scrollbar-thumb:hover {
+    background: var(--cor-secundaria);
+}
+
+.modal--aba .btn-fechar {
+  /* fica inteiro em cima da faixa de cima, com o x escuro sobre o pastel.
+     right:12px (e não 6px) para o x não invadir a curva do canto
+     direito da faixa, que começa 10px da borda. */
+  top: 0;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  border-radius: 0 0 0 10px;
+  font-size: 1.2rem;
+  color: var(--texto-sobre-pastel);
+  opacity: 0;
+  transition:
+    opacity .2s ease,
+    background-color var(--transicao-rapida),
+    color var(--transicao-rapida),
+    transform var(--transicao-rapida);
+}
+
+.modal--aba:not(.hidden) .btn-fechar {
+  opacity: 1;
+  transition-delay: .24s;
+}
+
+.modal--aba .btn-fechar:hover {
+  background: rgba(0, 0, 0, .08);
+  color: var(--texto-sobre-pastel);
+}
+
+/* ---- Tamanho de cada modal ---- */
+/* A altura vive no .modal-quadro porque é lá que o height anima.
+   A variável tem que ser declarada no MESMO elemento (ou num ancestral):
+   declarar aqui no .conteudo-modal não funcionaria, porque variável CSS
+   desce a hierarquia, não sobe — o quadro ficaria com os 420px padrão. */
+#modal-registro.modal--aba .modal-quadro {
+  --modal-altura: 580px;
+}
+
+#modal-login.modal--aba .modal-quadro {
+  --modal-altura: 460px;
+}
+
+#modal-upload.modal--aba .modal-quadro {
+  --modal-altura: 470px;
+}
+
+#modal-registro.modal--aba .conteudo-modal,
+#modal-login.modal--aba .conteudo-modal {
+  width: min(360px, calc(100vw - 24px));
+}
+
+#modal-upload.modal--aba .conteudo-modal {
+  width: min(720px, calc(100vw - 24px));
+}
+
+/* ===================================================
+   MODAL DE UPLOAD — DUAS COLUNAS
+
+   Esquerda: preview ao vivo (capa + título/artista/arquivo).
+   Meio: uma linha branca fina.
+   Direita: o que a pessoa preenche e o botão de enviar.
+   =================================================== */
+
+.upload-form {
+  width: 100%;
+}
+
+.upload-colunas {
+  display: flex;
+  align-items: stretch;
+  gap: 18px;
+  width: 100%;
+}
+
+.upload-preview {
+  flex: 0 0 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  min-width: 0;
+}
+
+.upload-divisor {
+  flex: 0 0 1px;
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    var(--linha-divisoria) 16%,
+    var(--linha-divisoria) 84%,
+    transparent
+  );
+}
+
+.upload-opcoes {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.campo-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.campo-upload label {
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--cor-texto);
+}
+
+.campo-upload input[type="text"] {
+  min-height: 44px;
+  width: 100%;
+}
+
+/* Botão de escolha de arquivo: o input fica por cima, invisível mas do
+   mesmo tamanho, então o clique abre o seletor, o teclado consegue focar
+   e a validação de "obrigatório" aparece no lugar certo. */
+.btn-upload {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  min-height: 56px;
+  padding: 10px 14px;
+
+  border: 1px dashed var(--cor-borda);
+  border-radius: 14px;
+  background: var(--input-fundo);
+  color: var(--cor-texto);
+
+  cursor: pointer;
+
+  transition:
+    background-color var(--transicao-rapida),
+    border-color var(--transicao-rapida),
+    transform var(--transicao-rapida);
+}
+
+.btn-upload:hover {
+  background: var(--input-fundo-hover);
+  border-color: var(--cor-primaria);
+}
+
+.btn-upload:focus-within {
+  border-style: solid;
+  border-color: var(--cor-primaria);
+  box-shadow: 0 0 0 3px rgba(241, 192, 232, .12);
+}
+
+.btn-upload input[type="file"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+
+.btn-upload-icone {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--cor-superficie-clara);
+  color: var(--cor-primaria);
+}
+
+.btn-upload-icone svg {
+  width: 19px;
+  height: 19px;
+}
+
+.btn-upload-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  text-align: left;
+}
+
+.btn-upload-texto strong {
+  font-size: .87rem;
+  font-weight: 700;
+}
+
+.btn-upload-texto small {
+  font-size: .74rem;
+  color: var(--cor-texto-fraco);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* O preview é uma coluna: capa grande em cima (tamanho definido em
+   .preview-upload-capa-wrapper, lá no bloco do preview), textos embaixo. */
+.preview-upload-capa-vazio {
+  font-size: .8rem;
+}
+
+.preview-upload-info {
+  align-items: center;
+  text-align: center;
+  gap: 3px;
+}
+
+.preview-upload-titulo {
+  font-size: .95rem;
+}
+
+.preview-upload-artista {
+  font-size: .82rem;
+}
+
+.preview-upload-audio {
+  font-size: .74rem;
+}
+
+/* ---- Telas estreitas: as colunas viram uma só ---- */
+@media (max-width: 640px) {
+  /* Empilhando as colunas o conteúdo fica mais alto, então a caixa
+     precisa crescer — e a variável vai no .modal-quadro, que é quem
+     consome (ver nota perto dos tamanhos, no fim da seção). */
+  #modal-upload.modal--aba .modal-quadro {
+    --modal-altura: 560px;
+  }
+
+  .upload-colunas {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .upload-preview {
+    flex: none;
+  }
+
+  .upload-divisor {
+    flex: none;
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--linha-divisoria) 16%,
+      var(--linha-divisoria) 84%,
+      transparent
+    );
+  }
+}
+
 
 /*===================================================
   PLAYLISTS / FAVORITOS
 ====================================================*/
 
-/* Botão de ícone genérico (coração e "adicionar à playlist"). */
-.btn-icone {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  width: 34px;
-  height: 34px;
-  padding: 0;
-
-  border: none;
-  border-radius: var(--raio-circular);
-
-  font-size: 1.1rem;
-  font-weight: 800;
-  line-height: 1;
-
-  flex-shrink: 0;
-  cursor: pointer;
-
-  transition:
-    transform var(--transicao-rapida),
-    filter var(--transicao-rapida),
-    background-color 0.3s ease,
-    color 0.3s ease;
-}
-
-.btn-icone:hover {
-  transform: scale(1.1);
-}
-
-.btn-icone:active {
-  transform: scale(0.94);
-}
+/* Botão de ícone genérico (coração e "adicionar à playlist"): o formato
+   base mora em theme.css, que todas as páginas carregam — aqui só
+   sobrou o que é exclusivo da home. */
 
 /* Wrapper da capa do destaque: mesma geometria da capa (185px) e o mesmo
    empilhamento que ela tinha, só que agora dá pra ancorar botões nela. */

@@ -109,8 +109,10 @@ body,
 
 /* Quando o player aparece, ele é fixo no rodapé e passaria por cima da
    faixa pastel de baixo do painel. O :has() reserva esse espaço extra
-   sem precisar de uma classe alternada pelo JS. */
-.main-ctt-biblioteca:has(~ .player-barra:not(.hidden)) {
+   sem precisar de uma classe alternada pelo JS.
+   O :has() fica no body porque a barra do player é o PRIMEIRO filho dele
+   (mesma ordem das outras páginas) — um :has(~ ...) aqui nunca casaria. */
+body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
     padding-bottom: 110px;
 }
 

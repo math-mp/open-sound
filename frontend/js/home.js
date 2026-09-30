@@ -1870,6 +1870,15 @@ const previewTitulo = document.getElementById('preview-upload-titulo');
 const previewArtista = document.getElementById('preview-upload-artista');
 const previewAudio = document.getElementById('preview-upload-audio');
 
+// Nome do arquivo escolhido escrito dentro do cartão do botão, pra quem
+// está vendo o modal saber o que já escolheu sem precisar olhar o
+// preview da esquerda.
+const nomeArquivoAudio = document.getElementById('upload-audio-nome');
+const nomeArquivoCapa = document.getElementById('upload-capa-nome');
+
+const ROTULO_AUDIO_PADRAO = 'MP3, WAV ou OGG';
+const ROTULO_CAPA_PADRAO = 'Opcional · JPG, PNG ou WEBP';
+
 let urlObjetoCapaAtual = null;
 
 function resetarPreviewUpload() {
@@ -1887,6 +1896,8 @@ function resetarPreviewUpload() {
   // o nome já carregado por abrirModalUpload().
   if (previewArtista && nomeArtistaAtual) previewArtista.textContent = nomeArtistaAtual;
   if (previewAudio) previewAudio.textContent = 'Nenhum áudio selecionado';
+  if (nomeArquivoAudio) nomeArquivoAudio.textContent = ROTULO_AUDIO_PADRAO;
+  if (nomeArquivoCapa) nomeArquivoCapa.textContent = ROTULO_CAPA_PADRAO;
 }
 
 if (campoTitulo && previewTitulo) {
@@ -1900,6 +1911,7 @@ if (campoAudio && previewAudio) {
   campoAudio.addEventListener('change', () => {
     const arquivo = campoAudio.files[0];
     previewAudio.textContent = arquivo ? `🎵 ${arquivo.name}` : 'Nenhum áudio selecionado';
+    if (nomeArquivoAudio) nomeArquivoAudio.textContent = arquivo ? arquivo.name : ROTULO_AUDIO_PADRAO;
   });
 }
 
@@ -1917,10 +1929,12 @@ if (campoCapa && previewCapa && previewCapaVazio) {
       previewCapa.src = urlObjetoCapaAtual;
       previewCapa.classList.remove('hidden');
       previewCapaVazio.classList.add('hidden');
+      if (nomeArquivoCapa) nomeArquivoCapa.textContent = arquivo.name;
     } else {
       previewCapa.src = '';
       previewCapa.classList.add('hidden');
       previewCapaVazio.classList.remove('hidden');
+      if (nomeArquivoCapa) nomeArquivoCapa.textContent = ROTULO_CAPA_PADRAO;
     }
   });
 }

@@ -82,6 +82,11 @@
     --aba-perfil: #fde4cf;
     --aba-config: #fbf8cc;
 
+    /* A aba dos MODAIS é uma cor só, compartilhada por todos eles, e é
+       quente de propósito: o rosa das músicas, para o popup não se
+       confundir com as abas verde-água/lilas/azul das seções. */
+    --aba-modal: #ffcfd2;
+
 
     /* -----------------------------------------------------
        TEXTO SOBRE PASTEL
@@ -151,6 +156,11 @@
        ----------------------------------------------------- */
 
     --cor-overlay: rgba(10, 8, 18, 0.68);
+
+    /* Linha divisória fina entre as colunas do modal de upload. No tema
+       escuro é a linha branca; no claro, um traço escuro suave — um
+       branco puro sumiria sobre a superfície clara. */
+    --linha-divisoria: rgba(255, 255, 255, 0.30);
 
 
     /* -----------------------------------------------------
@@ -231,6 +241,11 @@
     --aba-perfil: #fde4cf;
     --aba-config: #fbf8cc;
 
+    /* A aba dos MODAIS é uma cor só, compartilhada por todos eles, e é
+       quente de propósito: o rosa das músicas, para o popup não se
+       confundir com as abas verde-água/lilas/azul das seções. */
+    --aba-modal: #ffcfd2;
+
 
     /* -----------------------------------------------------
        CARDS
@@ -284,6 +299,7 @@
        ----------------------------------------------------- */
 
     --cor-overlay: rgba(30, 20, 30, 0.42);
+    --linha-divisoria: rgba(90, 70, 95, 0.22);
 
 
     /* -----------------------------------------------------
@@ -408,16 +424,26 @@
 .conteudo-modal {
     background: var(--cor-superficie);
     color: var(--cor-texto);
-    box-shadow: var(--sombra-forte);
+    border: 1px solid var(--cor-borda);
+    /* A sombra do modal é única: antes cada um repetia a sua, e os que
+       nasceram depois (artista, upload, adicionar à playlist, nova
+       playlist) acabavam com a --sombra-forte, bem mais fraca. */
+    box-shadow:
+        0 20px 60px rgba(0, 0, 0, .35),
+        0 0 0 1px rgba(255, 255, 255, .02);
 }
 
 .conteudo-modal h2 {
     color: var(--cor-texto);
 }
 
+/* O seletor de arquivo precisa entrar na lista: sem ele o input de
+   upload fica com a cor nativa do navegador, que não casa com o modal
+   escuro nem com o claro. */
 .conteudo-modal input[type="email"],
 .conteudo-modal input[type="password"],
-.conteudo-modal input[type="text"] {
+.conteudo-modal input[type="text"],
+.conteudo-modal input[type="file"] {
     background: var(--input-fundo);
     color: var(--input-texto);
     border: 1px solid var(--input-borda);
@@ -498,10 +524,6 @@
 
 .campo-arquivo {
     color: var(--cor-texto-secundario);
-}
-
-.preview-upload {
-    background: var(--input-fundo);
 }
 
 .preview-upload-capa-wrapper,
@@ -666,6 +688,45 @@
 /* -----------------------------------------------------
    PLAYLISTS / FAVORITOS
    ----------------------------------------------------- */
+
+/* Botão de ícone genérico (coração e "adicionar à playlist").
+
+   Mora aqui, e não na home.css, porque TODAS as páginas carregam esta
+   folha e todas colocam esses botões na barra do player. O formato base
+   é comum a todas; as cores ficam nos blocos de tema daqui e de baixo. */
+.btn-icone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 34px;
+    height: 34px;
+    padding: 0;
+
+    border: none;
+    border-radius: var(--raio-circular);
+
+    font-size: 1.1rem;
+    font-weight: 800;
+    line-height: 1;
+
+    flex-shrink: 0;
+    cursor: pointer;
+
+    transition:
+        transform var(--transicao-rapida),
+        filter var(--transicao-rapida),
+        background-color 0.3s ease,
+        color 0.3s ease;
+}
+
+.btn-icone:hover {
+    transform: scale(1.1);
+}
+
+.btn-icone:active {
+    transform: scale(0.94);
+}
 
 /* Na barra do player: acompanha o tema. */
 .player-barra .btn-icone {
