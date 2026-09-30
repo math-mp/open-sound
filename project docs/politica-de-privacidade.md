@@ -1,6 +1,6 @@
 # Política de Privacidade - OpenSound
 
-**Última atualização:** setembro de 2026 · **Versão:** 1.1
+**Última atualização:** setembro de 2026 · **Versão:** 1.2
 
 > Esta política explica em linguagem simples quais dados coletamos, por que coletamos e o que você pode fazer a respeito. Em conformidade com a **LGPD (Lei nº 13.709/2018)**.
 
@@ -8,7 +8,7 @@
 
 ## 1. Quem somos (controlador dos dados)
 
-O OpenSound é uma plataforma de streaming musical desenvolvida como projeto acadêmico. Para fins da LGPD, somos o controlador dos dados pessoais que você nos fornece.
+O OpenSound é uma plataforma de streaming musical desenvolvida como projeto escolar. Para fins da LGPD, somos o controlador dos dados pessoais que você nos fornece.
 
 Contato do responsável pelos dados: **privacidade@opensound.com** 
 
@@ -68,6 +68,8 @@ Histórico individual de escuta, histórico de buscas, tempo de escuta por faixa
 | Provedor | O que recebe | Por quê |
 |----------|-------------|---------|
 | **PostgreSQL** (banco gerenciado) **Supabase** | Dados da conta, músicas, playlists e perfil | Banco de dados da aplicação |
+| **Render** | Todas as requisições ao servidor (API), incluindo e-mail, dados de cadastro e token de sessão em trânsito, e endereço IP | Hospedagem do backend |
+| **Vercel** | Endereço IP e dados do navegador de quem acessa o site | Hospedagem do frontend (páginas do site) |
 | **Supabase Storage** | Arquivos de áudio, capas e fotos de perfil | Armazenamento de arquivos |
 | **Google Gmail (SMTP)** | Seu e-mail e o código de verificação | Envio de códigos de cadastro e recuperação de senha |
 | **Google Fonts** | Endereço IP e dados do navegador | Carregamento da fonte visual das páginas |
@@ -84,7 +86,7 @@ Os arquivos enviados ficam em armazenamento **público por link**: quem tiver a 
 | Músicas, playlists, favoritos e perfil | Enquanto a conta existir (ou até você excluir) |
 | Cadastros e códigos de verificação pendentes | Até 10 minutos (validade do código) |
 | Histórico de redefinições de senha | Enquanto a conta existir |
-| Dados após exclusão da conta | Removidos imediatamente do banco e do armazenamento; cópias de backup, se houver, `[definir prazo]` |
+| Dados após exclusão da conta | Removidos imediatamente do banco e do armazenamento
 
 ---
 
@@ -105,19 +107,18 @@ Você pode excluir sua conta e todas as suas músicas, playlists e arquivos a qu
 
 ## 7. Segurança dos dados
 
-- **Criptografia em trânsito:** a comunicação deve usar HTTPS (TLS) em produção `[confirmar na publicação]`;
+- **Criptografia em trânsito:** a comunicação deve usar HTTPS (TLS) em produção;
 - **Autenticação segura:** senhas e códigos de verificação armazenados apenas como hash (bcrypt), nunca em texto puro;
 - **Tokens JWT:** sessões autenticadas por token com expiração de **7 dias** (ou **30 dias**, se você marcar "lembrar de mim");
 - **Verificação em duas etapas** no cadastro e limite de tentativas de código;
 - **Limite de requisições por IP** nas rotas sensíveis (login, cadastro, códigos e upload);
-- **Acesso restrito:** apenas membros autorizados da equipe acessam o banco e as chaves de serviço;
-- **Backups:** `[confirmar com a equipe e com o provedor do banco]`.
+- **Acesso restrito:** apenas membros autorizados da equipe acessam o banco e as chaves de serviço.
 
 Em caso de violação de dados que afete você, notificaremos por e-mail em até **72 horas** após tomarmos conhecimento do incidente.
 
 ---
 
-## 8. Cookies e armazenamento local
+## 8. Armazenamento local
 
 O OpenSound utiliza apenas armazenamento estritamente necessário, no `localStorage` do seu navegador:
 
@@ -131,11 +132,12 @@ O OpenSound utiliza apenas armazenamento estritamente necessário, no `localStor
 
 ---
 
-## 9. Menores de idade
+## 9. Idade mínima
 
-O OpenSound é destinado a usuários com **13 anos ou mais**. Nesta versão, o cadastro **não verifica a idade**; ao criar a conta, você declara cumprir esse requisito. Não coletamos intencionalmente dados de crianças menores de 13 anos. Se acreditar que coletamos dados de uma criança sem consentimento dos responsáveis, entre em contato para exclusão imediata.
+O OpenSound é destinado exclusivamente a pessoas com **18 anos ou mais**. Nesta versão, o cadastro **não verifica a idade**; ao criar a conta, você declara ser maior de 18 anos. Não coletamos intencionalmente dados de menores de 18 anos. Se acreditar que uma conta pertence a um menor, entre em contato para exclusão imediata.
 
 ---
+
 
 ## 10. Alterações e contato
 
@@ -147,4 +149,4 @@ Quando atualizarmos esta Política, a data no topo será alterada e usuários co
 
 ---
 
-*OpenSound - Projeto escolar · [Termo de Licenciamento e Uso](./termos-de-licenciamento.md)*
+*OpenSound - Projeto escolar · [Termo de Licenciamento e Uso](./termos-de-licenciamento-e-uso.md)*
