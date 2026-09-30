@@ -1318,13 +1318,92 @@ carregarArtistasMaisOuvidos();
 
 // ============================================================
 // BUSCA INLINE (mesma página — não navega, pra não matar o áudio tocando)
+//
+// A busca acha duas coisas: músicas (viram o carrossel, como sempre) e
+// pessoas (viram uma faixa de resultados com link para o perfil). As duas
+// requisições são independentes: uma falhar não esconde a outra.
 // ============================================================
+
+const elBuscaPessoas = document.getElementById('busca-pessoas');
+const elBuscaPessoasLista = document.getElementById('busca-pessoas-lista');
+
+function esconderResultadosDePessoas() {
+  if (elBuscaPessoas) elBuscaPessoas.classList.add('hidden');
+}
+
+function renderizarPessoas(pessoas) {
+  if (!elBuscaPessoas || !elBuscaPessoasLista) return;
+
+  elBuscaPessoasLista.innerHTML = '';
+  if (!pessoas || pessoas.length === 0) { esconderResultadosDePessoas(); return; }
+
+  pessoas.forEach((pessoa) => {
+    const item = document.createElement('li');
+    item.className = 'busca-pessoa';
+
+    const link = document.createElement('a');
+    link.className = 'busca-pessoa-link';
+    link.href = 'perfil.html?u=' + encodeURIComponent(pessoa.nome_usuario);
+    link.title = `Ver o perfil de @${pessoa.nome_usuario}`;
+
+    // Avatar pela mesma pintura da navbar: cai no avatar-padrao e nas
+    // iniciais quando a pessoa não tem foto.
+    const caixa = document.createElement('span');
+    caixa.className = 'os-avatar os-avatar-sm';
+    const iniciais = document.createElement('span');
+    iniciais.className = 'os-avatar-iniciais';
+    const img = document.createElement('img');
+    img.className = 'os-avatar-img';
+    img.src = pessoa.avatar_url || '';
+    img.alt = '';
+    img.loading = 'lazy';
+    caixa.appendChild(iniciais);
+    caixa.appendChild(img);
+    if (window.OS && typeof OS.pintarCaixa === 'function') {
+      OS.pintarCaixa(caixa, pessoa.avatar_url || null, pessoa.nome);
+    }
+
+    const nome = document.createElement('span');
+    nome.className = 'busca-pessoa-nome';
+    nome.textContent = pessoa.nome;
+
+    const arroba = document.createElement('span');
+    arroba.className = 'busca-pessoa-arroba';
+    arroba.textContent = `@${pessoa.nome_usuario}`;
+
+    link.appendChild(caixa);
+    link.appendChild(nome);
+    link.appendChild(arroba);
+    item.appendChild(link);
+    elBuscaPessoasLista.appendChild(item);
+  });
+
+  elBuscaPessoas.classList.remove('hidden');
+}
+
+async function buscarPessoas(termo) {
+  // O servidor exige ao menos 2 letras; nem vale a pena pedir.
+  if (!termo || termo.trim().length < 2) { esconderResultadosDePessoas(); return; }
+  try {
+    const resposta = await fetch(`http://localhost:3000/api/perfil/buscar?q=${encodeURIComponent(termo.trim())}`);
+    if (!resposta.ok) { esconderResultadosDePessoas(); return; }
+    const dados = await resposta.json();
+    renderizarPessoas(dados.pessoas);
+  } catch (erro) {
+    console.error('Erro ao buscar perfis:', erro);
+    esconderResultadosDePessoas();
+  }
+}
 
 if (formBusca) {
   formBusca.addEventListener('submit', async (event) => {
     event.preventDefault(); // intercepta — sem isso ele navegaria pro action do form
     const termo = campoBusca ? campoBusca.value.trim() : '';
-    if (termo) executarBusca(termo);
+    if (!termo) return;
+    // As duas buscas saem juntas; a faixa de pessoas esconde sozinha se
+    // não houver ninguém com aquele @ ou nome.
+    buscarPessoas(termo);
+    executarBusca(termo);
   });
 }
 
@@ -1420,9 +1499,19 @@ function criarItemArtista(artista, posicao) {
   const info = document.createElement('div');
   info.className = 'artista-info';
 
+  // O nome do artista abre o perfil público dele. A rota aceita @ ou id;
+  // aqui o endpoint já devolve o @, que é o identificador "de verdade".
   const nome = document.createElement('p');
   nome.className = 'artista-nome';
-  nome.textContent = artista.artista || 'Artista sem nome';
+  if (artista.nome_usuario && window.OS && typeof OS.linkPerfil === 'function') {
+    nome.appendChild(OS.linkPerfil({
+      identificador: artista.nome_usuario,
+      texto: artista.artista || 'Artista sem nome',
+      descricao: `Ver o perfil de ${artista.artista}`
+    }));
+  } else {
+    nome.textContent = artista.artista || 'Artista sem nome';
+  }
   nome.title = nome.textContent;
 
   info.appendChild(nome);
@@ -1504,6 +1593,8 @@ const btnInicio = document.getElementById('btn-inicio');
 if (btnInicio) {
   btnInicio.addEventListener('click', () => {
     if (campoBusca) campoBusca.value = '';
+    // A faixa de pessoas é resultado de busca: sai junto com o campo.
+    if (typeof esconderResultadosDePessoas === 'function') esconderResultadosDePessoas();
     // Só o carrossel: o ranking de artistas não depende da busca e não
     // precisa ser recarregado aqui.
     carregarMusicasMaisTocadas();

@@ -29,8 +29,13 @@
     return PREFIXO_CACHE + (token() || 'sem-sessao').slice(-12);
   }
 
+  // Nome que aparece na tela. Mesma ordem do perfil: o nome escolhido
+  // pela pessoa tem a maior precedência, depois o nome de artista, e o
+  // @ só como último recurso. Precisa bater com o profile.js, senão a
+  // navbar e o perfil do mesmo usuário mostrariam nomes diferentes.
   function nomeExibido(usuario) {
     if (!usuario) return '';
+    if (usuario.nome_exibicao) return usuario.nome_exibicao;
     if (usuario.eh_artista && usuario.nome_artista) return usuario.nome_artista;
     return usuario.nome_usuario || '';
   }
@@ -324,6 +329,30 @@
     pintarTodos(null);
   }
 
+  // Monta o link para o perfil de alguém. Quando não há identificador
+  // (música sem dono, por exemplo) devolve um <span> comum: assim o texto
+  // continua aparecendo, sem virar um link quebrado nem mudar o layout.
+  function linkPerfil(opcoes) {
+    const dados = opcoes || {};
+    const identificador = dados.identificador;
+    const texto = dados.texto || '';
+    const classe = dados.classe || '';
+
+    if (identificador === null || identificador === undefined || identificador === '') {
+      const span = document.createElement('span');
+      if (classe) span.className = classe;
+      span.textContent = texto;
+      return span;
+    }
+
+    const link = document.createElement('a');
+    link.className = (classe ? classe + ' ' : '') + 'os-link-perfil';
+    link.href = 'perfil.html?u=' + encodeURIComponent(identificador);
+    link.textContent = texto;
+    if (dados.descricao) link.title = dados.descricao;
+    return link;
+  }
+
   window.OS = {
     IDADE_MAXIMA_CACHE: IDADE_MAXIMA_CACHE,
     perfilCacheado: function (maxIdade) {
@@ -345,7 +374,15 @@
     aoEntrar: aoEntrar,
     limparCache: limparCache,
     pintarTodos: pintarTodos,
-    aplicarTema: aplicarTema
+    aplicarTema: aplicarTema,
+    // Perfil público de outra pessoa: a caixa mostrada NÃO é a do usuário
+    // logado, então não pode usar [data-os-avatar] (pintarTodos sobrescreveria
+    // com o avatar de quem está logado). Esta função faz a mesma pintura,
+    // mas com o avatar/nome que a rota pública devolveu.
+    pintarCaixa: pintarCaixa,
+    // Link para o perfil de alguém, para os pontos de entrada (cartão de
+    // artista, nome no player, resultado de busca).
+    linkPerfil: linkPerfil
   };
 
   const cacheInicial = estaLogado() ? lerCache() : null;

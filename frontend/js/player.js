@@ -264,11 +264,28 @@ function esconderBarraSeParada() {
   if (playerBarra) playerBarra.classList.add('hidden');
 }
 
+// O nome do artista vira link para o perfil dele quando a música tem dono.
+// `usuario_id` chega em todos os endpoints de música, então não é preciso
+// nenhum dado extra. Música sem dono fica com o texto solto.
+function mostrarArtistaNoPlayer(musica) {
+  if (!playerArtista) return;
+  playerArtista.textContent = musica.artista;
+
+  if (!musica.usuario_id || !window.OS || typeof OS.linkPerfil !== 'function') return;
+
+  playerArtista.textContent = '';
+  playerArtista.appendChild(OS.linkPerfil({
+    identificador: musica.usuario_id,
+    texto: musica.artista,
+    descricao: `Ver o perfil de ${musica.artista}`
+  }));
+}
+
 function atualizarBarraComMusicaAtual() {
   if (!musicaNoPlayer) return;
   if (playerCapa) playerCapa.src = musicaNoPlayer.url_capa || '';
   if (playerTitulo) playerTitulo.textContent = musicaNoPlayer.titulo;
-  if (playerArtista) playerArtista.textContent = musicaNoPlayer.artista;
+  mostrarArtistaNoPlayer(musicaNoPlayer);
   mostrarBarra();
   // A música atual é desenhada no topo do painel da fila, então trocar de faixa
   // muda a lista — não só a barra.

@@ -202,12 +202,19 @@
 .perfil-banner {
     width: 100%;
     height: 110px;
+    /* O ::after da textura de TV precisa que o banner seja o ancestral
+       posicionado. Sem isto, o inset:0 dele se resolveria no
+       .perfil-painel e a textura descia pelo bloco inteiro. */
+    position: relative;
     background: var(--cor-superficie-clara);
     background-image: repeating-linear-gradient(
         135deg,
         var(--painel-borda) 0px, var(--painel-borda) 1px,
         transparent 1px, transparent 12px
     );
+    /* cover/center para a imagem enviada ocupar a faixa toda. */
+    background-size: cover;
+    background-position: center;
 }
 
 .perfil-avatar-wrapper {
@@ -218,8 +225,11 @@
     position: absolute;
     left: var(--espaco-4);
     top: 78px;
-    border: 3px dashed var(--aba-perfil);
-    outline: 4px solid var(--painel-fundo);
+    border: 3px solid transparent;
+    /* A folga também está na base, e não só em .borda-nenhuma, para não
+       existir um instante (antes do JS rodar) em que o avatar está
+       colado na banner. */
+    box-shadow: 0 0 0 4px var(--painel-fundo);
     background: var(--cor-superficie);
     cursor: pointer;
 }
@@ -229,6 +239,130 @@
     height: 100%;
     object-fit: cover;
     display: block;
+}
+
+/* ============================================================
+   STATUS E "OUVINDO AGORA"
+
+   Ambos ao lado do nome, no bloco de identidade. As cores saem dos
+   tokens do tema; a cor da aba do dono é a mesma do acento da janela,
+   então o status fica com a cara da "pasta" da pessoa.
+   ============================================================ */
+/* A linha do @. Sem esta regra o <p> herdava o tamanho do texto normal e
+   o @ ficava do mesmo tamanho do nome — que é a hierarquia errada: o @ é
+   o identificador, o nome é o título. */
+.perfil-usuario {
+    font-size: 0.82rem;
+    color: var(--cor-texto-fraco);
+    word-break: break-all;
+}
+
+.perfil-status {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+
+    font-size: 0.85rem;
+    color: var(--cor-texto-secundario);
+    margin-top: 2px;
+}
+
+.perfil-status-emoji {
+    /* O emoji vem do usuário e pode ser qualquer um; line-height 1 evita
+       que ele estoure a altura da linha. */
+    font-size: 0.95rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.perfil-ouvindo {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    width: fit-content;
+    margin-top: 6px;
+    padding: 3px 10px 3px 8px;
+
+    border: 1px solid var(--painel-borda);
+    border-radius: 999px;
+
+    background: var(--cor-superficie-clara);
+
+    font-size: 0.75rem;
+    color: var(--cor-texto-secundario);
+
+    cursor: pointer;
+}
+
+.perfil-ouvindo:hover {
+    border-color: var(--perfil-acento);
+}
+
+.perfil-ouvindo-pausado {
+    opacity: 0.7;
+}
+
+.perfil-ouvindo-barra {
+    display: inline-block;
+    width: 2px;
+    height: 12px;
+    flex-shrink: 0;
+    background: var(--perfil-acento);
+}
+
+/* Botão de "pausado": mostra o play de novo, porque quem olha o perfil
+   pode querer continuar ouvindo. */
+.perfil-ouvindo-barra.pausada {
+    width: 0;
+    height: 0;
+    border-left: 7px solid var(--perfil-acento);
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    background: none;
+}
+
+.perfil-ouvindo-titulo {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 220px;
+}
+
+.perfil-config-status-linha {
+    display: flex;
+    align-items: center;
+    gap: var(--espaco-3);
+    margin-bottom: var(--espaco-4);
+}
+
+/* O botão do emoji mostra o que está escolhido; o campo ao lado é o que
+   a pessoa digita (e é o que o navegador grava). */
+.perfil-config-emoji {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 1px solid var(--input-borda);
+    border-radius: var(--raio-pequeno);
+    background: var(--input-fundo);
+
+    font-size: 1.15rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.perfil-config-emoji:hover {
+    border-color: var(--cor-primaria);
+}
+
+.perfil-config-emoji-campo {
+    max-width: 90px;
+    text-align: center;
 }
 
 .perfil-avatar-remover {
@@ -436,6 +570,223 @@
     min-height: 1.2em;
 }
 
+/* ============================================================
+   MODO VISITANTE
+
+   A Favorita deixa de ser lista de escolha e vira um cartão com a
+   música: capa, título, artista e um botão de tocar. É o mesmo
+   formato dos cards do resto do site, com as cores de token.
+   ============================================================ */
+.perfil-favorita-card {
+    display: flex;
+    align-items: center;
+    gap: var(--espaco-3);
+    padding: var(--espaco-3);
+    border: 1px solid var(--painel-borda);
+    border-radius: var(--raio-medio);
+    background: var(--painel-fundo);
+}
+
+.perfil-favorita-capa {
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+    object-fit: cover;
+    border-radius: var(--raio-pequeno);
+}
+
+.perfil-favorita-texto {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.perfil-favorita-titulo,
+.perfil-favorita-artista {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.perfil-favorita-titulo {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--cor-texto);
+}
+
+.perfil-favorita-artista {
+    font-size: 0.72rem;
+    color: var(--cor-texto-fraco);
+}
+
+.perfil-favorita-card .perfil-btn-secundario {
+    margin: 0;
+    flex-shrink: 0;
+}
+
+/* ============================================================
+   CONFIGURAÇÕES — NOME DE EXIBIÇÃO
+   As classes seguem as da biografia (mesmo bloco .perfil-config-*).
+   ============================================================ */
+.perfil-config-rotulo {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--cor-texto-secundario);
+    margin-bottom: 4px;
+}
+
+/* Mesmo desenho do <textarea> da bio, em uma linha. */
+.perfil-config-input {
+    width: 100%;
+    min-height: 40px;
+    padding: var(--espaco-2) var(--espaco-3);
+    border-radius: var(--raio-pequeno);
+    border: 1px solid var(--input-borda);
+    background: var(--input-fundo);
+    color: var(--input-texto);
+    font-family: inherit;
+    font-size: 0.85rem;
+}
+
+.perfil-config-input:focus {
+    outline: none;
+    border-color: var(--input-borda-foco);
+}
+
+.perfil-config-input::placeholder {
+    color: var(--input-placeholder);
+}
+
+.perfil-config-dica {
+    font-size: 0.7rem;
+    color: var(--cor-texto-fraco);
+    line-height: 1.5;
+    margin-bottom: var(--espaco-3);
+}
+
+.perfil-config-dica code {
+    font-family: monospace;
+}
+
+/* ============================================================
+   APARÊNCIA — CONTROLES
+
+   Banner, cores das abas, estilo do nome e borda do avatar. A prévia é
+   ao vivo: o JS escreve nas variáveis escopadas do .perfil-container
+   enquanto a pessoa mexe, e só grava no servidor no "Salvar".
+   ============================================================ */
+.perfil-config-banner-linha {
+    display: flex;
+    align-items: center;
+    gap: var(--espaco-4);
+    margin-bottom: var(--espaco-3);
+}
+
+.perfil-config-banner-preview {
+    width: 150px;
+    height: 68px;
+    flex-shrink: 0;
+
+    border: 1px dashed var(--painel-borda);
+    border-radius: var(--raio-pequeno);
+
+    background-color: var(--cor-superficie-clara);
+    background-size: cover;
+    background-position: center;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.perfil-config-banner-vazio {
+    font-size: 0.7rem;
+    color: var(--cor-texto-fraco);
+}
+
+.perfil-config-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: var(--cor-texto-secundario);
+    cursor: pointer;
+    margin-bottom: var(--espaco-2);
+}
+
+.perfil-config-check input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--cor-primaria);
+    cursor: pointer;
+}
+
+.perfil-config-cores {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espaco-4);
+}
+
+.perfil-config-cor {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    color: var(--cor-texto-secundario);
+    cursor: pointer;
+}
+
+/* O quadradinho é o seletor de cor nativo do navegador, só no tamanho da
+   paleta pastel do site. Não precisa de estilo próprio: o input[type=color]
+   já segue a paleta do sistema. */
+.perfil-config-cor input[type="color"] {
+    width: 40px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid var(--input-borda);
+    border-radius: var(--raio-pequeno);
+    background: none;
+    cursor: pointer;
+}
+
+.perfil-config-select {
+    width: 100%;
+    min-height: 40px;
+    padding: var(--espaco-2) var(--espaco-3);
+
+    border-radius: var(--raio-pequeno);
+    border: 1px solid var(--input-borda);
+    background: var(--input-fundo);
+    color: var(--input-texto);
+
+    font-family: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.perfil-config-select:focus {
+    outline: none;
+    border-color: var(--input-borda-foco);
+}
+
+.perfil-config-rotulo-separado {
+    margin-top: var(--espaco-4);
+}
+
+.perfil-config-rodape-botoes {
+    display: flex;
+    gap: var(--espaco-3);
+    margin-top: var(--espaco-4);
+}
+
+.perfil-config-rodape-botoes .perfil-btn-salvar {
+    flex: 1;
+}
+
 .perfil-biblioteca-nota {
     font-size: 0.7rem;
     color: var(--cor-texto-fraco);
@@ -446,6 +797,232 @@
 
 .perfil-biblioteca-nota code {
     font-family: monospace;
+}
+
+/* ============================================================
+   APARÊNCIA — FASE 2
+
+   Tudo aqui é dirigido por variáveis escopadas em .perfil-container,
+   sobrescritas por JS a partir de `personalizacao`. Os valores de
+   fábrica são as cores de fábrica do tema, então uma página sem
+   personalização alguma fica igual à de sempre.
+
+   Nenhuma cor literal: as três abas têm SEU próprio acento (o usuário
+   escolhe uma cor para cada uma) e, junto de cada uma, o tom de texto
+   que o JS calcula por luminância — é o par --x-acento / --x-texto que
+   garante contraste nos dois temas sem ninguém escolher isso à mão.
+   ============================================================ */
+.perfil-container {
+    --perfil-acento: var(--aba-perfil);
+    --perfil-texto-acento: var(--texto-sobre-pastel);
+    --config-acento: var(--aba-config);
+    --config-texto-acento: var(--texto-sobre-pastel);
+    --biblioteca-acento: var(--aba-biblioteca);
+    --biblioteca-texto-acento: var(--texto-sobre-pastel);
+}
+
+.perfil-janela-tab.aba-perfil {
+    background: var(--perfil-acento);
+    color: var(--perfil-texto-acento);
+}
+
+.perfil-janela-tab.aba-config {
+    background: var(--config-acento);
+    color: var(--config-texto-acento);
+}
+
+.perfil-janela-tab.aba-biblioteca {
+    background: var(--biblioteca-acento);
+    color: var(--biblioteca-texto-acento);
+}
+
+/* ---------- banner ----------
+   A caixa em si (tamanho, textura de fábrica) está definida junto com
+   as demais regras do painel, mais acima. Aqui só o que a personalização
+   acrescenta: a imagem de fundo e a textura de TV por cima. */
+
+/* Textura de TV: uma única classe, sem DOM e sem re-render. Só aparece
+   quando existe banner — sobre a cor de fábrica ela só sujaria a tela. */
+.perfil-banner.com-textura::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(255, 255, 255, 0.14) 0px,
+        rgba(255, 255, 255, 0.14) 1px,
+        transparent 1px,
+        transparent 4px
+    );
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* ---------- bordas do avatar ----------
+
+   A "folga" de 4px que separa o avatar da banner é uma camada de
+   box-shadow, e NÃO um outline. Um outline desenha um anel opaco por
+   cima de tudo, e era ele que escondia justamente as bordas que
+   crescem para fora (brilho, arco-íris, glitch). As camadas do
+   box-shadow são escritas da frente para o fundo: a folga vem
+   primeiro, o brilho depois.
+
+   Uma classe por opção, no .perfil-avatar-wrapper. Só o arco-íris
+   precisa de pseudo-elemento (é o único com gradiente que gira) e por
+   isso é o único que sai do overflow:hidden. */
+.perfil-avatar-wrapper.borda-nenhuma {
+    border-color: transparent;
+    box-shadow: 0 0 0 4px var(--painel-fundo);
+}
+
+.perfil-avatar-wrapper.borda-tracejada {
+    border: 3px dashed var(--perfil-acento);
+    box-shadow: 0 0 0 4px var(--painel-fundo);
+}
+
+.perfil-avatar-wrapper.borda-brilho {
+    border: 3px solid var(--perfil-acento);
+    box-shadow: 0 0 0 4px var(--painel-fundo), 0 0 14px var(--perfil-acento);
+    transition: box-shadow 0.3s ease;
+}
+
+.perfil-avatar-wrapper.borda-brilho:hover {
+    box-shadow: 0 0 0 4px var(--painel-fundo), 0 0 22px var(--perfil-acento);
+}
+
+.perfil-avatar-wrapper.borda-holo {
+    border: 3px solid transparent;
+    animation: holo-anel 4s ease-in-out infinite;
+}
+
+@keyframes holo-anel {
+    0%, 100% { box-shadow: 0 0 0 4px var(--painel-fundo), 0 0 10px #f1c0e8; }
+    50% { box-shadow: 0 0 0 4px var(--painel-fundo), 0 0 18px #98f5e1; }
+}
+
+.perfil-avatar-wrapper.borda-glitch {
+    border: 3px solid var(--perfil-acento);
+    animation: glitch-anel 0.9s steps(2, jump-none) infinite;
+}
+
+@keyframes glitch-anel {
+    0%, 49% {
+        border-color: var(--perfil-acento);
+        box-shadow: 0 0 0 4px var(--painel-fundo), 3px 0 0 -1px #a3c4f3;
+    }
+    50%, 100% {
+        border-color: #98f5e1;
+        box-shadow: 0 0 0 4px var(--painel-fundo), -3px 0 0 -1px #ffcfd2;
+    }
+}
+
+/* O gradiente cônico precisa de um ângulo que o navegador consiga
+   animar: sem @property registrado, o conic-gradient é estático. */
+@property --angulo-treino {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+}
+
+@keyframes girar-anel {
+    to { --angulo-treino: 360deg; }
+}
+
+/* Dois pseudo-elementos porque são dois anéis: a folga (mesma cor do
+   painel) e o arco-íris por fora dela. Se fosse um só, um cobriria o
+   outro. */
+.perfil-avatar-wrapper.borda-arcoiris {
+    border: none;
+    overflow: visible;
+    box-shadow: none;
+}
+
+.perfil-avatar-wrapper.borda-arcoiris .perfil-avatar,
+.perfil-avatar-wrapper.borda-arcoiris .os-avatar-iniciais {
+    border-radius: var(--raio-circular);
+}
+
+.perfil-avatar-wrapper.borda-arcoiris::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: var(--raio-circular);
+    background: var(--painel-fundo);
+}
+
+.perfil-avatar-wrapper.borda-arcoiris::before {
+    content: "";
+    position: absolute;
+    inset: -5px;
+    border-radius: var(--raio-circular);
+    background: conic-gradient(
+        from var(--angulo-treino),
+        #ffcfd2, #fde4cf, #98f5e1, #a3c4f3, #cfbaf0, #ffcfd2
+    );
+    animation: girar-anel 7s linear infinite;
+}
+
+/* ---------- estilo do nome ---------- */
+.perfil-nome.fonte-padrao { font-family: inherit; }
+
+.perfil-nome.fonte-baloo {
+    font-family: 'Baloo 2', cursive;
+    font-weight: 800;
+}
+
+.perfil-nome.fonte-terminal {
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.perfil-nome.fonte-serifada {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-weight: 700;
+}
+
+/* Degradê no nome. O background-clip sem prefixo é o que faz funcionar
+   fora do Chromium; a referência SteamWave só escrevia a versão
+   -webkit- e o nome sumia no Firefox. O solid-color é o fallback: sem
+   ele, um navegador sem suporte mostraria texto transparente. */
+.perfil-nome.com-degrade {
+    background-image: linear-gradient(
+        90deg,
+        var(--nome-cor-inicial, var(--cor-texto)),
+        var(--nome-cor-final, var(--cor-texto))
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    display: inline-block;
+}
+
+/* Sem degradê escolhido, nunca fica transparente. */
+.perfil-nome:not(.com-degrade) {
+    -webkit-text-fill-color: currentColor;
+}
+
+/* ---------- movimento ----------
+   Toda animação da aparência respeita isto. Não existe opção na tela
+   para desligar: quem prefere menos movimento tem o sistema. */
+@media (prefers-reduced-motion: reduce) {
+    .perfil-avatar-wrapper.borda-arcoiris::before,
+    .perfil-avatar-wrapper.borda-holo,
+    .perfil-avatar-wrapper.borda-glitch {
+        animation: none;
+    }
+
+    /* Sem rotação parada, o anel fica na primeira cor do gradiente. */
+    .perfil-avatar-wrapper.borda-arcoiris::before {
+        background: #cfbaf0;
+    }
+
+    .perfil-avatar-wrapper.borda-holo,
+    .perfil-avatar-wrapper.borda-glitch {
+        border-color: var(--perfil-acento);
+        box-shadow: 0 0 0 4px var(--painel-fundo), 0 0 10px var(--perfil-acento);
+    }
 }
 
 /* ============================================================
@@ -636,7 +1213,9 @@
     font-size: 0.9rem;
     flex-shrink: 0;
     background: var(--cor-primaria);
-    color: #fff8f3;
+    /* Texto sobre fundo --cor-primaria é sempre --texto-sobre-pastel;
+       é a mesma combinação usada no theme.css. */
+    color: var(--texto-sobre-pastel);
 }
 
 /* Pular música */
@@ -786,5 +1365,8 @@
 }
 
 .btn-icone.ativo {
-    color: #ff6b8b;
+    /* Mesmo token que a home usa para o coração favoritado
+       (home.css .btn-favoritar-destaque.ativo) — o estado "favoritado"
+       precisa ter a mesma cor em toda página. */
+    color: var(--cor-erro);
 }

@@ -71,6 +71,15 @@
              geral (GET /api/musicas) e troca o título. -->
         <div class="secao-musicas">
             <h2 class="secao-titulo aba-musicas">Músicas mais tocadas</h2>
+
+            <!-- Só aparece durante a busca. Fica acima do carrossel porque
+                 a lista de pessoas não cabe no formato de destaque+setas:
+                 o carrossel abaixo continua com as músicas encontradas. -->
+            <div id="busca-pessoas" class="busca-pessoas hidden">
+                <h3 class="busca-pessoas-titulo">Pessoas</h3>
+                <ul id="busca-pessoas-lista" class="busca-pessoas-lista"></ul>
+            </div>
+
             <div class="carrossel-controle">
                 <button type="button" id="msc-seta-esq" class="msc-seta" aria-label="Música anterior">‹</button>
                 <div id="lista-musicas" class="lista-musicas">

@@ -57,7 +57,7 @@
 
         <!-- ESTADO "NÃO LOGADO" -->
         <section id="perfil-bloqueado" class="perfil-bloqueado hidden">
-            <p class="perfil-bloqueado-texto">🔒 Faça login pra ver e editar seu perfil.</p>
+            <p class="perfil-bloqueado-texto">🔒 Entre na sua conta para ver e editar o seu perfil.</p>
             <a href="home.html" class="perfil-bloqueado-link">Ir pra página inicial</a>
         </section>
 
@@ -66,22 +66,38 @@
             <!-- ================================================
                  JANELA 1: PERFIL — só exibição. Nada aqui é editável;
                  quem edita é a janela de Configurações ao lado.
+
+                 Sem data-os-avatar/data-os-nome de propósito: o sessao.js
+                 pinta TODO elemento com esses atributos com o avatar e o
+                 nome do USUÁRIO LOGADO. No perfil de outra pessoa isso
+                 sobrescreveria o dono do perfil. A pintura vem do
+                 OS.pintarCaixa(), com os dados da rota pública.
+                 O aria-label é neutro porque a página não é mais "seu".
             ================================================= -->
-            <section class="perfil-janela perfil-janela-identidade" aria-label="Seu perfil">
-                <span class="perfil-janela-tab aba-perfil">Perfil</span>
+            <section class="perfil-janela perfil-janela-identidade" id="janela-identidade" aria-label="Perfil">
+                <span class="perfil-janela-tab aba-perfil" id="aba-identidade">Perfil</span>
 
                 <div class="perfil-painel">
                     <div class="perfil-banner" id="perfil-banner"></div>
 
-                    <div class="perfil-avatar-wrapper os-avatar-gr" data-os-avatar data-os-estado="pronto" aria-hidden="true">
+                    <div class="perfil-avatar-wrapper os-avatar-gr" id="perfil-avatar-caixa" aria-hidden="true">
                         <span class="os-avatar-iniciais"></span>
-                        <img class="perfil-avatar os-avatar-img" data-os-img src="../assets/avatar-padrao.png"
-                            alt="" fetchpriority="high" decoding="async">
+                        <!-- data-os-img é obrigatório aqui: é o que o
+                             OS.pintarCaixa() usa para achar o <img> dentro
+                             desta caixa e trocar o src. O que NÃO pode
+                             voltar é data-os-avatar, no invólucro acima —
+                             é ele que faria o sessao.js repintar esta foto
+                             com o avatar de quem está logado, estragando o
+                             perfil de outra pessoa. -->
+                        <img class="perfil-avatar os-avatar-img" id="perfil-avatar-img" data-os-img
+                            src="../assets/avatar-padrao.png" alt="" fetchpriority="high" decoding="async">
                     </div>
 
                     <div class="perfil-identidade">
-                        <h1 id="perfil-nome" class="perfil-nome" data-os-nome>Carregando perfil...</h1>
+                        <h1 id="perfil-nome" class="perfil-nome">Carregando perfil...</h1>
                         <p id="perfil-usuario" class="perfil-usuario"></p>
+                        <p id="perfil-status" class="perfil-status hidden"></p>
+                        <p id="perfil-ouvindo" class="perfil-ouvindo hidden"></p>
                         <p id="perfil-bio" class="perfil-bio-exibicao" data-placeholder="Nenhuma biografia ainda."></p>
                         <p id="perfil-estatisticas" class="perfil-estatisticas"></p>
                     </div>
@@ -90,9 +106,15 @@
 
             <!-- ================================================
                  JANELA 2: CONFIGURAÇÕES — edição autenticada de
-                 foto e biografia. Tudo aqui chama /api/perfil/*.
+                 foto, nome de exibição e biografia. Tudo aqui chama
+                 /api/perfil/*.
+
+                 Esta janela é REMOVIDA do DOM no modo visitante, e não
+                 apenas escondida: segurança de verdade está nas rotas de
+                 escrita, que sempre leem o usuário do token e nunca um id
+                 que venha do navegador.
             ================================================= -->
-            <section class="perfil-janela perfil-janela-config" aria-label="Configurações do perfil">
+            <section class="perfil-janela perfil-janela-config" id="janela-config" aria-label="Configurações do perfil">
                 <span class="perfil-janela-tab aba-config">Configurações</span>
 
                 <div class="perfil-painel perfil-painel-config">
@@ -117,6 +139,66 @@
                     <hr class="perfil-config-divisor">
 
                     <div class="perfil-config-secao">
+                        <h2 class="perfil-config-titulo">Status</h2>
+                        <p class="perfil-config-dica">
+                            Aparece ao lado do seu nome, no seu perfil. Pode ter acento, espaço e emoji.
+                        </p>
+
+                        <div class="perfil-config-status-linha">
+                            <label class="perfil-config-emoji" for="config-status-emoji"
+                                title="Um emoji">😀</label>
+                            <input type="text" id="config-status-emoji" class="perfil-config-input perfil-config-emoji-campo"
+                                maxlength="8" autocomplete="off" aria-label="Emoji do status">
+                        </div>
+
+                        <label class="perfil-config-rotulo" for="config-status-texto">O que você está fazendo</label>
+                        <input type="text" id="config-status-texto" class="perfil-config-input"
+                            placeholder="Estudando, de folga, ouvindo música...">
+                        <div class="perfil-config-bio-rodape">
+                            <span id="config-status-contador" class="perfil-config-contador">0/40</span>
+                        </div>
+
+                        <hr class="perfil-config-divisor">
+
+                        <label class="perfil-config-check">
+                            <input type="checkbox" id="config-mostrar-ouvindo">
+                            <span>Mostrar o que estou ouvindo no meu perfil</span>
+                        </label>
+                        <p class="perfil-config-dica">
+                            Desligado por padrão. Quando ligado, quem abrir o seu perfil vê a música e
+                            o play/pausa — e pode tocar nela. A sua fila continua sempre privada.
+                        </p>
+                        <div class="perfil-config-rodape-botoes">
+                            <button type="button" id="config-status-guardar" class="perfil-btn-salvar" disabled>
+                                Salvar status
+                            </button>
+                        </div>
+                        <p id="config-status-status" class="perfil-config-status"></p>
+                    </div>
+
+                    <hr class="perfil-config-divisor">
+
+                    <div class="perfil-config-secao">
+                        <h2 class="perfil-config-titulo">Como você aparece</h2>
+                        <form id="config-exibicao-form">
+                            <label class="perfil-config-rotulo" for="config-exibicao-input">Nome de exibição</label>
+                            <input type="text" id="config-exibicao-input" class="perfil-config-input"
+                                maxlength="40" placeholder="Como as pessoas te veem">
+                            <p class="perfil-config-dica">
+                                Pode ter acento, espaço e emoji — diferente do seu @, que só aceita
+                                letras, números, ponto, <code>_</code> e <code>-</code>.
+                            </p>
+                            <div class="perfil-config-bio-rodape">
+                                <span id="config-exibicao-contador" class="perfil-config-contador">0/40</span>
+                                <button type="submit" class="perfil-btn-salvar">Salvar nome</button>
+                            </div>
+                        </form>
+                        <p id="config-exibicao-status" class="perfil-config-status"></p>
+                    </div>
+
+                    <hr class="perfil-config-divisor">
+
+                    <div class="perfil-config-secao">
                         <h2 class="perfil-config-titulo">Biografia</h2>
                         <form id="config-bio-form">
                             <textarea id="config-bio-textarea" class="perfil-config-textarea" maxlength="220"
@@ -127,6 +209,106 @@
                             </div>
                         </form>
                         <p id="config-bio-status" class="perfil-config-status"></p>
+                    </div>
+
+                    <hr class="perfil-config-divisor">
+
+                    <div class="perfil-config-secao">
+                        <h2 class="perfil-config-titulo">Banner</h2>
+                        <div class="perfil-config-banner-linha">
+                            <div class="perfil-config-banner-preview" id="config-banner-preview">
+                                <span class="perfil-config-banner-vazio" id="config-banner-vazio">Sem banner</span>
+                            </div>
+                            <div class="perfil-config-avatar-botoes">
+                                <button type="button" id="config-banner-enviar" class="perfil-btn-salvar">Enviar banner</button>
+                                <button type="button" id="config-banner-remover" class="perfil-btn-secundario hidden">Remover</button>
+                                <input type="file" id="config-banner-input"
+                                    accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+                            </div>
+                        </div>
+                        <label class="perfil-config-check">
+                            <input type="checkbox" id="config-banner-textura">
+                            <span>Textura de TV sobre o banner</span>
+                        </label>
+                        <p class="perfil-config-dica">PNG, JPEG, WEBP ou GIF, até 5 MB. O GIF fica animado.</p>
+                        <p id="config-banner-status" class="perfil-config-status"></p>
+                    </div>
+
+                    <hr class="perfil-config-divisor">
+
+                    <div class="perfil-config-secao">
+                        <h2 class="perfil-config-titulo">Cores das abas</h2>
+                        <p class="perfil-config-dica">
+                            Cada aba tem a sua cor. O texto por cima é ajustado sozinho
+                            para nunca ficar ilegível.
+                        </p>
+                        <div class="perfil-config-cores" id="config-cores">
+                            <label class="perfil-config-cor">
+                                <input type="color" id="config-cor-perfil" data-acento="perfil">
+                                <span>Perfil</span>
+                            </label>
+                            <label class="perfil-config-cor">
+                                <input type="color" id="config-cor-config" data-acento="config">
+                                <span>Configurações</span>
+                            </label>
+                            <label class="perfil-config-cor">
+                                <input type="color" id="config-cor-biblioteca" data-acento="biblioteca">
+                                <span>Biblioteca</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <hr class="perfil-config-divisor">
+
+                    <div class="perfil-config-secao">
+                        <h2 class="perfil-config-titulo">Estilo do nome</h2>
+
+                        <label class="perfil-config-rotulo" for="config-fonte-nome">Fonte</label>
+                        <select id="config-fonte-nome" class="perfil-config-select">
+                            <option value="padrao">Padrão do site</option>
+                            <option value="baloo">Baloo 2 (redondinha)</option>
+                            <option value="terminal">Terminal</option>
+                            <option value="serifada">Serifada</option>
+                        </select>
+
+                        <div class="perfil-config-cores">
+                            <label class="perfil-config-cor">
+                                <input type="color" id="config-nome-cor1">
+                                <span>Cor 1 do degradê</span>
+                            </label>
+                            <label class="perfil-config-cor">
+                                <input type="color" id="config-nome-cor2">
+                                <span>Cor 2 do degradê</span>
+                            </label>
+                        </div>
+                        <label class="perfil-config-check">
+                            <input type="checkbox" id="config-nome-degrade">
+                            <span>Usar degradê no nome</span>
+                        </label>
+
+                        <label class="perfil-config-rotulo perfil-config-rotulo-separado" for="config-borda-avatar">Borda do avatar</label>
+                        <select id="config-borda-avatar" class="perfil-config-select">
+                            <option value="nenhuma">Sem borda</option>
+                            <option value="tracejada">Tracejada</option>
+                            <option value="brilho">Brilho suave</option>
+                            <option value="arcoiris">Arco-íris animado</option>
+                            <option value="holo">Holo</option>
+                            <option value="glitch">Glitch</option>
+                        </select>
+
+                        <div class="perfil-config-rodape-botoes">
+                            <button type="button" id="config-aparencia-desfazer" class="perfil-btn-secundario" disabled>
+                                Desfazer
+                            </button>
+                            <button type="button" id="config-aparencia-salvar" class="perfil-btn-salvar">
+                                Salvar aparência
+                            </button>
+                        </div>
+                        <p class="perfil-config-dica">
+                            As mudanças aparecem na hora enquanto você mexe, mas só são
+                            gravadas quando você salva.
+                        </p>
+                        <p id="config-aparencia-status" class="perfil-config-status"></p>
                     </div>
 
                     <hr class="perfil-config-divisor">
@@ -153,12 +335,28 @@
 
                         <div class="perfil-coluna" aria-labelledby="titulo-favorita">
                             <h2 id="titulo-favorita" class="perfil-coluna-titulo perfil-acento-favorita">★ Favorita</h2>
-                            <input type="text" id="perfil-favorita-filtro" class="perfil-filtro"
-                                placeholder="Filtrar as 50 recentes..." disabled>
-                            <ul id="perfil-favorita-resultados" class="perfil-resultados" data-estado="carregando">
-                                <li class="perfil-estado-mensagem">Carregando catálogo...</li>
-                            </ul>
-                            <p id="perfil-favorita-selecionada" class="perfil-selecao-atual"></p>
+
+                            <!-- Só o dono escolhe a favorita. No modo visitante
+                                 este bloco sai do DOM e no lugar dele entra o
+                                 card estático da música, montado pelo JS. -->
+                            <div id="perfil-favorita-escolha">
+                                <input type="text" id="perfil-favorita-filtro" class="perfil-filtro"
+                                    placeholder="Filtrar as 50 recentes..." disabled>
+                                <ul id="perfil-favorita-resultados" class="perfil-resultados" data-estado="carregando">
+                                    <li class="perfil-estado-mensagem">Carregando catálogo...</li>
+                                </ul>
+                                <p id="perfil-favorita-selecionada" class="perfil-selecao-atual"></p>
+                            </div>
+
+                            <!-- Cartão da favorita, para quem está só olhando. -->
+                            <div id="perfil-favorita-card" class="perfil-favorita-card hidden">
+                                <img id="perfil-favorita-capa" class="perfil-favorita-capa" src="../assets/avatar-padrao.png" alt="">
+                                <div class="perfil-favorita-texto">
+                                    <p id="perfil-favorita-titulo" class="perfil-favorita-titulo"></p>
+                                    <p id="perfil-favorita-artista" class="perfil-favorita-artista"></p>
+                                </div>
+                                <button type="button" id="perfil-favorita-tocar" class="perfil-btn-secundario">▶ Tocar</button>
+                            </div>
                         </div>
 
                         <div class="perfil-coluna" aria-labelledby="titulo-playlists">
@@ -170,10 +368,7 @@
 
                     </div>
 
-                    <p class="perfil-biblioteca-nota">
-                        Busca roda sobre as 50 músicas mais recentes (<code>GET /api/musicas</code>).
-                        Favorita salva ao clicar.
-                    </p>
+                    <p id="perfil-biblioteca-nota" class="perfil-biblioteca-nota"></p>
                 </div>
             </section>
 

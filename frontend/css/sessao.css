@@ -36,6 +36,12 @@ html[data-sessao="visitante"] [data-os-so-visitor] {
     flex-shrink: 0;
 }
 
+.os-avatar-sm {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+}
+
 .os-avatar-iniciais {
     position: absolute;
     inset: 0;
@@ -53,6 +59,10 @@ html[data-sessao="visitante"] [data-os-so-visitor] {
 
 .os-avatar-md .os-avatar-iniciais {
     font-size: 1.25rem;
+}
+
+.os-avatar-sm .os-avatar-iniciais {
+    font-size: 0.9rem;
 }
 
 .os-avatar-gr .os-avatar-iniciais {
