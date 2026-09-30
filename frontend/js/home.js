@@ -160,6 +160,10 @@ const formUpload = document.getElementById('form-upload');
 const btnUpload = document.getElementById('btn-upload');
 const listaMusicas = document.getElementById('lista-musicas');
 const listaArtistas = document.getElementById('lista-artistas');
+// Declarado aqui, e não junto das funções da seção: carregarDescobrirMusicas()
+// roda na carga inicial (mais abaixo) e um const declarado depois ficaria
+// inacessível — "Cannot access before initialization".
+const listaDescobrir = document.getElementById('lista-descobrir');
 
 // Elementos do Modal de Cadastro de Artista
 const modalArtista = document.getElementById('modal-artista');
@@ -1603,8 +1607,7 @@ async function carregarArtistasMaisOuvidos() {
 // ============================================================
 // Lista as músicas mais recém-enviadas. Os dados vêm do catálogo geral
 // (GET /api/musicas), que já vem ordenado por criado_em DESC.
-
-const listaDescobrir = document.getElementById('lista-descobrir');
+// O #lista-descobrir é lido lá em cima, junto dos outros elementos do DOM.
 
 function mostrarMensagemDescobrir(mensagem, estado) {
   if (!listaDescobrir) return;
