@@ -20,6 +20,7 @@ async function fetchComAutenticacao(url, opcoes = {}) {
 
   if (resposta.status === 401) {
     localStorage.removeItem(CHAVE_SESSAO);
+    if (window.OS) OS.limparCache();
     alert('Sua sessão expirou. Faça login novamente.');
     window.location.href = 'home.html';
   }
@@ -234,6 +235,7 @@ if (btnDeletarConta) {
       if (resposta.ok) {
         alert('Conta excluída com sucesso.');
         localStorage.removeItem(CHAVE_SESSAO);
+        if (window.OS) OS.limparCache();
         window.location.href = 'home.html';
       } else {
         alert(dados.mensagem || 'Não foi possível excluir a conta.');
@@ -253,6 +255,7 @@ if (btnSairConfig) {
     if (!confirmou) return;
 
     localStorage.removeItem(CHAVE_SESSAO);
+    if (window.OS) OS.limparCache();
     window.location.href = 'home.html';
   });
 }

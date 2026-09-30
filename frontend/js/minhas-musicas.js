@@ -28,6 +28,7 @@ async function fetchComAutenticacao(url, opcoes = {}) {
 
   if (resposta.status === 401) {
     localStorage.removeItem(CHAVE_SESSAO);
+    if (window.OS) OS.limparCache();
     alert('Sua sessão expirou. Faça login novamente.');
     window.location.href = 'home.html';
   }
@@ -82,221 +83,39 @@ const ICONE_PAUSE = `
 
 // ============================================================
 // PLAYER
-// Mesma estrutura e mesmos eventos do player da Home, pra que o botão
-// "Tocar" dos cards toque o áudio de verdade e registre a reprodução.
+// O áudio, a barra fixa, o volume e a fila vivem no player universal
+// (player.js, carregado antes deste arquivo) — esta página não cria
+// nenhum elemento de áudio nem redeclara nada que ele já defina.
+//
+// O que fica aqui é só a repintagem dos botões "Tocar" dos cards: o
+// player universal escreve texto puro (▶ Tocar) no botão ativo, e aqui o
+// botão é ícone SVG + rótulo, então a repintagem é refeita logo depois.
 // ============================================================
 
-const playerBarra = document.getElementById('player-barra');
-const playerCapa = document.getElementById('player-capa');
-const playerTitulo = document.getElementById('player-titulo');
-const playerArtista = document.getElementById('player-artista');
-const playerPlayPause = document.getElementById('player-play-pause');
-const playerTempoAtual = document.getElementById('player-tempo-atual');
-const playerTempoTotal = document.getElementById('player-tempo-total');
-const playerSeek = document.getElementById('player-seek');
-const playerVolumeBtn = document.getElementById('player-volume-btn');
-const playerVolume = document.getElementById('player-volume');
+// O botão dono da música carregada ganha o ícone de pausa e a classe
+// .tocando; os outros voltam a mostrar o play. Roda depois dos
+// listeners do player.js porque o script é carregado antes.
+function pintarBotoesTocar() {
+  if (!listaMinhasMusicas) return;
 
-const elementoAudio = new Audio();
-let botaoAudioAtual = null;
-let arrastandoSeek = false;
-let volumeAntesMudo = 1;
-let musicaNoPlayer = null;
-let reproducaoJaContada = false;
-
-elementoAudio.volume = 1;
-
-function formatarTempo(segundosTotais) {
-  if (!isFinite(segundosTotais) || segundosTotais < 0) return '0:00';
-  const minutos = Math.floor(segundosTotais / 60);
-  const segundos = Math.floor(segundosTotais % 60).toString().padStart(2, '0');
-  return `${minutos}:${segundos}`;
-}
-
-// Só é chamada pelo evento 'play', ou seja, quando o áudio já está
-// tocando. Falha aqui não interrompe a música.
-async function registrarReproducao(musica) {
-  if (!musica || !musica.id) return;
-
-  try {
-    await fetchComAutenticacao(`http://localhost:3000/api/musicas/${musica.id}/reproduzir`, {
-      method: 'POST'
-    });
-  } catch (erro) {
-    console.error('Erro ao registrar reprodução:', erro);
-  }
-}
-
-function tocarMusica(musica, botaoClicado) {
-  const clicouNaMesmaMusica = botaoAudioAtual === botaoClicado && elementoAudio.src;
-
-  // Pausar/continuar a MESMA execução sai antes de qualquer coisa, então
-  // o 'play' do "continuar" não é contado de novo.
-  if (clicouNaMesmaMusica) {
-    if (elementoAudio.paused) {
-      elementoAudio.play();
-    } else {
-      elementoAudio.pause();
-    }
-    return;
-  }
-
-  if (botaoAudioAtual) botaoAudioAtual.textContent = '';
-  if (botaoAudioAtual) botaoAudioAtual.classList.remove('tocando');
-  botaoAudioAtual = botaoClicado;
-  if (botaoAudioAtual) botaoAudioAtual.classList.add('tocando');
-
-  // Música nova no player: libera a contagem uma única vez, antes do play().
-  musicaNoPlayer = musica;
-  reproducaoJaContada = false;
-
-  elementoAudio.src = musica.url_audio;
-  elementoAudio.play().then(() => {
-    pintarBotaoTocar();
-  }).catch((erro) => {
-    console.error('Erro ao tocar áudio:', erro);
-    alert('Não foi possível tocar esta música.');
-  });
-
-  if (playerCapa) playerCapa.src = musica.url_capa || '';
-  if (playerTitulo) playerTitulo.textContent = musica.titulo;
-  if (playerArtista) playerArtista.textContent = musica.artista;
-  if (playerBarra) playerBarra.classList.remove('hidden');
-}
-
-// O botão só troca o ícone ▶/⏸ — o rótulo "Tocar" fica sempre visível,
-// então o estado é comunicado pelo ícone e pela classe .tocando.
-function pintarBotaoTocar() {
   const tocando = botaoAudioAtual && !elementoAudio.paused;
-  const icone = tocando ? '⏸' : '▶';
 
-  if (botaoAudioAtual) {
-    const alvo = botaoAudioAtual.querySelector('.btn-acao-icone');
-    if (alvo) alvo.innerHTML = tocando ? ICONE_PAUSE : ICONE_PLAY;
-  }
-  if (playerPlayPause) playerPlayPause.textContent = icone;
-}
+  listaMinhasMusicas.querySelectorAll('.btn-tocar').forEach((botao) => {
+    const ativo = botao === botaoAudioAtual && tocando;
 
-elementoAudio.addEventListener('play', () => {
-  pintarBotaoTocar();
-  if (playerPlayPause) playerPlayPause.textContent = '⏸';
+    botao.classList.toggle('tocando', ativo);
 
-  // O áudio começou de verdade. É aqui — e só aqui — que a reprodução
-  // é contada. Se o play falhar, o evento nunca dispara.
-  if (musicaNoPlayer && !reproducaoJaContada) {
-    reproducaoJaContada = true;
-    registrarReproducao(musicaNoPlayer);
-  }
-});
+    const icone = botao.querySelector('.btn-acao-icone');
+    if (icone) icone.innerHTML = ativo ? ICONE_PAUSE : ICONE_PLAY;
 
-elementoAudio.addEventListener('pause', () => pintarBotaoTocar());
-
-elementoAudio.addEventListener('ended', () => {
-  if (botaoAudioAtual) botaoAudioAtual.classList.remove('tocando');
-  botaoAudioAtual = null;
-  pintarBotaoTocar();
-
-  // A música terminou: a próxima execução dela volta a contar +1.
-  reproducaoJaContada = false;
-});
-
-elementoAudio.addEventListener('loadedmetadata', () => {
-  if (playerSeek) playerSeek.max = elementoAudio.duration;
-  if (playerTempoTotal) playerTempoTotal.textContent = formatarTempo(elementoAudio.duration);
-});
-
-elementoAudio.addEventListener('timeupdate', () => {
-  if (!arrastandoSeek) {
-    if (playerSeek) playerSeek.value = elementoAudio.currentTime;
-    if (playerTempoAtual) playerTempoAtual.textContent = formatarTempo(elementoAudio.currentTime);
-  }
-});
-
-if (playerSeek) {
-  playerSeek.addEventListener('input', () => {
-    arrastandoSeek = true;
-    if (playerTempoAtual) playerTempoAtual.textContent = formatarTempo(playerSeek.value);
-  });
-
-  playerSeek.addEventListener('change', () => {
-    elementoAudio.currentTime = playerSeek.value;
-    arrastandoSeek = false;
+    const rotulo = botao.querySelector('.btn-acao-rotulo');
+    if (rotulo) rotulo.textContent = ativo ? 'Pausar' : 'Tocar';
   });
 }
 
-if (playerPlayPause) {
-  playerPlayPause.addEventListener('click', () => {
-    if (!elementoAudio.src) return;
-    if (elementoAudio.paused) {
-      elementoAudio.play();
-    } else {
-      elementoAudio.pause();
-    }
-  });
-}
-
-function atualizarIconeVolume() {
-  if (!playerVolumeBtn) return;
-  const vol = elementoAudio.volume;
-
-  if (elementoAudio.muted || vol === 0) {
-    playerVolumeBtn.textContent = '🔇';
-    playerVolumeBtn.setAttribute('aria-label', 'Volume mutado');
-  } else if (vol < 0.3) {
-    playerVolumeBtn.textContent = '🔈';
-    playerVolumeBtn.setAttribute('aria-label', 'Volume baixo');
-  } else if (vol < 0.7) {
-    playerVolumeBtn.textContent = '🔉';
-    playerVolumeBtn.setAttribute('aria-label', 'Volume médio');
-  } else {
-    playerVolumeBtn.textContent = '🔊';
-    playerVolumeBtn.setAttribute('aria-label', 'Volume alto');
-  }
-}
-
-if (playerVolume) {
-  const volumeSalvo = localStorage.getItem('opensound_volume');
-  if (volumeSalvo !== null) {
-    const vol = parseFloat(volumeSalvo);
-    if (!isNaN(vol)) {
-      elementoAudio.volume = vol;
-      playerVolume.value = vol;
-    }
-  }
-  atualizarIconeVolume();
-
-  playerVolume.addEventListener('input', () => {
-    elementoAudio.volume = playerVolume.value;
-    elementoAudio.muted = false;
-    localStorage.setItem('opensound_volume', elementoAudio.volume);
-    atualizarIconeVolume();
-  });
-
-  playerVolume.addEventListener('change', () => {
-    localStorage.setItem('opensound_volume', elementoAudio.volume);
-  });
-}
-
-if (playerVolumeBtn) {
-  playerVolumeBtn.addEventListener('click', () => {
-    if (elementoAudio.muted) {
-      elementoAudio.muted = false;
-      elementoAudio.volume = volumeAntesMudo > 0 ? volumeAntesMudo : 1;
-      playerVolume.value = elementoAudio.volume;
-    } else {
-      volumeAntesMudo = elementoAudio.volume;
-      elementoAudio.muted = true;
-      playerVolume.value = 0;
-    }
-    localStorage.setItem('opensound_volume', elementoAudio.volume);
-    atualizarIconeVolume();
-  });
-}
-
-elementoAudio.addEventListener('volumechange', () => {
-  if (playerVolume) playerVolume.value = elementoAudio.volume;
-  atualizarIconeVolume();
-});
+elementoAudio.addEventListener('play', pintarBotoesTocar);
+elementoAudio.addEventListener('pause', pintarBotoesTocar);
+elementoAudio.addEventListener('ended', pintarBotoesTocar);
 
 // ============================================================
 // CARROSSEL
@@ -514,6 +333,7 @@ function criarCardMinhaMusica(musica) {
       return;
     }
     tocarMusica(musica, btnTocar);
+    pintarBotoesTocar();
   });
 
   const btnExcluir = document.createElement('button');

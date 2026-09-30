@@ -1,3 +1,4 @@
+// Professora, nosso códgo ja virou legado....
 require('dotenv').config();
 const express = require('express');
 const nodemailer = require('nodemailer');
@@ -15,7 +16,16 @@ const {
   LimiteDePlaylists,
   tamanhoEmCaracteres,
   paraIdValido,
+  NOME_EXIBICAO_MAX,
+  STATUS_TEXTO_MAX,
+  STATUS_EMOJI_MAX,
+  contarGrafemas,
+  recortarPorGrafemas,
+  mensagemNomeUsuarioInvalido,
+  nomeDeUsuarioDisponivel,
+  normalizarPersonalizacao,
   detectarTipoImagem,
+  detectarTipoImagemComGif,
   detectarTipoAudio,
   ehViolacaoDeChave,
   ehMusicaSumida,
@@ -81,7 +91,9 @@ const JANELA_REDEFINICOES_MODAL_HORAS = 24;
 const COOLDOWN_REDEFINICAO_MS = 24 * 60 * 60 * 1000;
 const COOLDOWN_EXCLUSAO_MUSICA_MS = 24 * 60 * 60 * 1000;
 
-const NOME_USUARIO_MAX = 28;
+// O @ (nome_usuario) tem as regras em ajudantes.js: 3-28 caracteres de
+// [A-Za-z0-9._-], único sem diferenciar caixa. Aqui é só o nome de
+// artista, que é livre.
 const NOME_ARTISTA_MAX = 60;
 const TITULO_MUSICA_MAX = 255;
 const BIO_MAX = 220;
@@ -92,7 +104,10 @@ const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 const CAPA_MAX_BYTES = 5 * 1024 * 1024;
 const AUDIO_MAX_BYTES = 25 * 1024 * 1024;
 const TEMAS_VALIDOS = ['light', 'dark'];
-const COLUNAS_MUSICA = 'm.id, m.titulo, m.artista, m.url_audio, m.url_capa';
+// usuario_id entra aqui para o front saber se a música tem um dono (e então
+// o nome do artista pode virar link para o perfil). Vem NULL para música sem
+// dono — e aí o nome segue sendo texto puro.
+const COLUNAS_MUSICA = 'm.id, m.titulo, m.artista, m.url_audio, m.url_capa, m.usuario_id';
 
 const falha = (res, status, mensagem, extra = {}) =>
   res.status(status).json({ status: 'erro', mensagem, ...extra });
@@ -101,7 +116,9 @@ const sucesso = (res, corpo = {}, status = 200) =>
   res.status(status).json({ status: 'sucesso', ...corpo });
 
 const falhaInterna = (res, contexto, erro) => {
-  console.error(`Erro em ${contexto}:`, erro);
+  // Ponto único de log de erro interno: toda rota que chama este helper já
+  // aparece aqui com o endpoint e a mensagem real do Postgres/Storage.
+  logError('ERROR', `Falha em ${contexto}`, { codigo: erro.code, mensagem: erro.message });
   return falha(res, 500, 'Erro interno no servidor.');
 };
 
@@ -127,14 +144,16 @@ async function enviarEmail(para, assunto, texto) {
     });
     return true;
   } catch (erro) {
-    console.error('Erro ao enviar e-mail pelo Nodemailer:', erro);
+    logError('ERROR', 'Falha ao enviar e-mail pelo Nodemailer', { mensagem: erro.message });
     return false;
   }
-}
+};
 
-// O código nunca é logado em produção.
+// O código só é impresso fora de produção, e num log propositalmente
+// destacado — é o que permite testar o fluxo de 2FA na mão. Para removê-lo,
+// basta apagar esta função e as chamadas dela.
 const logarCodigoEmDev = (rotulo, codigo) => {
-  if (!EM_PRODUCAO) console.log(`[DEV] ${rotulo}: ${codigo}`);
+  if (!EM_PRODUCAO) console.log(`[2FA][DEV] ${rotulo}: ${codigo}`);
 };
 
 const criarLimitador = (windowMs, max, mensagem) =>
@@ -171,8 +190,29 @@ const limitarValidacaoIP = criarLimitador(15 * 60 * 1000, 10, 'Muitas tentativas
 const limitarReenvioIP = criarLimitador(60 * 60 * 1000, 5, 'Você excedeu o limite de 5 tentativas por hora. Tente novamente mais tarde.');
 const limitarLoginIP = criarLimitador(15 * 60 * 1000, 10, 'Muitas tentativas de login a partir deste IP. Tente novamente mais tarde.');
 
+// Autenticação OPCIONAL: quando há token válido, req.usuario é preenchido
+// e a rota pode saber se quem está olhando é o dono. Sem token — ou com
+// token inválido/expirado — a requisição segue normalmente, porque perfil
+// público é público justamente para quem ainda não fez login.
+async function verificarAutenticacaoOpcional(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return next();
+
+  try {
+    const payload = jwt.verify(authHeader.split(' ')[1], JWT_SECRET_SESSAO, { algorithms: ['HS256'] });
+    const resultado = await pool.query(
+      'SELECT id FROM usuarios WHERE id = $1 AND verificado = TRUE',
+      [payload.id]
+    );
+    if (resultado.rows[0]) req.usuario = { id: resultado.rows[0].id };
+  } catch (erro) {
+    // Token ruim não é erro aqui: a resposta pública sai igual.
+  }
+  return next();
+}
+
 app.post('/api/registro', limitarRegistroIP, async (req, res) => {
-  const { email: emailBruto, password, nomeUsuario: nomeBruto } = req.body || {};
+  const { email: emailBruto, password, nomeUsuario: nomeBruto, nomeExibicao: exibicaoBruta } = req.body || {};
 
   if (!ehTexto(emailBruto) || !ehTexto(password) || !ehTexto(nomeBruto) || !emailBruto.trim() || !password || !nomeBruto.trim()) {
     return falha(res, 400, 'E-mail, senha e nome de usuário são obrigatórios.');
@@ -181,44 +221,74 @@ app.post('/api/registro', limitarRegistroIP, async (req, res) => {
   const email = emailBruto.trim();
   const nomeUsuario = nomeBruto.trim();
 
-  if (!validarEmail(email)) return falha(res, 400, 'Por favor, insira um e-mail válido.');
-  if (tamanhoEmCaracteres(nomeUsuario) > NOME_USUARIO_MAX) {
-    return falha(res, 400, `O nome de usuário pode ter no máximo ${NOME_USUARIO_MAX} caracteres.`);
+  // Nome de exibição é opcional e livre (acentos, espaços, emoji). Vazio
+  // significa "use o próprio @ como nome", que é o padrão do Discord.
+  const nomeExibicao = ehTexto(exibicaoBruta) ? exibicaoBruta.trim() : '';
+  if (nomeExibicao && tamanhoEmCaracteres(nomeExibicao) > NOME_EXIBICAO_MAX) {
+    return falha(res, 400, `O nome de exibição pode ter no máximo ${NOME_EXIBICAO_MAX} caracteres.`);
   }
+
+  if (!validarEmail(email)) return falha(res, 400, 'Por favor, insira um e-mail válido.');
+
+  // O @ precisa seguir o padrão ANTES de qualquer gravação: um "Megane ツ"
+  // como @ quebraria a URL do perfil e impediria a unicidade sem diferenciar
+  // caixa. O nome de artista continua livre — quem o quiser escreve no
+  // cadastro de artista.
+  const problemaNomeUsuario = mensagemNomeUsuarioInvalido(nomeUsuario);
+  if (problemaNomeUsuario) {
+    logWarn('AUTH', 'Registro recusado: @ fora do padrão', { email });
+    return falha(res, 400, problemaNomeUsuario, { codigo: 'NOME_USUARIO_INVALIDO' });
+  }
+
   if (!validarSenhaForte(password)) return falha(res, 400, MSG_SENHA_FRACA);
 
   try {
     logInfo('AUTH', 'Tentativa de registro recebida', { email });
+
     const existente = await pool.query('SELECT 1 FROM usuarios WHERE email = $1', [email]);
     if (existente.rows.length > 0) {
       logWarn('AUTH', 'Registro recusado: e-mail já cadastrado', { email });
       return falha(res, 400, 'Este e-mail já está cadastrado. Por favor, faça login.', { codigo: 'EMAIL_JA_CADASTRADO' });
     }
 
+    // Checagem amigável do @. Ela cobre o caso comum; a corrida entre duas
+    // requisições no mesmo instante é fechada pelo índice único, com o
+    // 23505 traduzido no /api/validar-2fa.
+    if (!(await nomeDeUsuarioDisponivel(pool, nomeUsuario))) {
+      logWarn('AUTH', 'Registro recusado: @ já em uso', { email, nomeUsuario });
+      return falha(res, 409, 'Esse @ já está sendo usado. Escolha outro.', { codigo: 'NOME_USUARIO_JA_EM_USO' });
+    }
+
     const codigo = gerarCodigo();
     logarCodigoEmDev('código 2FA (cadastro)', codigo);
     logInfo('2FA', 'Cadastro pendente criado', { email, idVerificacao: null });
 
-    const senhaHash = await bcrypt.hash(password, 10);
-    const codigoHash = await bcrypt.hash(codigo, 10);
+    // Os dois hashes são independentes: rodam em paralelo.
+    const [senhaHash, codigoHash] = await Promise.all([
+      bcrypt.hash(password, 10),
+      bcrypt.hash(codigo, 10)
+    ]);
     const idVerificacao = crypto.randomUUID();
     const expiraEm = new Date(Date.now() + EXPIRACAO_CODIGO_MS);
 
     await pool.query(
-      `INSERT INTO verificacoes_2fa (id, email, senha_hash, nome_usuario, codigo_hash, tentativas, expira_em, ultimo_envio_em)
-       VALUES ($1, $2, $3, $4, $5, 0, $6, CURRENT_TIMESTAMP)`,
-      [idVerificacao, email, senhaHash, nomeUsuario, codigoHash, expiraEm]
+      `INSERT INTO verificacoes_2fa (id, email, senha_hash, nome_usuario, nome_exibicao, codigo_hash, tentativas, expira_em, ultimo_envio_em)
+       VALUES ($1, $2, $3, $4, $5, $6, 0, $7, CURRENT_TIMESTAMP)`,
+      [idVerificacao, email, senhaHash, nomeUsuario, nomeExibicao || null, codigoHash, expiraEm]
     );
 
-    const enviado = await enviarEmail(email, 'Seu código de verificação 2FA', `Seu código de confirmação é: ${codigo}`);
-    if (!enviado) {
-      await pool.query('DELETE FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
-      logError('2FA', 'Falha ao enviar e-mail de verificação', { email });
-      return falha(res, 500, 'Falha ao enviar o e-mail com o código de verificação.');
-    }
+    // O e-mail é enviado em segundo plano: o Gmail leva alguns segundos e a
+    // resposta não precisa esperar por ele. Se falhar, o cadastro pendente é
+    // mantido de propósito — o usuário usa "Reenviar código" (que avisa o erro
+    // na hora) ou o pendente expira sozinho em 10 minutos.
+    enviarEmail(email, 'Seu código de verificação 2FA', `Seu código de confirmação é: ${codigo}`)
+      .then((enviado) => {
+        if (enviado) logInfo('2FA', 'Código enviado por e-mail', { email });
+        else logError('2FA', 'Falha ao enviar e-mail de verificação (cadastro pendente mantido para reenvio)', { email });
+      })
+      .catch((erroEnvio) => logError('2FA', 'Erro inesperado ao enviar e-mail de verificação', { email, erro: erroEnvio.message }));
 
-    logInfo('2FA', 'Código enviado por e-mail', { email });
-    return sucesso(res, { mensagem: 'Código enviado com sucesso!', idVerificacao });
+    return sucesso(res, { mensagem: 'Cadastro recebido! O código está a caminho do seu e-mail.', idVerificacao });
   } catch (erro) {
     logError('AUTH', 'Erro no registro', { erro: erro.message });
     return falhaInterna(res, 'POST /api/registro', erro);
@@ -264,14 +334,33 @@ app.post('/api/validar-2fa', limitarValidacaoIP, async (req, res) => {
     logInfo('2FA', 'Verificação aprovada', { email: verificacao.email });
     try {
       await pool.query(
-        'INSERT INTO usuarios (email, senha, nome_usuario, verificado) VALUES ($1, $2, $3, TRUE)',
-        [verificacao.email, verificacao.senha_hash, verificacao.nome_usuario]
+        `INSERT INTO usuarios (email, senha, nome_usuario, nome_exibicao, verificado)
+         VALUES ($1, $2, $3, $4, TRUE)`,
+        [
+          verificacao.email,
+          verificacao.senha_hash,
+          verificacao.nome_usuario,
+          verificacao.nome_exibicao || verificacao.nome_usuario
+        ]
       );
     } catch (erroInsert) {
-      // Alguém cadastrou o mesmo e-mail entre o registro e a validação.
+      // 23505 aqui tem DUAS causas possíveis, e elas precisam de mensagens
+      // diferentes: alguém cadastrou o mesmo e-mail entre o registro e a
+      // validação, OU o @ foi reservado por outra conta nesse intervalo
+      // (o índice único é o que fecha essa corrida).
       if (ehViolacaoDeChave(erroInsert, ['23505'])) {
         await pool.query('DELETE FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
-        return falha(res, 400, 'Este e-mail já está cadastrado. Por favor, faça login.', { codigo: 'EMAIL_JA_CADASTRADO' });
+
+        const emailEmUso = await pool.query('SELECT 1 FROM usuarios WHERE email = $1', [verificacao.email]);
+        if (emailEmUso.rows.length > 0) {
+          logWarn('2FA', 'Cadastro recusado: e-mail já cadastrado', { email: verificacao.email });
+          return falha(res, 400, 'Este e-mail já está cadastrado. Por favor, faça login.', { codigo: 'EMAIL_JA_CADASTRADO' });
+        }
+
+        logWarn('2FA', 'Cadastro recusado: @ já reservado por outra conta', { nomeUsuario: verificacao.nome_usuario });
+        return falha(res, 409, 'Esse @ acabou de ser usado por outra conta. Escolha outro e refaça o cadastro.', {
+          codigo: 'NOME_USUARIO_JA_EM_USO'
+        });
       }
       throw erroInsert;
     }
@@ -809,7 +898,7 @@ app.delete('/api/usuarios/eu', verificarAutenticacao, async (req, res) => {
 
   try {
     const resultadoUsuario = await pool.query(
-      'SELECT email, nome_usuario, url_avatar FROM usuarios WHERE id = $1',
+      'SELECT email, nome_usuario, url_avatar, url_banner, url_fundo FROM usuarios WHERE id = $1',
       [req.usuario.id]
     );
     const usuarioLogado = resultadoUsuario.rows[0];
@@ -831,6 +920,10 @@ app.delete('/api/usuarios/eu', verificarAutenticacao, async (req, res) => {
 
     const urlsParaApagar = [
       usuarioLogado.url_avatar,
+      // Banner e fundo são arquivos da conta tanto quanto avatar e capas:
+      // sem eles aqui, apagar a conta deixaria os dois órfãos no Storage.
+      usuarioLogado.url_banner,
+      usuarioLogado.url_fundo,
       ...musicas.rows.flatMap((m) => [m.url_audio, m.url_capa]),
       ...capasPlaylists.rows.map((p) => p.url_capa)
     ].filter(Boolean);
@@ -878,6 +971,7 @@ app.post(
       const titulo = ehTexto(req.body?.titulo) ? req.body.titulo.trim() : '';
       const arquivoAudio = req.files?.audio?.[0];
       const arquivoCapa = req.files?.capa?.[0];
+      logInfo('UPLOAD', 'Upload iniciado', { usuarioId: req.usuario.id });
 
       if (!titulo) return falha(res, 400, 'Título é obrigatório.');
       if (tamanhoEmCaracteres(titulo) > TITULO_MUSICA_MAX) {
@@ -888,12 +982,19 @@ app.post(
       // O formato vem dos bytes reais, não do Content-Type declarado.
       const tipoAudio = detectarTipoAudio(arquivoAudio.buffer);
       if (!tipoAudio) return falha(res, 400, 'Formato de áudio não suportado. Use MP3, WAV ou OGG.');
+      logInfo('UPLOAD', 'Arquivo de áudio validado', {
+        tipo: tipoAudio.extensao,
+        tamanhoBytes: arquivoAudio.size
+      });
 
       let tipoCapa = null;
       if (arquivoCapa) {
         tipoCapa = detectarTipoImagem(arquivoCapa.buffer);
         if (!tipoCapa) return falha(res, 400, 'Formato de imagem não suportado. Use JPEG, PNG ou WEBP.');
         if (arquivoCapa.size > CAPA_MAX_BYTES) return falha(res, 413, 'A capa passa do limite de 5 MB. Escolha uma menor.');
+        logInfo('UPLOAD', 'Capa validada', { tipo: tipoCapa.extensao, tamanhoBytes: arquivoCapa.size });
+      } else {
+        logInfo('UPLOAD', 'Upload sem capa');
       }
 
       // O nome de artista vem da conta, nunca do cliente.
@@ -904,8 +1005,10 @@ app.post(
       const usuarioLogado = resultadoUsuario.rows[0];
 
       if (!usuarioLogado || !usuarioLogado.eh_artista || !usuarioLogado.nome_artista) {
-        return falha(res, 403, 'Cadastre um nome de artista antes de enviar músicas.', { codigo: 'ARTISTA_NAO_CADASTRADO' });
+        logWarn('UPLOAD', 'Upload recusado: conta não é artista', { usuarioId: req.usuario.id });
+        return falha(res, 403, 'Cadastre um nome de artista antes de enviar músicas.', { codigo: 'ARTISTA_NAO_CADASTADO' });
       }
+      logInfo('UPLOAD', 'Usuário autenticado e é artista', { usuarioId: req.usuario.id });
 
       // Nomes gerados pelo servidor: nada de originalname (acentos/espaços
       // quebram a chave do Storage).
@@ -917,10 +1020,11 @@ app.post(
         .upload(caminhoAudio, arquivoAudio.buffer, { contentType: tipoAudio.mime });
 
       if (erroUploadAudio) {
-        console.error('Erro ao subir áudio pro Supabase Storage:', erroUploadAudio);
+        logError('ERROR', 'Falha ao enviar áudio ao Storage', { mensagem: erroUploadAudio.message });
         return falha(res, 500, 'Falha ao enviar o arquivo de áudio.');
       }
       caminhosEnviados.push(caminhoAudio);
+      logInfo('UPLOAD', 'Upload de áudio para Storage concluído', { caminho: caminhoAudio });
 
       const urlAudio = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(caminhoAudio).data.publicUrl;
 
@@ -932,10 +1036,12 @@ app.post(
           .upload(caminhoCapa, arquivoCapa.buffer, { contentType: tipoCapa.mime });
 
         if (erroUploadCapa) {
-          console.error('Erro ao subir capa (a música seguirá sem capa):', erroUploadCapa);
+          // Melhor-esforço: a música é salva mesmo sem capa.
+          logWarn('UPLOAD', 'Falha ao enviar a capa (música seguirá sem capa)', { mensagem: erroUploadCapa.message });
         } else {
           caminhosEnviados.push(caminhoCapa);
           urlCapa = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(caminhoCapa).data.publicUrl;
+          logInfo('UPLOAD', 'Upload de capa concluído', { caminho: caminhoCapa });
         }
       }
 
@@ -945,11 +1051,16 @@ app.post(
         [titulo, usuarioLogado.nome_artista, urlAudio, urlCapa, req.usuario.id]
       );
 
+      logInfo('UPLOAD', 'Registro da música criado no PostgreSQL', { musicaId: resultado.rows[0].id });
+      logInfo('UPLOAD', 'Upload concluído', { musicaId: resultado.rows[0].id });
+
       return sucesso(res, { musica: resultado.rows[0] }, 201);
     } catch (erro) {
       // Não deixa arquivo órfão no bucket se o banco falhou.
       if (caminhosEnviados.length > 0) {
+        logWarn('UPLOAD', 'Iniciando rollback dos arquivos no Storage', { quantidade: caminhosEnviados.length });
         await supabase.storage.from(SUPABASE_BUCKET).remove(caminhosEnviados).catch(() => {});
+        logInfo('UPLOAD', 'Rollback concluído');
       }
       return falhaInterna(res, 'POST /api/musicas', erro);
     }
@@ -964,14 +1075,27 @@ app.post('/api/musicas/:id/reproduzir', verificarAutenticacao, async (req, res) 
   if (!idMusica) return falha(res, 400, 'ID de música inválido.');
 
   try {
+    logInfo('PLAY', 'Requisição de reprodução recebida', { musicaId: idMusica, usuarioId: req.usuario.id });
+
+    // Uma consulta só: o "antes" vem do mesmo RETURNING, sem ler a linha antes
+    // de gravar (ler-e-depois-escrever abriria brecha para perda de contagem).
     const resultado = await pool.query(
       'UPDATE musicas SET reproducoes = reproducoes + 1 WHERE id = $1 RETURNING id, reproducoes',
       [idMusica]
     );
-    if (resultado.rows.length === 0) return falha(res, 404, 'Música não encontrada.');
+    if (resultado.rows.length === 0) {
+      logWarn('PLAY', 'Reprodução não contabilizada: música não encontrada', { musicaId: idMusica });
+      return falha(res, 404, 'Música não encontrada.');
+    }
+
+    logInfo('PLAY', 'Reprodução registrada', {
+      musicaId: resultado.rows[0].id,
+      reproducoes: resultado.rows[0].reproducoes
+    });
 
     return sucesso(res, { musica: resultado.rows[0] });
   } catch (erro) {
+    // Só loga: a reprodução da música no cliente NÃO depende desta resposta.
     return falhaInterna(res, 'POST /api/musicas/:id/reproduzir', erro);
   }
 });
@@ -979,6 +1103,7 @@ app.post('/api/musicas/:id/reproduzir', verificarAutenticacao, async (req, res) 
 app.get('/api/musicas', async (req, res) => {
   try {
     const resultado = await pool.query('SELECT * FROM musicas ORDER BY criado_em DESC LIMIT 50');
+    logInfo('SERVER', 'Listagem de músicas', { quantidade: resultado.rows.length });
     return sucesso(res, { musicas: resultado.rows });
   } catch (erro) {
     return falhaInterna(res, 'GET /api/musicas', erro);
@@ -988,12 +1113,14 @@ app.get('/api/musicas', async (req, res) => {
 // Ranking geral por reproduções acumuladas (não é mensal: não há histórico por data).
 app.get('/api/musicas/mais-tocadas', async (req, res) => {
   try {
+    logInfo('RANKING', 'Buscando músicas mais tocadas');
     const resultado = await pool.query(
       `SELECT id, titulo, artista, url_audio, url_capa, reproducoes, usuario_id, criado_em
          FROM musicas
         ORDER BY reproducoes DESC, criado_em DESC
         LIMIT 10`
     );
+    logInfo('RANKING', 'Músicas mais tocadas retornadas', { quantidade: resultado.rows.length });
     return sucesso(res, { musicas: resultado.rows });
   } catch (erro) {
     return falhaInterna(res, 'GET /api/musicas/mais-tocadas', erro);
@@ -1004,8 +1131,10 @@ app.get('/api/musicas/mais-tocadas', async (req, res) => {
 // artistas com o mesmo nome artístico não podem se fundir num só.
 app.get('/api/artistas/mais-ouvidos', async (req, res) => {
   try {
+    logInfo('RANKING', 'Buscando artistas mais ouvidos');
     const resultado = await pool.query(
       `SELECT u.id AS usuario_id,
+              u.nome_usuario,
               u.nome_artista AS artista,
               COUNT(m.id)::int AS musicas,
               COALESCE(SUM(m.reproducoes), 0)::int AS reproducoes
@@ -1014,10 +1143,11 @@ app.get('/api/artistas/mais-ouvidos', async (req, res) => {
         WHERE u.eh_artista = TRUE
           AND u.nome_artista IS NOT NULL
           AND u.nome_artista <> ''
-        GROUP BY u.id, u.nome_artista
+        GROUP BY u.id, u.nome_usuario, u.nome_artista
         ORDER BY reproducoes DESC, u.nome_artista ASC
         LIMIT 10`
     );
+    logInfo('RANKING', 'Artistas mais ouvidos retornados', { quantidade: resultado.rows.length });
     return sucesso(res, { artistas: resultado.rows });
   } catch (erro) {
     return falhaInterna(res, 'GET /api/artistas/mais-ouvidos', erro);
@@ -1184,6 +1314,7 @@ app.post('/api/playlists', verificarAutenticacao, tratarMulter(uploadCapaPlaylis
 
   try {
     let urlCapa = null;
+    logInfo('PLAYLIST', 'Criação iniciada', { usuarioId: req.usuario.id });
 
     if (req.file) {
       const tipo = detectarTipoImagem(req.file.buffer);
@@ -1195,14 +1326,17 @@ app.post('/api/playlists', verificarAutenticacao, tratarMulter(uploadCapaPlaylis
         .upload(caminho, req.file.buffer, { contentType: tipo.mime });
 
       if (erroUpload) {
-        console.error('Erro ao subir capa da playlist (seguirá sem capa):', erroUpload);
+        // Melhor-esforço: a playlist é criada mesmo sem capa.
+        logWarn('PLAYLIST', 'Falha ao enviar a capa (playlist seguirá sem capa)', { mensagem: erroUpload.message });
       } else {
         caminhoCapa = caminho;
         urlCapa = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(caminho).data.publicUrl;
+        logInfo('PLAYLIST', 'Capa enviada ao Storage', { caminho });
       }
     }
 
     const playlist = await criarPlaylist(req.usuario.id, nome, urlCapa);
+    logInfo('PLAYLIST', 'Playlist criada', { playlistId: playlist.id });
     return sucesso(res, { playlist }, 201);
   } catch (erro) {
     if (caminhoCapa) await supabase.storage.from(SUPABASE_BUCKET).remove([caminhoCapa]).catch(() => {});
@@ -1226,11 +1360,13 @@ app.get('/api/playlists/:id', verificarAutenticacao, async (req, res) => {
     const playlist = resultadoPlaylist.rows[0];
     if (!playlist) return falha(res, 404, 'Playlist não encontrada.');
 
+    // Ordem em que a música entrou na playlist: é essa ordem que o botão
+    // "Tocar" respeita. O id desempata quando duas entraram no mesmo instante.
     const resultadoMusicas = await pool.query(
       `SELECT m.* FROM musicas m
          JOIN playlist_musicas pm ON pm.musica_id = m.id
         WHERE pm.playlist_id = $1
-        ORDER BY pm.adicionado_em DESC`,
+        ORDER BY pm.adicionado_em ASC, pm.id ASC`,
       [idPlaylist]
     );
 
@@ -1247,6 +1383,8 @@ async function excluirPlaylistDoUsuario(req, res) {
   if (!idPlaylist) return falha(res, 400, 'ID de playlist inválido.');
 
   try {
+    logInfo('PLAYLIST', 'Exclusão solicitada', { playlistId: idPlaylist, usuarioId: req.usuario.id });
+
     const resultado = await pool.query(
       `DELETE FROM playlists
         WHERE id = $1 AND usuario_id = $2 AND eh_favoritos = FALSE
@@ -1260,12 +1398,16 @@ async function excluirPlaylistDoUsuario(req, res) {
         [idPlaylist, req.usuario.id]
       );
       if (propria.rows[0]?.eh_favoritos) {
+        logWarn('PLAYLIST', 'Exclusão recusada: Favoritos é protegida', { playlistId: idPlaylist });
         return falha(res, 400, 'A playlist de Favoritos não pode ser excluída.');
       }
+      // Mesma resposta para "não existe" e "é de outro": não revela o ID.
+      logWarn('PLAYLIST', 'Exclusão sem efeito: playlist inexistente ou de outro usuário', { playlistId: idPlaylist });
       return falha(res, 404, 'Playlist não encontrada.');
     }
 
     await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, resultado.rows[0].url_capa);
+    logInfo('PLAYLIST', 'Playlist removida', { playlistId: idPlaylist });
     return sucesso(res, { mensagem: 'Playlist excluída.', id: idPlaylist });
   } catch (erro) {
     return falhaInterna(res, 'DELETE playlist', erro);
@@ -1297,6 +1439,7 @@ app.post('/api/playlists/:id/musicas', verificarAutenticacao, async (req, res) =
       [idPlaylist, idMusica]
     );
 
+    logInfo('PLAYLIST', 'Música adicionada à playlist', { playlistId: idPlaylist, musicaId: idMusica });
     return sucesso(res, { mensagem: 'Música adicionada à playlist.' });
   } catch (erro) {
     if (ehMusicaSumida(erro)) return falha(res, 404, 'Música não encontrada.');
@@ -1322,6 +1465,7 @@ app.delete('/api/playlists/:id/musicas/:musicaId', verificarAutenticacao, async 
       [idPlaylist, idMusica]
     );
 
+    logInfo('PLAYLIST', 'Música removida da playlist', { playlistId: idPlaylist, musicaId: idMusica });
     return sucesso(res, { mensagem: 'Música removida da playlist.' });
   } catch (erro) {
     return falhaInterna(res, 'DELETE /api/playlists/:id/musicas/:musicaId', erro);
@@ -1345,6 +1489,7 @@ app.post('/api/musicas/:id/favoritar', verificarAutenticacao, async (req, res) =
       [favoritos.id, idMusica]
     );
 
+    logInfo('PLAYLIST', 'Música favoritada', { usuarioId: req.usuario.id, musicaId: idMusica });
     return sucesso(res, { mensagem: 'Música favoritada.' });
   } catch (erro) {
     if (ehMusicaSumida(erro)) return falha(res, 404, 'Música não encontrada.');
@@ -1421,7 +1566,10 @@ app.get('/api/perfil', verificarAutenticacao, async (req, res) => {
   try {
     const [usuarioRes, favorita, curtidas, playlistsRes, estatisticasRes] = await Promise.all([
       pool.query(
-        `SELECT id, nome_usuario, eh_artista, nome_artista, bio, url_avatar AS avatar_url, tema, criado_em
+        `SELECT id, nome_usuario, nome_exibicao, eh_artista, nome_artista, bio,
+                url_avatar AS avatar_url, url_banner AS banner_url, url_fundo AS fundo_url,
+                personalizacao, status_emoji, status_texto, mostrar_ouvindo,
+                tema, criado_em
            FROM usuarios WHERE id = $1`,
         [usuarioId]
       ),
@@ -1448,17 +1596,216 @@ app.get('/api/perfil', verificarAutenticacao, async (req, res) => {
     const usuario = usuarioRes.rows[0];
     if (!usuario) return falha(res, 404, 'Usuário não encontrado.');
 
+    // Mesma regra da rota pública: o dono vê o próprio "ouvindo agora"
+    // quando ligou o interruptor. Sem isto, o modo dono ficaria sem o
+    // recurso que o modo visitante tem.
+    const ouvindo = await lerOuvindoDe(usuarioId, usuario.mostrar_ouvindo);
+
     return sucesso(res, {
       perfil: {
         usuario,
         favorita,
         curtidas,
         playlists: playlistsRes.rows,
-        estatisticas: estatisticasRes.rows[0]
+        estatisticas: estatisticasRes.rows[0],
+        ouvindo,
+        eh_dono: true
       }
     });
   } catch (erro) {
     return falhaInterna(res, 'GET /api/perfil', erro);
+  }
+});
+
+// ---------- perfil público de outra pessoa ----------
+// Qualquer pessoa, logada ou não, vê o perfil de outro usuário. Por isso
+// o que sai daqui é uma lista positively fechada: cada campo foi escolhido
+// por ser público por natureza. E-mail, tema, curtidas e qualquer estado
+// do player NUNCA entram aqui — o `tema` é preferência de quem está
+// usando aquele navegador, não dado do dono do perfil.
+
+const limitarPerfilPublicoIP = criarLimitador(60 * 1000, 60, 'Muitas consultas de perfil a partir deste IP. Tente novamente mais tarde.');
+const limitarBuscaPerfilIP = criarLimitador(60 * 1000, 40, 'Muitas buscas a partir deste IP. Tente novamente mais tarde.');
+
+// Resolve o identificador da URL: primeiro como @ (sem diferenciar caixa),
+// depois como id numérico. O @ vem primeiro porque é o identificador
+// "de verdade" — e assim um @ que por acaso seja só números continua
+// funcionando como @.
+async function acharUsuarioPublico(identificador) {
+  const porNome = await pool.query(
+    'SELECT id FROM usuarios WHERE LOWER(nome_usuario) = LOWER($1) AND nome_usuario IS NOT NULL',
+    [identificador]
+  );
+  if (porNome.rows[0]) return porNome.rows[0].id;
+
+  if (/^\d+$/.test(identificador)) {
+    const porId = await pool.query('SELECT id FROM usuarios WHERE id = $1', [Number(identificador)]);
+    if (porId.rows[0]) return porId.rows[0].id;
+  }
+  return null;
+}
+
+// "Ouvindo agora" só sai daqui se o DONO LIGOU. Desligado, o campo nem
+// entra na resposta — não é só escondido no front.
+//
+// Esta é a MESMA função nas duas rotas (privada e pública). Antes cada uma
+// tinha a sua cópia, e só a pública tinha isto: o dono não enxergava o
+// próprio "ouvindo agora" no próprio perfil.
+async function lerOuvindoDe(usuarioId, mostrarOuvindo) {
+  if (!mostrarOuvindo) return null;
+
+  const estado = await obterEstadoPlayer(usuarioId);
+  if (!estado.current_track) return null;
+
+  // A música vai com os dados que o player precisa para tocar: id,
+  // título, artista, url_audio e url_capa.
+  return {
+    musica: estado.current_track,
+    tocando: estado.is_playing
+  };
+}
+
+app.get('/api/perfil/publico/:identificador', limitarPerfilPublicoIP, verificarAutenticacaoOpcional, async (req, res) => {
+  const identificador = ehTexto(req.params.identificador) ? req.params.identificador.trim() : '';
+  if (!identificador) return falha(res, 400, 'Perfil não encontrado.');
+
+  try {
+    const usuarioId = await acharUsuarioPublico(identificador);
+    // Mesma resposta para "não existe" e "erro": não confirma se o @ pertence
+    // a alguém. Também não diz se a conta chegou a ser ativada.
+    if (!usuarioId) return falha(res, 404, 'Perfil não encontrado.');
+
+    const [usuarioRes, favorita, playlistsRes] = await Promise.all([
+      pool.query(
+        `SELECT nome_usuario, nome_exibicao, eh_artista, nome_artista, bio,
+                url_avatar AS avatar_url, url_banner AS banner_url, url_fundo AS fundo_url,
+                personalizacao, status_emoji, status_texto, mostrar_ouvindo, criado_em
+           FROM usuarios WHERE id = $1`,
+        [usuarioId]
+      ),
+      lerFavorita(pool, usuarioId),
+      // Favoritos é a playlist do sistema e não aparece no perfil de ninguém.
+      pool.query(
+        `SELECT p.id, p.nome, p.criado_em, COUNT(pm.musica_id)::int AS total_faixas
+           FROM playlists p
+           LEFT JOIN playlist_musicas pm ON pm.playlist_id = p.id
+          WHERE p.usuario_id = $1 AND p.publica = TRUE AND p.eh_favoritos = FALSE
+          GROUP BY p.id, p.nome, p.criado_em
+          ORDER BY p.criado_em DESC, p.id DESC`,
+        [usuarioId]
+      )
+    ]);
+
+    const usuario = usuarioRes.rows[0];
+    if (!usuario) return falha(res, 404, 'Perfil não encontrado.');
+
+    // "Ouvindo agora" só sai daqui se o DONO LIGOU. Desligado, o
+    // campo nem entra na resposta — não é só escondido no front.
+    const ouvindo = await lerOuvindoDe(usuarioId, usuario.mostrar_ouvindo);
+
+    // Estatísticas só existem para artista; para os demais, nem a consulta é
+    // feita, para não revelar número de nada sobre quem não publica música.
+    let estatisticas = null;
+    if (usuario.eh_artista) {
+      const stats = await pool.query(
+        `SELECT COUNT(*)::int AS musicas_enviadas,
+                COALESCE(SUM(reproducoes), 0)::int AS reproducoes
+           FROM musicas WHERE usuario_id = $1`,
+        [usuarioId]
+      );
+      estatisticas = stats.rows[0];
+    }
+
+    return sucesso(res, {
+      perfil: {
+        usuario: {
+          nome_usuario: usuario.nome_usuario,
+          nome_exibicao: usuario.nome_exibicao,
+          eh_artista: usuario.eh_artista,
+          nome_artista: usuario.nome_artista,
+          bio: usuario.bio,
+          avatar_url: usuario.avatar_url,
+          banner_url: usuario.banner_url,
+          fundo_url: usuario.fundo_url,
+          personalizacao: usuario.personalizacao,
+          status_emoji: usuario.status_emoji,
+          status_texto: usuario.status_texto,
+          criado_em: usuario.criado_em
+        },
+        favorita,
+        playlists: playlistsRes.rows,
+        estatisticas,
+        // null quando o dono não ligou a opção.
+        ouvindo,
+        // O front usa isso para escolher entre o modo dono e o modo
+        // visitante sem precisar deduzir comparando strings.
+        eh_dono: !!req.usuario && req.usuario.id === usuarioId
+      }
+    });
+  } catch (erro) {
+    return falhaInterna(res, 'GET /api/perfil/publico', erro);
+  }
+});
+
+// Busca de pessoas para a barra de pesquisa. Devolve o mínimo para
+// desenhar um resultado e montar o link do perfil — nada além disso.
+app.get('/api/perfil/buscar', limitarBuscaPerfilIP, async (req, res) => {
+  const termo = ehTexto(req.query.q) ? req.query.q.trim() : '';
+  if (tamanhoEmCaracteres(termo) < 2) return falha(res, 400, 'Digite ao menos 2 letras para buscar.');
+
+  try {
+    const padrao = `%${termo.replace(/[%_]/g, '')}%`;
+    const resultado = await pool.query(
+      `SELECT nome_usuario,
+              COALESCE(nome_artista, nome_exibicao, nome_usuario) AS nome,
+              eh_artista,
+              url_avatar AS avatar_url
+         FROM usuarios
+        WHERE nome_usuario IS NOT NULL
+          AND (LOWER(nome_usuario) LIKE LOWER($1)
+               OR LOWER(COALESCE(nome_exibicao, '')) LIKE LOWER($1)
+               OR LOWER(COALESCE(nome_artista, '')) LIKE LOWER($1))
+        ORDER BY nome_usuario ASC
+        LIMIT 8`,
+      [padrao]
+    );
+    return sucesso(res, { pessoas: resultado.rows });
+  } catch (erro) {
+    return falhaInterna(res, 'GET /api/perfil/buscar', erro);
+  }
+});
+
+// ---------- nome de exibição ----------
+app.put('/api/perfil/exibicao', verificarAutenticacao, async (req, res) => {
+  const { nomeExibicao } = req.body || {};
+
+  if (nomeExibicao !== null && !ehTexto(nomeExibicao)) {
+    return falha(res, 400, 'O nome de exibição precisa ser um texto.');
+  }
+
+  // Aplica a mesma limpeza da bio: quebra de linha do Windows vira \n e
+  // texto vazio vira NULL (aí a tela mostra o próprio @).
+  const limpa = nomeExibicao === null ? '' : nomeExibicao.replace(/\r\n/g, '\n').trim();
+
+  if (limpa && tamanhoEmCaracteres(limpa) > NOME_EXIBICAO_MAX) {
+    return falha(res, 400, `O nome de exibição pode ter no máximo ${NOME_EXIBICAO_MAX} caracteres.`);
+  }
+
+  try {
+    const resultado = await pool.query(
+      'UPDATE usuarios SET nome_exibicao = $1 WHERE id = $2 RETURNING nome_exibicao',
+      [limpa || null, req.usuario.id]
+    );
+    if (resultado.rows.length === 0) return falha(res, 404, 'Usuário não encontrado.');
+
+    logInfo('PERFIL', 'Nome de exibição atualizado', {
+      usuarioId: req.usuario.id,
+      caracteres: tamanhoEmCaracteres(resultado.rows[0].nome_exibicao || '')
+    });
+
+    return sucesso(res, { nome_exibicao: resultado.rows[0].nome_exibicao });
+  } catch (erro) {
+    return falhaInterna(res, 'PUT /api/perfil/exibicao', erro);
   }
 });
 
@@ -1475,11 +1822,19 @@ app.put('/api/perfil/bio', verificarAutenticacao, async (req, res) => {
   }
 
   try {
+    logInfo('PERFIL', 'Atualização de bio iniciada', { usuarioId: req.usuario.id });
+
     const resultado = await pool.query(
       'UPDATE usuarios SET bio = $1 WHERE id = $2 RETURNING bio',
       [limpa === '' ? null : limpa, req.usuario.id]
     );
     if (resultado.rows.length === 0) return falha(res, 404, 'Usuário não encontrado.');
+
+    // A bio em si não é logada: é dado pessoal do usuário.
+    logInfo('PERFIL', 'Bio atualizada', {
+      usuarioId: req.usuario.id,
+      caracteres: tamanhoEmCaracteres(resultado.rows[0].bio || '')
+    });
 
     return sucesso(res, { bio: resultado.rows[0].bio });
   } catch (erro) {
@@ -1513,6 +1868,8 @@ app.post(
     // Nome gerado pelo servidor (nunca o originalname do cliente).
     const caminhoNovo = `avatares/${usuarioId}-${Date.now()}.${tipo.extensao}`;
 
+    logInfo('PERFIL', 'Upload de avatar iniciado', { usuarioId, tipo: tipo.extensao, tamanhoBytes: arquivo.size });
+
     try {
       const anterior = await pool.query('SELECT url_avatar FROM usuarios WHERE id = $1', [usuarioId]);
       if (anterior.rows.length === 0) return falha(res, 404, 'Usuário não encontrado.');
@@ -1523,25 +1880,31 @@ app.post(
         .upload(caminhoNovo, arquivo.buffer, { contentType: tipo.mime, cacheControl: '3600' });
 
       if (erroUpload) {
-        console.error('Erro ao subir avatar pro Storage:', erroUpload);
+        logError('ERROR', 'Falha ao enviar avatar ao Storage', { mensagem: erroUpload.message });
         return falha(res, 500, 'Falha ao enviar a imagem.');
       }
+      logInfo('PERFIL', 'Avatar enviado ao Storage', { caminho: caminhoNovo });
 
       const urlNova = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(caminhoNovo).data.publicUrl;
 
       try {
         await pool.query('UPDATE usuarios SET url_avatar = $1 WHERE id = $2', [urlNova, usuarioId]);
+        logInfo('PERFIL', 'Banco atualizado com o novo avatar');
       } catch (erroBanco) {
         // Subiu mas o banco não registrou: desfaz o upload (sem órfão).
+        logWarn('PERFIL', 'Banco falhou; desfazendo upload do avatar', { mensagem: erroBanco.message });
         await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, urlNova);
+        logInfo('PERFIL', 'Rollback do avatar concluído');
         throw erroBanco;
       }
 
       // Só agora que a nova está confirmada é seguro descartar a antiga.
       if (urlAnterior && urlAnterior !== urlNova) {
         await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, urlAnterior);
+        logInfo('PERFIL', 'Avatar anterior removido do Storage');
       }
 
+      logInfo('PERFIL', 'Avatar atualizado com sucesso', { usuarioId });
       return sucesso(res, { avatar_url: urlNova });
     } catch (erro) {
       return falhaInterna(res, 'POST /api/perfil/avatar', erro);
@@ -1551,16 +1914,210 @@ app.post(
 
 app.delete('/api/perfil/avatar', verificarAutenticacao, async (req, res) => {
   try {
+    logInfo('PERFIL', 'Remoção de avatar iniciada', { usuarioId: req.usuario.id });
+
     const anterior = await pool.query('SELECT url_avatar FROM usuarios WHERE id = $1', [req.usuario.id]);
     if (anterior.rows.length === 0) return falha(res, 404, 'Usuário não encontrado.');
 
     // Banco primeiro: mesmo que apagar o arquivo falhe, o perfil já não aponta pra ele.
     await pool.query('UPDATE usuarios SET url_avatar = NULL WHERE id = $1', [req.usuario.id]);
-    await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, anterior.rows[0].url_avatar);
+    logInfo('PERFIL', 'url_avatar atualizado para NULL');
 
+    await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, anterior.rows[0].url_avatar);
+    logInfo('PERFIL', 'Arquivo removido do Storage');
+
+    logInfo('PERFIL', 'Avatar removido', { usuarioId: req.usuario.id });
     return sucesso(res, { avatar_url: null });
   } catch (erro) {
     return falhaInterna(res, 'DELETE /api/perfil/avatar', erro);
+  }
+});
+
+// ---------- personalização visual ----------
+
+// Aceita GIF, que a detecção de avatar/capa não aceita de propósito:
+// banner é uma faixa larga onde a animação tem sentido, avatar e capa são
+// um quadro só. O limite é maior que o do avatar porque GIF pesa bem mais.
+const BANNER_MAX_BYTES = 5 * 1024 * 1024;
+const uploadBanner = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: BANNER_MAX_BYTES, files: 1 }
+});
+
+const limitarBannerIP = criarLimitador(60 * 60 * 1000, 20, 'Muitos envios de banner a partir deste IP. Tente novamente mais tarde.');
+
+// Salva a personalização inteira. O corpo é o objeto já normalizado pelo
+// frontend; o servidor normaliza de novo (whitelist + formato de cor) e é
+// esse resultado que vale. Nunca se concatena nada do corpo direto no
+// banco: o que vai para o JSONB passou pela lista fechada.
+app.put('/api/perfil/personalizacao', verificarAutenticacao, async (req, res) => {
+  const bruto = (req.body || {}).personalizacao;
+  const limpa = normalizarPersonalizacao(bruto);
+
+  try {
+    // "|| '{}'" cobre o caso de chave ausente numa linha já gravada.
+    const resultado = await pool.query(
+      'UPDATE usuarios SET personalizacao = $1 WHERE id = $2 RETURNING personalizacao',
+      [JSON.stringify(limpa), req.usuario.id]
+    );
+    if (resultado.rows.length === 0) return falha(res, 404, 'Usuário não encontrado.');
+
+    logInfo('PERFIL', 'Personalização atualizada', { usuarioId: req.usuario.id });
+    return sucesso(res, { personalizacao: resultado.rows[0].personalizacao });
+  } catch (erro) {
+    return falhaInterna(res, 'PUT /api/perfil/personalizacao', erro);
+  }
+});
+
+// ---------- banner ----------
+// Mesma sequência do avatar: valida pelos bytes, sobe, grava no banco,
+// e só então apaga o anterior. Se o banco falhar depois do upload, o
+// arquivo novo é removido para não sobrar órfão.
+
+app.post(
+  '/api/perfil/banner',
+  verificarAutenticacao,
+  limitarBannerIP,
+  tratarMulter(uploadBanner.single('banner'), `${BANNER_MAX_BYTES / (1024 * 1024)} MB`),
+  async (req, res) => {
+    const arquivo = req.file;
+    if (!arquivo) return falha(res, 400, 'Envie uma imagem no campo "banner".');
+
+    const tipo = detectarTipoImagemComGif(arquivo.buffer);
+    if (!tipo) {
+      return falha(res, 400, 'Formato não suportado. Use JPEG, PNG, WEBP ou GIF.');
+    }
+
+    const usuarioId = req.usuario.id;
+    // Nome gerado pelo servidor (nunca o originalname do cliente).
+    const caminhoNovo = `banners/${usuarioId}-${Date.now()}.${tipo.extensao}`;
+
+    logInfo('PERFIL', 'Upload de banner iniciado', { usuarioId, tipo: tipo.extensao, tamanhoBytes: arquivo.size });
+
+    try {
+      const anterior = await pool.query('SELECT url_banner FROM usuarios WHERE id = $1', [usuarioId]);
+      if (anterior.rows.length === 0) return falha(res, 404, 'Usuário não encontrado.');
+      const urlAnterior = anterior.rows[0].url_banner;
+
+      const { error: erroUpload } = await supabase.storage
+        .from(SUPABASE_BUCKET)
+        .upload(caminhoNovo, arquivo.buffer, { contentType: tipo.mime, cacheControl: '3600' });
+
+      if (erroUpload) {
+        logError('ERROR', 'Falha ao enviar banner ao Storage', { mensagem: erroUpload.message });
+        return falha(res, 500, 'Falha ao enviar a imagem.');
+      }
+      logInfo('PERFIL', 'Banner enviado ao Storage', { caminho: caminhoNovo });
+
+      const urlNova = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(caminhoNovo).data.publicUrl;
+
+      try {
+        await pool.query('UPDATE usuarios SET url_banner = $1 WHERE id = $2', [urlNova, usuarioId]);
+        logInfo('PERFIL', 'Banco atualizado com o novo banner');
+      } catch (erroBanco) {
+        // Subiu mas o banco não registrou: desfaz o upload (sem órfão).
+        logWarn('PERFIL', 'Banco falhou; desfazendo upload do banner', { mensagem: erroBanco.message });
+        await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, urlNova);
+        logInfo('PERFIL', 'Rollback do banner concluído');
+        throw erroBanco;
+      }
+
+      // Só agora que a nova está confirmada é seguro descartar a antiga.
+      if (urlAnterior && urlAnterior !== urlNova) {
+        await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, urlAnterior);
+        logInfo('PERFIL', 'Banner anterior removido do Storage');
+      }
+
+      logInfo('PERFIL', 'Banner atualizado com sucesso', { usuarioId });
+      return sucesso(res, { banner_url: urlNova });
+    } catch (erro) {
+      return falhaInterna(res, 'POST /api/perfil/banner', erro);
+    }
+  }
+);
+
+app.delete('/api/perfil/banner', verificarAutenticacao, async (req, res) => {
+  try {
+    logInfo('PERFIL', 'Remoção de banner iniciada', { usuarioId: req.usuario.id });
+
+    const anterior = await pool.query('SELECT url_banner FROM usuarios WHERE id = $1', [req.usuario.id]);
+    if (anterior.rows.length === 0) return falha(res, 404, 'Usuário não encontrado.');
+
+    // Banco primeiro: mesmo que apagar o arquivo falhe, o perfil já não aponta pra ele.
+    await pool.query('UPDATE usuarios SET url_banner = NULL WHERE id = $1', [req.usuario.id]);
+    logInfo('PERFIL', 'url_banner atualizado para NULL');
+
+    await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, anterior.rows[0].url_banner);
+    logInfo('PERFIL', 'Arquivo do banner removido do Storage');
+
+    return sucesso(res, { banner_url: null });
+  } catch (erro) {
+    return falhaInterna(res, 'DELETE /api/perfil/banner', erro);
+  }
+});
+
+// ---------- status e "ouvindo agora" ----------
+// Uma rota só para os três: o que aparece ao lado do avatar. Todos os
+// campos são opcionais, então dá para mexer no status sem tocar no
+// interruptor de privacidade e vice-versa.
+app.put('/api/perfil/status', verificarAutenticacao, async (req, res) => {
+  const { emoji, texto, mostrarOuvindo } = req.body || {};
+
+  // Só o que foi enviado muda; o resto fica como está.
+  const mudancas = [];
+  const valores = [];
+
+  if (emoji !== undefined) {
+    if (!ehTexto(emoji)) return falha(res, 400, 'O emoji do status precisa ser um texto.');
+    const recortado = recortarPorGrafemas(emoji.trim(), STATUS_EMOJI_MAX);
+    mudancas.push('status_emoji = $' + (valores.length + 1));
+    valores.push(recortado || null);
+  }
+
+  if (texto !== undefined) {
+    if (!ehTexto(texto)) return falha(res, 400, 'O texto do status precisa ser um texto.');
+    const limpo = texto.replace(/\r\n/g, ' ').trim();
+    if (contarGrafemas(limpo) > STATUS_TEXTO_MAX) {
+      return falha(res, 400, `O status pode ter no máximo ${STATUS_TEXTO_MAX} caracteres.`);
+    }
+    mudancas.push('status_texto = $' + (valores.length + 1));
+    valores.push(limpo || null);
+  }
+
+  if (mostrarOuvindo !== undefined) {
+    if (typeof mostrarOuvindo !== 'boolean') {
+      return falha(res, 400, 'A opção de mostrar o que você ouve precisa ser verdadeiro ou falso.');
+    }
+    mudancas.push('mostrar_ouvindo = $' + (valores.length + 1));
+    valores.push(mostrarOuvindo);
+  }
+
+  if (mudancas.length === 0) return falha(res, 400, 'Nada para atualizar.');
+
+  valores.push(req.usuario.id);
+  try {
+    const resultado = await pool.query(
+      `UPDATE usuarios SET ${mudancas.join(', ')} WHERE id = $${valores.length}
+       RETURNING status_emoji, status_texto, mostrar_ouvindo`,
+      valores
+    );
+    if (resultado.rows.length === 0) return falha(res, 404, 'Usuário não encontrado.');
+
+    const linha = resultado.rows[0];
+    logInfo('PERFIL', 'Status atualizado', {
+      usuarioId: req.usuario.id,
+      temEmoji: !!linha.status_emoji,
+      caracteres: contarGrafemas(linha.status_texto || ''),
+      mostrarOuvindo: linha.mostrar_ouvindo
+    });
+
+    return sucesso(res, {
+      status_emoji: linha.status_emoji,
+      status_texto: linha.status_texto,
+      mostrar_ouvindo: linha.mostrar_ouvindo
+    });
+  } catch (erro) {
+    return falhaInterna(res, 'PUT /api/perfil/status', erro);
   }
 });
 
@@ -1603,6 +2160,7 @@ app.put('/api/perfil/favorita', verificarAutenticacao, async (req, res) => {
       [req.usuario.id, musicaId]
     );
 
+    logInfo('PERFIL', 'Música favorita salva', { usuarioId: req.usuario.id, musicaId });
     return sucesso(res, { favorita: await lerFavorita(pool, req.usuario.id) });
   } catch (erro) {
     if (ehMusicaSumida(erro)) return falha(res, 404, 'Música não encontrada.');
@@ -1613,6 +2171,7 @@ app.put('/api/perfil/favorita', verificarAutenticacao, async (req, res) => {
 app.delete('/api/perfil/favorita', verificarAutenticacao, async (req, res) => {
   try {
     await pool.query('DELETE FROM perfil_favorita WHERE usuario_id = $1', [req.usuario.id]);
+    logInfo('PERFIL', 'Música favorita removida', { usuarioId: req.usuario.id });
     return sucesso(res, { favorita: null });
   } catch (erro) {
     return falhaInterna(res, 'DELETE /api/perfil/favorita', erro);
@@ -1632,6 +2191,8 @@ app.put('/api/perfil/curtidas', verificarAutenticacao, async (req, res) => {
   if (new Set(ids).size !== ids.length) return falha(res, 400, 'A lista tem músicas repetidas.');
 
   try {
+    logInfo('PERFIL', 'Atualização de curtidas iniciada', { usuarioId: req.usuario.id, quantidade: ids.length });
+
     // A trava serializa requisições do mesmo usuário (senão dois "salvar"
     // simultâneos violavam o UNIQUE ou gravavam uma lista misturada).
     const curtidas = await comTravaDoUsuario(pool, req.usuario.id, async (client) => {
@@ -1651,6 +2212,7 @@ app.put('/api/perfil/curtidas', verificarAutenticacao, async (req, res) => {
       return lerCurtidas(client, req.usuario.id);
     });
 
+    logInfo('PERFIL', 'Curtidas atualizadas com sucesso', { usuarioId: req.usuario.id, quantidade: curtidas.length });
     return sucesso(res, { curtidas });
   } catch (erro) {
     if (erro instanceof UsuarioInexistente) return falha(res, 404, 'Usuário não encontrado.');
@@ -1860,19 +2422,27 @@ app.put('/api/player/state', verificarAutenticacao, async (req, res) => {
 // Rota que não existe responde JSON e loga qual foi — o "404 misterioso"
 // deixa de ser um "Cannot GET ..." em HTML.
 app.use((req, res) => {
-  console.warn(`404 sem rota: ${req.method} ${req.originalUrl}`);
+  logWarn('HTTP', '404 sem rota', { metodo: req.method, rota: req.originalUrl });
   return falha(res, 404, 'Rota não encontrada.');
 });
 
 app.use((erro, req, res, next) => {
   if (erro && erro.type === 'entity.parse.failed') {
+    logWarn('ERROR', 'JSON malformado no corpo da requisição', { rota: req.originalUrl });
     return falha(res, 400, 'Corpo da requisição inválido (JSON malformado).');
   }
   if (erro instanceof multer.MulterError) {
+    logWarn('ERROR', 'Erro do Multer', { rota: req.originalUrl, codigo: erro.code });
     return falha(res, erro.code === 'LIMIT_FILE_SIZE' ? 413 : 400,
       erro.code === 'LIMIT_FILE_SIZE' ? 'O arquivo enviado é grande demais. Escolha um arquivo menor.' : 'Não foi possível ler o arquivo enviado.');
   }
-  console.error('Erro não tratado:', erro);
+  // Última rede de segurança: erro que nenhuma rota capturou.
+  logError('ERROR', 'Erro não tratado', {
+    metodo: req.method,
+    rota: req.originalUrl,
+    codigo: erro.code,
+    mensagem: erro.message
+  });
   return falha(res, 500, 'Erro interno no servidor.');
 });
 

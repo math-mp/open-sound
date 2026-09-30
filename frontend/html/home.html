@@ -9,8 +9,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../css/root.css">
     <link rel="stylesheet" href="../css/theme.css">
+    <link rel="stylesheet" href="../css/modal-playlist.css">
     <link rel="stylesheet" href="../css/home.css">
+    <link rel="stylesheet" href="../css/sessao.css">
+    <script src="../js/sessao.js"></script>
     <script src="../js/player.js" defer></script>
+    <script src="../js/favoritos.js" defer></script>
     <script src="../js/home.js" defer></script>  <!-- ou biblioteca.js / playlist.js / etc, conforme a página -->
 </head>
 
@@ -27,7 +31,7 @@
 <div id="dropdown-hamburguer" class="dropdown-hamburguer hidden">
                 <a href="minhas-musicas.html" id="link-minhas-musicas" class="item-dropdown">🎵 Minhas Músicas</a>
                 <a href="config.html" id="link-config" class="item-dropdown">⚙️ Configurações</a>
-                <a href="#" id="link-sair-dropdown" class="item-dropdown">🚪 Sair</a>
+                <a href="#" id="link-sair-dropdown" class="item-dropdown hidden" data-os-so-visitor>🚪 Sair</a>
             </div>
             </div>
             <button class="btn-navbar" id="btn-biblioteca">Minha Biblioteca</button>
@@ -44,11 +48,17 @@
 
 <!-- parte direita navbar-->
         <div class="nav-right">
-            <button  class="btn-navbar" id="btn-register">registre-se</button>
-            <button  class="btn-navbar" id="btn-entrar">Entrar</button>
-            <button class="btn-navbar btn-perfil-avatar hidden" id="btn-perfil-avatar" aria-label="Perfil">
-                <img id="perfil-avatar-navbar" src="../assets/avatar-padrao.png" alt="Perfil" class="perfil-avatar-navbar-img">
+            <button  class="btn-navbar" id="btn-register" data-os-so-logado>Registre-se</button>
+            <button  class="btn-navbar" id="btn-entrar" data-os-so-logado>Entrar</button>
+            <button class="btn-navbar btn-perfil-avatar hidden" id="btn-perfil-avatar" data-os-so-visitor aria-label="Perfil">
+                <span class="os-avatar os-avatar-nav" data-os-avatar data-os-estado="pronto">
+                    <span class="os-avatar-iniciais" aria-hidden="true"></span>
+                    <img src="../assets/avatar-padrao.png" alt="Perfil"
+                        class="perfil-avatar-navbar-img os-avatar-img" data-os-img fetchpriority="high" decoding="async">
+                </span>
+                <span class="btn-perfil-avatar-nome" data-os-nome></span>
             </button>
+            <script>OS.pintarTodos();</script>
             <button  class="btn-navbar" id="btn-tema">tema</button>
         </div>
     </nav> 
@@ -61,6 +71,15 @@
              geral (GET /api/musicas) e troca o título. -->
         <div class="secao-musicas">
             <h2 class="secao-titulo aba-musicas">Músicas mais tocadas</h2>
+
+            <!-- Só aparece durante a busca. Fica acima do carrossel porque
+                 a lista de pessoas não cabe no formato de destaque+setas:
+                 o carrossel abaixo continua com as músicas encontradas. -->
+            <div id="busca-pessoas" class="busca-pessoas hidden">
+                <h3 class="busca-pessoas-titulo">Pessoas</h3>
+                <ul id="busca-pessoas-lista" class="busca-pessoas-lista"></ul>
+            </div>
+
             <div class="carrossel-controle">
                 <button type="button" id="msc-seta-esq" class="msc-seta" aria-label="Música anterior">‹</button>
                 <div id="lista-musicas" class="lista-musicas">
@@ -86,7 +105,9 @@
     </div>
 
     <!-- Modal/Popup -->
-    <div id="modal-registro" class="modal hidden">
+    <div id="modal-registro" class="modal modal--aba hidden">
+    <div class="modal-quadro">
+        <span class="modal-aba-titulo" aria-hidden="true">Criar Conta</span>
     <div class="conteudo-modal">
         <button id="btn-fechar" class="btn-fechar" aria-label="Fechar">×</button>
 
@@ -235,15 +256,18 @@
             <input type="text" class="input-otp" maxlength="1" inputmode="numeric" pattern="[0-9]*">
         </div>
 
-        <button id="btn-confirmar-2fa">Confirmar Código</button>
-        <button id="btn-reenviar-2fa" type="button" disabled>Reenviar código</button>
+        <button type="button" id="btn-confirmar-2fa" class="btn-modal-acao">Confirmar Código</button>
+        <button type="button" id="btn-reenviar-2fa" class="btn-modal-secundario" disabled>Reenviar código</button>
         <p id="mensagem-timer" class="texto-timer"></p><!--timer de reenvio-->
         </div>
     </div>
     </div>
+    </div>
 
     <!-- Modal/Popup de Login -->
-    <div id="modal-login" class="modal hidden">
+    <div id="modal-login" class="modal modal--aba hidden">
+    <div class="modal-quadro">
+        <span class="modal-aba-titulo" aria-hidden="true">Entrar</span>
     <div class="conteudo-modal">
         <button id="btn-fechar-login" class="btn-fechar" aria-label="Fechar">×</button>
 
@@ -294,6 +318,7 @@
         </div>
     </div>
     </div>
+    </div>
 
     <!-- Modal/Popup de Esqueci Minha Senha -->
     <div id="modal-esqueci-senha" class="modal hidden">
@@ -336,8 +361,8 @@
             <input type="text" class="input-otp" maxlength="1" inputmode="numeric" pattern="[0-9]*">
             <input type="text" class="input-otp" maxlength="1" inputmode="numeric" pattern="[0-9]*">
         </div>
-        <button id="btn-confirmar-esqueci">Confirmar Código</button>
-        <button id="btn-reenviar-esqueci" type="button" disabled>Reenviar código</button>
+        <button type="button" id="btn-confirmar-esqueci" class="btn-modal-acao">Confirmar Código</button>
+        <button type="button" id="btn-reenviar-esqueci" class="btn-modal-secundario" disabled>Reenviar código</button>
         <p id="esqueci-mensagem-timer" class="texto-timer"></p>
 
         <p class="link-cadastro">
@@ -396,7 +421,7 @@
          upload, uma única vez por conta (eh_artista vira TRUE depois). -->
     <div id="modal-artista" class="modal hidden">
     <div class="conteudo-modal">
-        <button id="btn-fechar-artista" class="btn-fechar">x</button>
+        <button id="btn-fechar-artista" class="btn-fechar" aria-label="Fechar">×</button>
 
         <div class="etapa">
         <h2>Vire um Artista</h2>
@@ -410,43 +435,85 @@
     </div>
 
     <!-- Modal/Popup de Upload -->
-    <div id="modal-upload" class="modal hidden">
+    <div id="modal-upload" class="modal modal--aba hidden">
+    <div class="modal-quadro">
+        <span class="modal-aba-titulo" aria-hidden="true">Enviar Música</span>
     <div class="conteudo-modal">
-        <button id="btn-fechar-upload" class="btn-fechar">x</button>
+        <button id="btn-fechar-upload" class="btn-fechar" aria-label="Fechar">×</button>
 
         <div id="etapa-upload" class="etapa">
         <h2>Enviar Música</h2>
         <p class="upload-artista-atual">Enviando como: <strong id="upload-artista-nome"></strong></p>
-        <form id="form-upload">
-            <input type="text" id="upload-titulo" placeholder="Título da música" required>
 
-            <label class="campo-arquivo">
-                Arquivo de áudio (MP3, WAV ou OGG)
-                <input type="file" id="upload-audio" accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg" required>
-            </label>
+        <form id="form-upload" class="upload-form">
+            <div class="upload-colunas">
 
-            <label class="campo-arquivo">
-                Capa do álbum (opcional)
-                <input type="file" id="upload-capa" accept="image/jpeg,image/png,image/webp">
-            </label>
-
-            <!-- Preview ao vivo, estilo SoundCloud: atualiza conforme o
-                 usuário digita/seleciona, antes mesmo de enviar. -->
-            <div class="preview-upload">
-                <div class="preview-upload-capa-wrapper">
-                    <img id="preview-upload-capa" class="preview-upload-capa hidden" alt="Preview da capa">
-                    <span id="preview-upload-capa-vazio" class="preview-upload-capa-vazio">Sem capa</span>
+                <!-- COLUNA ESQUERDA: preview ao vivo, estilo SoundCloud -->
+                <div class="upload-preview">
+                    <div class="preview-upload-capa-wrapper">
+                        <img id="preview-upload-capa" class="preview-upload-capa hidden" alt="Preview da capa">
+                        <span id="preview-upload-capa-vazio" class="preview-upload-capa-vazio">Sem capa</span>
+                    </div>
+                    <div class="preview-upload-info">
+                        <p id="preview-upload-titulo" class="preview-upload-titulo">Título da música</p>
+                        <p id="preview-upload-artista" class="preview-upload-artista">Nome do artista</p>
+                        <p id="preview-upload-audio" class="preview-upload-audio">Nenhum áudio selecionado</p>
+                    </div>
                 </div>
-                <div class="preview-upload-info">
-                    <p id="preview-upload-titulo" class="preview-upload-titulo">Título da música</p>
-                    <p id="preview-upload-artista" class="preview-upload-artista">Nome do artista</p>
-                    <p id="preview-upload-audio" class="preview-upload-audio">Nenhum áudio selecionado</p>
+
+                <!-- Linha branca fina separando as duas colunas -->
+                <span class="upload-divisor" aria-hidden="true"></span>
+
+                <!-- COLUNA DIREITA: o que o usuário preenche -->
+                <div class="upload-opcoes">
+
+                    <div class="campo-upload">
+                        <label for="upload-titulo">Título da música</label>
+                        <input type="text" id="upload-titulo" placeholder="Ex.: Madrugada no Elevador" required>
+                    </div>
+
+                    <!-- Os inputs ficam por cima do cartão (opacity 0) em vez
+                         de escondidos: assim o clique abre o seletor de
+                         arquivo, o teclado consegue focar, e a validação
+                         "obrigatório" do navegador ainda funciona apontando
+                         pro lugar certo. -->
+                    <div class="btn-upload">
+                        <span class="btn-upload-icone" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9 18V5l11-2v13"></path>
+                                <circle cx="6" cy="18" r="3"></circle>
+                                <circle cx="17" cy="16" r="3"></circle>
+                            </svg>
+                        </span>
+                        <span class="btn-upload-texto">
+                            <strong>Arquivo de áudio</strong>
+                            <small id="upload-audio-nome">MP3, WAV ou OGG</small>
+                        </span>
+                        <input type="file" id="upload-audio" accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg" aria-label="Arquivo de áudio" required>
+                    </div>
+
+                    <div class="btn-upload">
+                        <span class="btn-upload-icone" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                                <circle cx="9" cy="10" r="2"></circle>
+                                <path d="m4 18 5-5 4 4 3-3 4 4"></path>
+                            </svg>
+                        </span>
+                        <span class="btn-upload-texto">
+                            <strong>Capa do álbum</strong>
+                            <small id="upload-capa-nome">Opcional · JPG, PNG ou WEBP</small>
+                        </span>
+                        <input type="file" id="upload-capa" accept="image/jpeg,image/png,image/webp" aria-label="Capa do álbum">
+                    </div>
+
+                    <button type="submit" class="btn-modal-acao">Enviar música</button>
                 </div>
+
             </div>
-
-            <button type="submit">Enviar</button>
         </form>
         </div>
+    </div>
     </div>
     </div>
 
@@ -465,23 +532,10 @@
     </div>
     </div>
 
-<!-- Painel da fila — SOMENTE na home. Nas outras páginas a fila continua
-     tocando (o estado vive no player), mas a lista não é desenhada. -->
-    <div id="player-fila-painel" class="player-fila-painel hidden">
-        <div class="player-fila-topo">
-            <h2 class="player-fila-titulo-h2">Na fila <span id="player-fila-contagem" class="player-fila-contagem">Fila vazia</span></h2>
-            <div class="player-fila-acoes">
-                <button id="player-fila-limpar" type="button" class="player-fila-btn">Limpar</button>
-                <button id="player-fila-fechar" type="button" class="player-fila-fechar" aria-label="Fechar fila">×</button>
-            </div>
-        </div>
-        <p class="player-fila-dica">Arraste para reordenar.</p>
-        <ul id="player-fila-lista" class="player-fila-lista"></ul>
-        <p id="player-fila-vazia" class="player-fila-vazia hidden">A fila está vazia. Use “＋” num card para adicionar músicas.</p>
-    </div>
-
 <!-- Barra de player fixa no rodapé — só funcional, sem estilo bonito.
-     Fica escondida até a primeira música ser tocada. -->
+     Fica escondida até a primeira música ser tocada. O painel da fila e o
+     botão ☰ não estão aqui: o player.js monta os dois em todas as páginas,
+     então não é preciso repetir esse markup uma vez por arquivo. -->
     <div id="player-barra" class="player-barra hidden">
         <img id="player-capa" class="player-capa" alt="Capa da música atual">
         <div class="player-info">
@@ -495,7 +549,6 @@
         <span id="player-tempo-total" class="player-tempo">0:00</span>
         <button id="player-favoritar" type="button" class="btn-icone" aria-label="Favoritar">♡</button>
         <button id="player-add-playlist" type="button" class="btn-icone" aria-label="Adicionar à playlist">+</button>
-        <button id="player-fila-btn" type="button" class="btn-icone player-fila-btn-abrir hidden" aria-label="Ver fila">☰</button>
         <div class="player-volume">
             <button id="player-volume-btn" type="button" class="btn-volume" aria-label="Volume">🔊</button>
             <input type="range" id="player-volume" class="volume-slider" min="0" max="1" step="0.01" value="1" aria-label="Controle de volume">

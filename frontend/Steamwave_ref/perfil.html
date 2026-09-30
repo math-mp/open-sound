@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SteamWave - Perfil</title>
+  
+  <!-- 1. IMPORTAÇÃO DA FONTE RETRÔ DO GOOGLE -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
+  <!-- 2. IMPORTAÇÃO DOS ESTILOS GLOBAIS -->
+  <link rel="stylesheet" href="../../css/root.css">
+  <link rel="stylesheet" href="../../css/fontes.css">
+  
+  <!-- 3. SEU ESTILO ESPECÍFICO DO PERFIL -->
+  <link rel="stylesheet" href="../../css/perfil/stylePerfil.css">
+</head>
+<body>
+
+  <!-- CAMADA DE EFEITOS DO WALLPAPER (ESTILO GUNS.LOL) -->
+  <div id="page-bg-effect" class="page-bg-effect-layer"></div>
+
+  <!-- BOTÃO HAMBÚRGUER PARA ABRIR/FECHAR A SIDEBAR -->
+  <button class="hamburger-menu" onclick="toggleSidebar()">☰</button>
+
+  <!-- BARRA LATERAL ESTILO BRAWL STARS -->
+  <aside class="brawl-sidebar" id="brawlSidebar">
+    <button class="brawl-btn btn-pink active" onclick="window.location.href='perfil.html'">
+      <span class="brawl-btn-content">👤 PERFIL</span>
+    </button>
+
+    <button class="brawl-btn btn-blue">
+      <span class="brawl-btn-content">ℹ️ CONTA</span>
+    </button>
+
+    <button class="brawl-btn btn-purple">
+      <span class="brawl-btn-content">📜 COMPRAS</span>
+    </button>
+
+    <button class="brawl-btn btn-mint" onclick="window.location.href='../biblioteca.html'">
+      <span class="brawl-btn-content">📚 BIBLIOTECA</span>
+    </button>
+  </aside>
+
+  <!-- CONTAINER DE GRUPO PARA CENTRALIZAR AMBAS AS JANELAS LADO A LADO -->
+  <main class="main-layout-flex">
+
+<!-- ==========================================
+     JANELA DO PERFIL
+========================================== -->
+<div class="profile-container sw-window">
+
+    <!-- Orelhinha -->
+    <div class="profile-tab-row sw-window-header sw-draggable">
+
+        <div class="profile-tab" title="Clique para editar o título da aba">
+
+            <span
+                id="profile-tab-title"
+                contenteditable="true"
+                spellcheck="false">
+
+                PERFIL.EXE
+
+            </span>
+
+            <span class="edit-hint-icon-tab">✏️</span>
+
+        </div>
+
+    </div>
+
+    <!-- Corpo -->
+    <div class="profile-window-body sw-window-body">
+        <!-- Efeito visual animado por cima do perfil -->
+        <div id="profile-effect" class="profile-effect-overlay"></div>
+        
+        <!-- BARRA SUPERIOR CONTÍNUA -->
+        <div class="profile-dark-bar">
+          <div class="profile-controls">
+            <!-- LATA DE TINTA (COLOR PICKER SINCADO COM AMBAS AS JANELAS) -->
+            <label class="color-picker-wrapper" title="Mudar Cor do Perfil">
+              <input type="color" id="profile-color-picker" value="#ff6ec7">
+              <span class="paint-bucket-icon">🪣</span>
+            </label>
+
+            <!-- BOTÕES DE CONTROLE -->
+            <button class="tab-btn">_</button>
+            <button class="tab-btn">□</button>
+          </div>
+        </div>
+
+        <!-- INPUTS INVISÍVEIS PARA UPLOAD DE BANNER E FOTO -->
+        <input type="file" id="avatar-upload-input" accept="image/*" style="display: none;">
+        <input type="file" id="banner-upload-input" accept="image/*" style="display: none;">
+
+        <!-- BANNER DE FUNDO SUPERIOR -->
+        <div class="profile-banner" id="user-banner">
+          <!-- NOVO: Botão de editar que aparece no canto do banner -->
+          <div class="banner-edit-overlay" title="Mudar Banner">✎</div>
+        </div>
+        
+
+        <!-- FOTO DE PERFIL COM SLOT DE BORDA DINÂMICA -->
+        <div class="avatar-section">
+
+          <div class="avatar-holder" id="user-avatar-holder">
+
+            <img src="../../assent/avatarGenerico.png"
+            id="user-avatar"
+            alt="Avatar do Usuário">
+
+            <div class="avatar-edit-overlay"
+             title="Mudar Avatar">✎</div>
+
+            <!-- Bolinha de status -->
+            <span id="status-dot"
+            class="status-dot online"></span>
+
+          </div>
+
+          <!-- Atividade -->
+          <div class="profile-activity editable-container">
+
+            <span id="activity-icon" contenteditable="true" spellcheck="false" title="Clique para trocar o emoji">🎮</span>
+
+            <span
+              id="activity-text"
+              contenteditable="true"
+              spellcheck="false">
+
+              Jogando SteamWave
+
+            </span>
+
+            <div
+              class="char-counter"
+              id="activity-counter">
+
+              0/40
+
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- CORPO INTERNO (TEXTOS EDITÁVEIS) -->
+        <div class="profile-body">
+          <div class="user-info-text">
+            
+            <!-- NICKNAME -->
+            <div class="editable-container" title="Clique para editar seu nick">
+              <h1 id="user-display-name" contenteditable="true" spellcheck="false">Carregando...</h1>
+              <span class="edit-hint-icon">✏️</span>
+              <div class="char-counter" id="nick-counter">0/30</div>
+            </div>
+
+            <span id="user-username" style="display: none;"></span> 
+            
+            <!-- BIO -->
+            <div class="user-bio-box editable-container" title="Clique para editar sua bio">
+              <p id="user-bio" contenteditable="true" spellcheck="false">Carregando biografia...</p>
+              <span class="edit-hint-icon">✏️</span>
+              <div class="char-counter" id="bio-counter">0/220</div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- MINI PLAYER DE MÚSICA -->
+        <div class="profile-music-player no-track" id="music-player">
+          <span class="music-note-icon">🎵</span>
+          <div class="music-info">
+            <span class="music-title" id="music-title-display">Nenhuma música...</span>
+            <div class="music-progress-bar" id="music-progress-bar">
+              <div class="music-progress-fill" id="music-progress-fill"></div>
+            </div>
+          </div>
+          <div class="music-volume-wrapper" title="Volume">
+            <span class="music-volume-icon" id="music-volume-icon">🔊</span>
+            <input type="range" id="music-volume-slider" min="0" max="1" step="0.05" value="1">
+          </div>
+          <button class="music-play-btn" id="music-play-btn" title="Play/Pause">▶</button>
+        </div>
+
+        <!-- BASE INFERIOR SÓLIDA -->
+        <div class="profile-base"></div>
+
+        <div class="sw-resize-handle"></div>
+      </div>
+      </div>
+    </div>
+
+    <!-- 2. JANELA DE CONFIGURAÇÕES (CONFIG.EXE) -->
+    <div class="window-wrapper sw-window">
+      
+      <!-- ORELHINHA DA JANELA CONFIG -->
+    <div class="profile-tab-row sw-window-header sw-draggable">
+        <div class="profile-tab config-tab">
+          <span>CONFIG.EXE</span>
+        </div>
+      </div>
+
+      <div class="edit-profile-container">
+        <!-- BARRA SUPERIOR ESCURA -->
+        <div class="profile-top-bar">
+          <div class="window-controls">
+            <!-- NOVO SELETOR DE COR DA CONFIGURAÇÃO -->
+            <label class="color-picker-wrapper" title="Mudar Cor da Configuração">
+              <input type="color" id="config-color-picker" value="#ff6ec7">
+              <span class="paint-bucket-icon">🪣</span>
+            </label>
+
+            <span class="control-btn minimize">─</span>
+            <span class="control-btn maximize">❑</span>
+          </div>
+        </div>
+
+        <!-- SEÇÕES DE CONFIGURAÇÃO -->
+        <div class="edit-profile-body">
+          <div class="edit-profile-header">
+            <h2>ESPECIFICAÇÕES DO PERFIL</h2>
+          </div>
+          
+          <!-- SEÇÃO: AVATAR -->
+          <div class="edit-section">
+            <h3>FOTO DE PERFIL</h3>
+            <div class="edit-flex-row">
+              <label class="custom-file-upload">
+                <input type="file" id="edit-avatar-input" accept="image/*">
+                Mudar Avatar
+              </label>
+              
+              <div class="select-wrapper">
+                <label for="edit-border-select">Borda do Avatar</label>
+                <select id="edit-border-select">
+                  <option value="none">Nenhuma</option>
+                  <option value="neon-cyber">Cyber Neon</option>
+                  <option value="pixel-retro">Pixel Retro</option>
+                  <option value="glitch">Glitch Effect</option>
+                  <option value="rainbow-animated">Arco-Íris Animado</option>
+                  <option value="golden-vintage">Dourado Vintage</option>
+                  <option value="holo-shimmer">Holo Shimmer</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <hr class="edit-divider">
+
+          <!-- SEÇÃO: ESTILO DO NOME -->
+          <div class="edit-section">
+            <h3>ESTILO DO NOME</h3>
+            <div class="edit-flex-row">
+              <div class="select-wrapper">
+                <label for="edit-font-select">Fonte do Nick</label>
+                <select id="edit-font-select">
+                  <option value="'Press Start 2P', monospace">Press Start 2P</option>
+                  <option value="'Inter', sans-serif">Inter</option>
+                  <option value="'Courier New', monospace">Courier New</option>
+                </select>
+              </div>
+              
+              <div class="color-inputs-group">
+                <label>Degradê do Nome</label>
+                <div class="pickers-inline">
+                  <input type="color" id="name-color-1" value="#ffffff">
+                  <input type="color" id="name-color-2" value="#ffffff">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <hr class="edit-divider">
+
+          <!-- SEÇÃO: BANNER -->
+          <div class="edit-section">
+            <h3>BANNER DO PERFIL</h3>
+            <div class="edit-flex-row">
+              <label class="custom-file-upload">
+                <input type="file" id="edit-banner-input" accept="image/*">
+                Upload de Banner
+              </label>
+              
+              <div class="checkbox-wrapper">
+                <label class="switch">
+                  <input type="checkbox" id="toggle-banner-lines" checked>
+                  <span class="slider"></span>
+                </label>
+                <span class="switch-label">Efeito de Linhas (TV)</span>
+              </div>
+            </div>
+          </div>
+
+          <hr class="edit-divider">
+
+          <!-- SEÇÃO: EFEITO DE PERFIL -->
+          <div class="edit-section">
+            <h3>EFEITO DE PERFIL (SOBREPOSIÇÃO)</h3>
+            <div class="select-wrapper full-width">
+              <select id="edit-effect-select">
+                <option value="none">Nenhum Efeito</option>
+                <option value="chuva-matrix">Chuva Digital (Matrix)</option>
+                <option value="folhas-sakura">Pétalas de Sakura</option>
+                <option value="fogo-neon">Fumaça & Fogo Cyber</option>
+                <option value="estrelas-cadentes">Estrelas Cadentes</option>
+                <option value="nevoa-cyberpunk">Névoa Cyberpunk</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- STATUS DO PERFIL / PRESENÇA -->
+          <hr class="edit-divider">
+
+          <div class="edit-section">
+
+            <h3>PRESENÇA</h3>
+
+            <div class="select-wrapper full-width">
+
+              <select id="profile-status-select">
+
+                <option value="online">🟢 Online</option>
+
+                <option value="offline">⚫ Offline</option>
+
+              </select>
+
+            </div>
+
+          </div>
+
+                    <!-- SEÇÃO: MÚSICA -->
+          <hr class="edit-divider">
+          <div class="edit-section">
+            <h3>TRILHA SONORA</h3>
+            <div class="edit-flex-row">
+              <label class="custom-file-upload">
+                <input type="file" id="edit-music-input" accept="audio/*">
+                Upload de Música
+              </label>
+              <button class="btn-remove-bg" id="remove-music-btn" style="margin-top:0; width:auto; padding: 10px 16px;">Remover ✕</button>
+            </div>
+          </div>
+
+          <!-- SEÇÃO: FUNDO DA PÁGINA -->
+          <hr class="edit-divider">
+          <div class="edit-section">
+            <h3>FUNDO DA PÁGINA</h3>
+            <div class="edit-flex-row">
+              <label class="custom-file-upload">
+                <input type="file" id="edit-bg-input" accept="image/*">
+                Imagem / GIF
+              </label>
+              <button class="btn-remove-bg" id="remove-bg-btn" style="margin-top:0; width:auto; padding: 10px 16px;">Remover ✕</button>
+            </div>
+            <div class="dim-slider-wrapper">
+              <label>Escurecimento</label>
+              <input type="range" id="bg-dim-slider" min="0" max="0.85" step="0.05" value="0.45">
+            </div>
+
+            <div class="select-wrapper full-width" style="margin-top:16px;">
+              <label for="edit-bg-effect-select">Efeito do Wallpaper</label>
+              <select id="edit-bg-effect-select">
+                <option value="none">Nenhum Efeito</option>
+                <option value="bg-snow">Neve Caindo</option>
+                <option value="bg-particulas">Partículas Flutuantes</option>
+                <option value="bg-scanlines">Scanlines Retrô</option>
+                <option value="bg-aurora">Aurora Vaporwave</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- BARRINHA INFERIOR DE FECHAMENTO -->
+        <div class="profile-bottom-bar"></div>
+      </div>
+    </div>
+
+  </main>
+  
+  <!-- MENU DE NAVEGAÇÃO GLOBAL INFERIOR -->
+  <div class="global-nav">
+    <button class="gnav-btn" onclick="window.location.href='../homepage.html'">🏠 Home</button>
+    <div class="gnav-separator"></div>
+    <button class="gnav-btn" onclick="window.location.href='../loja.html'">🛒 Loja</button>
+    <div class="gnav-separator"></div>
+    <button class="gnav-btn" onclick="window.location.href='../biblioteca.html'">📚 Biblioteca</button>
+    <div class="gnav-separator"></div>
+    <button class="gnav-btn active" onclick="window.location.href='perfil.html'">👤 Perfil</button>
+    <div class="gnav-separator"></div>
+    <button class="gnav-btn" onclick="window.location.href='../configuracao.html'">⚙️ Config</button>
+    <div class="gnav-separator"></div>
+    <button class="gnav-btn" onclick="window.location.href='../suporte.html'">❓ Suporte</button>
+  </div>
+
+  <script src="../../js/gerenciadorJanelas.js"></script>
+
+  <script src="../../js/window/windowManager.js"></script>
+
+  <script src="../../js/perfil/scriptPerfil.js"></script>
+</body>
+</html>

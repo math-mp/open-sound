@@ -109,8 +109,10 @@ body,
 
 /* Quando o player aparece, ele é fixo no rodapé e passaria por cima da
    faixa pastel de baixo do painel. O :has() reserva esse espaço extra
-   sem precisar de uma classe alternada pelo JS. */
-.main-ctt-biblioteca:has(~ .player-barra:not(.hidden)) {
+   sem precisar de uma classe alternada pelo JS.
+   O :has() fica no body porque a barra do player é o PRIMEIRO filho dele
+   (mesma ordem das outras páginas) — um :has(~ ...) aqui nunca casaria. */
+body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
     padding-bottom: 110px;
 }
 
@@ -154,33 +156,13 @@ body,
     display: none;
 }
 
-/* BARRA SUPERIOR PASTEL */
-.secao-musicas::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 20px;
-    border-radius: 0 10px 0 0;
-    background: var(--aba-biblioteca);
-    z-index: 2;
-    pointer-events: none;
-}
-
-/* BARRA INFERIOR PASTEL */
-.secao-musicas::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 20px;
-    border-radius: 0 0 10px 10px;
-    background: var(--aba-biblioteca);
-    z-index: 2;
-    pointer-events: none;
-}
+/* As barras superior e inferior NÃO são definidas aqui: elas já vêm
+   prontas (formato, cantos, z-index) do bloco .secao-musicas em
+   home.css, e a cor verde-água vem da regra
+   ".secao-musicas:has(> .aba-biblioteca)" de lá também. A cópia local
+   que existia neste arquivo era idêntica e foi o que deixou a aba
+   desta página certa por acaso, enquanto a biblioteca e a playlist
+   ficavam com a faixa rosa. */
 
 /* =========================================================
    CARROSSEL HORIZONTAL DE MÚSICAS
@@ -713,6 +695,49 @@ body,
     background: var(--cor-borda);
     border-radius: 2px;
 }
+
+/* --- Botões de ícone da barra (favoritar, add playlist, fila) ---
+   Mesmas regras da home: a barra é montada pelo player.js em todas as
+   páginas, então o formato desses botões também precisa existir aqui. As
+   cores vêm do theme.css (.player-barra .btn-icone). */
+.btn-icone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 34px;
+    height: 34px;
+    padding: 0;
+
+    border: none;
+    border-radius: var(--raio-circular);
+
+    font-size: 1.1rem;
+    font-weight: 800;
+    line-height: 1;
+
+    flex-shrink: 0;
+    cursor: pointer;
+
+    transition:
+        transform var(--transicao-rapida),
+        filter var(--transicao-rapida),
+        background-color 0.3s ease,
+        color 0.3s ease;
+}
+
+.btn-icone:hover {
+    transform: scale(1.1);
+}
+
+.btn-icone:active {
+    transform: scale(0.94);
+}
+
+/* O PAINEL DA FILA fica no theme.css, que todas as paginas carregam.
+   Aqui era uma copia identica, regra por regra; como esta folha entra
+   depois do tema, a copia acabava vencendo por ordem de carga, sem
+   acrescentar nada. Sao as mesmas 28 regras, valor por valor. */
 
 /* =========================================================
    RESPONSIVO

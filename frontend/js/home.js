@@ -2,9 +2,29 @@
 // TEMA CLARO / ESCURO (salvo no localStorage e sincronizado com backend)
 // ============================================================
 const btnTema = document.getElementById('btn-tema');
-const CHAVE_TEMA = 'opensound_tema';
 const API_BASE = 'http://localhost:3000';
 const CHAVE_SESSAO = 'tokenSessao';
+
+// O sessao.js entra sem `defer` no <head> e define window.OS. Se ele
+// não vier (404, cache velho, aberto direto do disco), esta versão sem
+// cache evita que o arquivo inteiro abafe aqui e leve junto os modais,
+// o upload, os favoritos e a criação de playlist.
+if (!window.OS) {
+  window.OS = {
+    IDADE_MAXIMA_CACHE: 0,
+    perfilCacheado: () => null,
+    revalidar: () => Promise.resolve(null),
+    aoEntrar: () => Promise.resolve(null),
+    aoTrocarAvatar: () => {},
+    invalidar: () => {},
+    limparCache: () => {},
+    pintarTodos: () => {},
+    aplicarTema: (tema) => {
+      if (tema === 'light') document.documentElement.dataset.theme = 'light';
+      else delete document.documentElement.dataset.theme;
+    }
+  };
+}
 
 function obterTokenSessao() {
   return localStorage.getItem(CHAVE_SESSAO);
@@ -14,6 +34,18 @@ function estaLogado() {
   return !!obterTokenSessao();
 }
 
+// Token rejeitado, logout em outra aba ou revalidação que tomou 401:
+// em todos esses casos a navbar precisa voltar ao estado de visitante
+// no mesmo instante. Passar por aqui (e não só pela classe `hidden`)
+// é o que mantém o atributo data-sessao do <html> em sincronia.
+function encerrarSessaoLocal() {
+  localStorage.removeItem(CHAVE_SESSAO);
+  if (window.OS) OS.limparCache();
+  atualizarUIAutenticacao();
+}
+
+document.addEventListener('opensound:sessao-invalida', encerrarSessaoLocal);
+
 async function fetchComAutenticacao(url, opcoes = {}) {
   const token = obterTokenSessao();
   const headers = { ...(opcoes.headers || {}), Authorization: `Bearer ${token}` };
@@ -21,8 +53,7 @@ async function fetchComAutenticacao(url, opcoes = {}) {
   const resposta = await fetch(url, { ...opcoes, headers });
 
   if (resposta.status === 401) {
-    localStorage.removeItem(CHAVE_SESSAO);
-    atualizarUIAutenticacao();
+    encerrarSessaoLocal();
     alert('Sua sessão expirou. Faça login novamente.');
   }
 
@@ -30,33 +61,18 @@ async function fetchComAutenticacao(url, opcoes = {}) {
 }
 
 function aplicarTema(tema) {
-  if (tema === 'light') {
-    document.documentElement.setAttribute('data-theme', 'light');
-  } else {
-    document.documentElement.removeAttribute('data-theme');
-  }
+  // Quem decide as cores é o theme.css; o atributo no <html> e o
+  // localStorage são centralizados no sessao.js (que já aplicou o
+  // tema salvo antes do primeiro paint, no <head>).
+  OS.aplicarTema(tema);
   if (btnTema) btnTema.textContent = tema === 'light' ? '🌙' : '☀️';
 }
 
-// Aplica tema do localStorage imediatamente (evita flash)
-aplicarTema(localStorage.getItem(CHAVE_TEMA) || 'dark');
-
-async function carregarTemaDoBackend() {
-  if (!estaLogado()) return;
-  try {
-    const resposta = await fetchComAutenticacao(`${API_BASE}/api/perfil`);
-    if (resposta.ok) {
-      const { perfil } = await resposta.json();
-      if (perfil?.usuario?.tema) {
-        const tema = perfil.usuario.tema;
-        localStorage.setItem(CHAVE_TEMA, tema);
-        aplicarTema(tema);
-      }
-    }
-  } catch (erro) {
-    console.error('Erro ao carregar tema do backend:', erro);
-  }
-}
+// O botão da navbar acompanha o tema de qualquer origem (clique aqui,
+// troca em outra aba ou revalidação do perfil) sem duplicar regra.
+document.addEventListener('opensound:tema', (evento) => {
+  if (btnTema && evento.detail) btnTema.textContent = evento.detail.tema === 'light' ? '🌙' : '☀️';
+});
 
 async function salvarTemaNoBackend(tema) {
   if (!estaLogado()) return;
@@ -73,12 +89,14 @@ async function salvarTemaNoBackend(tema) {
 
 if (btnTema) {
   btnTema.addEventListener('click', async () => {
-    const temaAtual = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
-    const novoTema = temaAtual === 'light' ? 'dark' : 'light';
-    localStorage.setItem(CHAVE_TEMA, novoTema);
+    const novoTema = temaAtual() === 'light' ? 'dark' : 'light';
     aplicarTema(novoTema);
     await salvarTemaNoBackend(novoTema);
   });
+}
+
+function temaAtual() {
+  return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
 }
 
 // === ELEMENTOS DO DOM ===
@@ -133,7 +151,6 @@ const formLogin = document.getElementById('form-login');
 const btnEntrar = document.getElementById('btn-entrar');
 const btnSair = document.getElementById('btn-sair');
 const btnPerfilAvatar = document.getElementById('btn-perfil-avatar');
-const perfilAvatarImg = document.getElementById('perfil-avatar-navbar');
 const linkSairDropdown = document.getElementById('link-sair-dropdown');
 
 // Elementos do Modal de Upload e do Container Universal de Músicas
@@ -463,10 +480,6 @@ function atualizarUIAutenticacao() {
   if (btnRegister) btnRegister.classList.toggle('hidden', logado);
   if (btnPerfilAvatar) btnPerfilAvatar.classList.toggle('hidden', !logado);
   if (linkSairDropdown) linkSairDropdown.classList.toggle('hidden', !logado);
-  
-  if (logado) {
-    carregarAvatarPerfil();
-  }
 }
 
 if (btnEntrar && modalLogin) {
@@ -509,7 +522,9 @@ if (formLogin) {
         atualizarUIAutenticacao();
 
         carregarFavoritos();
-        carregarTemaDoBackend();  // Carrega tema salvo no perfil
+        // Traz tema/avatar/nome do banco em UM request só. O que já
+        // estava em cache (pintado antes do paint) aparece na hora.
+        OS.aoEntrar();
 
         if (modalLogin) modalLogin.classList.add('hidden');
         formLogin.reset();
@@ -546,9 +561,9 @@ if (btnSair) {
     if (!confirmou) return;
 
     localStorage.removeItem(CHAVE_SESSAO);
+    OS.limparCache();
     atualizarUIAutenticacao();
-    idsFavoritos.clear();        // <- ADICIONAR
-    atualizarTodosCoracoes();    // <- ADICIONAR
+    limparFavoritosLocais();
     alert('Você foi deslogado.');
   });
 }
@@ -560,9 +575,9 @@ if (linkSairDropdown) {
     if (!confirmou) return;
 
     localStorage.removeItem(CHAVE_SESSAO);
+    OS.limparCache();
     atualizarUIAutenticacao();
-    idsFavoritos.clear();
-    atualizarTodosCoracoes();
+    limparFavoritosLocais();
     alert('Você foi deslogado.');
   });
 }
@@ -573,28 +588,20 @@ if (btnPerfilAvatar) {
   });
 }
 
-// Estado inicial da navbar ao carregar a página
+// Estado inicial da navbar ao carregar a página. Avatar, nome e tema
+// já foram pintados pelo sessao.js antes do paint; aqui só validamos
+// com o servidor (um único GET /api/perfil, compartilhado).
 atualizarUIAutenticacao();
-if (estaLogado()) carregarTemaDoBackend();
+if (estaLogado()) OS.revalidar();
 
 // ============================================================
-// CARREGAR AVATAR DO PERFIL NA NAVBAR
+// AVATAR / NOME / TEMA DA NAVBAR
 // ============================================================
-async function carregarAvatarPerfil() {
-  if (!estaLogado() || !perfilAvatarImg) return;
-  
-  try {
-    const resposta = await fetchComAutenticacao(`${API_BASE}/api/perfil`);
-    if (resposta.ok) {
-      const { perfil } = await resposta.json();
-      const urlAvatar = perfil.usuario?.avatar_url || '../assets/avatar-padrao.png';
-      perfilAvatarImg.src = urlAvatar;
-    }
-  } catch (erro) {
-    console.error('Erro ao carregar avatar do perfil:', erro);
-    perfilAvatarImg.src = '../assets/avatar-padrao.png';
-  }
-}
+// Não busca mais nada aqui: quem resolve é o sessao.js, que pinta o
+// avatar e o nome a partir do cache local (antes do paint) e revalida
+// em segundo plano. O que sobrou da implementação antiga
+// (carregarAvatarPerfil / carregarTemaDoBackend) foram removidos
+// porque disparavam um GET /api/perfil duplicado a cada carregamento.
 
 // ============================================================
 // MODAL DE LOGIN — MELHORIAS (olho, links, toggle modais)
@@ -994,245 +1001,11 @@ function formatarReproducoes(quantidade) {
 // ============================================================
 // FAVORITOS + ADICIONAR À PLAYLIST
 // ============================================================
-
-const playerFavoritar = document.getElementById('player-favoritar');
-const playerAddPlaylist = document.getElementById('player-add-playlist');
-const modalAddPlaylist = document.getElementById('modal-add-playlist');
-const btnFecharAddPlaylist = document.getElementById('btn-fechar-add-playlist');
-const listaPlaylistsModal = document.getElementById('lista-playlists-modal');
-
-// IDs (números) das músicas favoritadas pela conta logada.
-let idsFavoritos = new Set();
-// IDs com uma requisição em andamento — evita duplo clique no coração.
-const favoritosPendentes = new Set();
-// Música que o modal "Adicionar à Playlist" está tratando agora.
-let musicaParaAdicionar = null;
-
-function criarBotaoIcone(classeExtra, texto, rotulo) {
-  const botao = document.createElement('button');
-  botao.type = 'button';
-  botao.className = classeExtra ? `btn-icone ${classeExtra}` : 'btn-icone';
-  botao.textContent = texto;
-  botao.setAttribute('aria-label', rotulo);
-  botao.title = rotulo;
-  return botao;
-}
-
-function pintarCoracao(botao, favoritado) {
-  if (!botao) return;
-  const rotulo = favoritado ? 'Remover dos favoritos' : 'Favoritar';
-  botao.classList.toggle('ativo', favoritado);
-  botao.textContent = favoritado ? '♥' : '♡';
-  botao.setAttribute('aria-label', rotulo);
-  botao.title = rotulo;
-}
-
-// Repinta o coração do destaque atual e o da barra do player.
-function atualizarTodosCoracoes() {
-  document.querySelectorAll('.btn-favoritar-destaque').forEach((botao) => {
-    pintarCoracao(botao, idsFavoritos.has(Number(botao.dataset.musicaId)));
-  });
-  pintarCoracao(playerFavoritar, !!musicaNoPlayer && idsFavoritos.has(Number(musicaNoPlayer.id)));
-}
-
-// Carga silenciosa: usa fetch puro (e não fetchComAutenticacao) pra que um
-// token expirado NÃO dispare o alert de "sessão expirada" só de abrir a home.
-async function carregarFavoritos() {
-  idsFavoritos = new Set();
-
-  if (estaLogado()) {
-    try {
-      const resposta = await fetch('http://localhost:3000/api/musicas/favoritos/ids', {
-        headers: { Authorization: `Bearer ${obterTokenSessao()}` }
-      });
-      if (resposta.ok) {
-        const dados = await resposta.json();
-        (dados.ids || []).forEach((id) => idsFavoritos.add(Number(id)));
-      }
-    } catch (erro) {
-      console.error('Erro ao carregar favoritos:', erro);
-    }
-  }
-
-  atualizarTodosCoracoes();
-}
-
-// Atualização otimista: o coração muda na hora e volta atrás se o servidor falhar.
-async function alternarFavorito(musica) {
-  if (!musica || !musica.id) return;
-
-  if (!estaLogado()) {
-    alert('Faça login para favoritar músicas.');
-    if (modalLogin) modalLogin.classList.remove('hidden');
-    return;
-  }
-
-  const id = Number(musica.id);
-  if (favoritosPendentes.has(id)) return;
-
-  const eraFavorita = idsFavoritos.has(id);
-  favoritosPendentes.add(id);
-
-  if (eraFavorita) idsFavoritos.delete(id);
-  else idsFavoritos.add(id);
-  atualizarTodosCoracoes();
-
-  try {
-    const resposta = await fetchComAutenticacao(`http://localhost:3000/api/musicas/${id}/favoritar`, {
-      method: eraFavorita ? 'DELETE' : 'POST'
-    });
-    if (!resposta.ok) throw new Error(String(resposta.status));
-  } catch (erro) {
-    if (eraFavorita) idsFavoritos.add(id);
-    else idsFavoritos.delete(id);
-    atualizarTodosCoracoes();
-    // Em 401 o fetchComAutenticacao já avisou — não duplica o alert.
-    if (erro.message !== '401') alert('Não foi possível atualizar seus favoritos.');
-  } finally {
-    favoritosPendentes.delete(id);
-  }
-}
-
-// --- Modal "Adicionar à Playlist" ---
-
-function mostrarMensagemModalPlaylists(texto) {
-  if (!listaPlaylistsModal) return;
-  listaPlaylistsModal.innerHTML = '';
-  const p = document.createElement('p');
-  p.className = 'mensagem-lista';
-  p.textContent = texto;
-  listaPlaylistsModal.appendChild(p);
-}
-
-// textContent em tudo: nome de playlist é texto digitado pelo usuário.
-function criarItemPlaylistModal(playlist, musica) {
-  const item = document.createElement('button');
-  item.type = 'button';
-  item.className = 'item-playlist-modal';
-
-  let capa;
-  if (playlist.url_capa) {
-    capa = document.createElement('img');
-    capa.src = playlist.url_capa;
-    capa.alt = '';
-  } else {
-    capa = document.createElement('span');
-    capa.textContent = playlist.eh_favoritos ? '⭐' : '🎵';
-  }
-  capa.classList.add('item-playlist-capa');
-
-  const nome = document.createElement('span');
-  nome.className = 'item-playlist-nome';
-  nome.textContent = playlist.nome;
-
-  const estado = document.createElement('span');
-  estado.className = 'item-playlist-estado';
-
-  if (playlist.contem_musica) {
-    item.classList.add('adicionada');
-    estado.textContent = '✔ Já está aqui';
-  }
-
-  item.appendChild(capa);
-  item.appendChild(nome);
-  item.appendChild(estado);
-
-  item.addEventListener('click', async () => {
-    if (item.classList.contains('adicionada') || item.disabled) return;
-    item.disabled = true;
-
-    try {
-      const resposta = await fetchComAutenticacao(`http://localhost:3000/api/playlists/${playlist.id}/musicas`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ musicaId: musica.id })
-      });
-      if (!resposta.ok) throw new Error(String(resposta.status));
-
-      item.classList.add('adicionada');
-      estado.textContent = '✔ Adicionada';
-
-      // Adicionar em "Favoritos" pelo modal equivale a favoritar: o coração acompanha.
-      if (playlist.eh_favoritos) {
-        idsFavoritos.add(Number(musica.id));
-        atualizarTodosCoracoes();
-      }
-    } catch (erro) {
-      if (erro.message !== '401') alert('Não foi possível adicionar a música à playlist.');
-    } finally {
-      item.disabled = false;
-    }
-  });
-
-  return item;
-}
-
-async function abrirModalAddPlaylist(musica) {
-  if (!musica || !musica.id) return;
-
-  if (!estaLogado()) {
-    alert('Faça login para adicionar músicas a playlists.');
-    if (modalLogin) modalLogin.classList.remove('hidden');
-    return;
-  }
-
-  musicaParaAdicionar = musica;
-  if (modalAddPlaylist) modalAddPlaylist.classList.remove('hidden');
-  mostrarMensagemModalPlaylists('Carregando...');
-
-  try {
-    const resposta = await fetchComAutenticacao(`http://localhost:3000/api/playlists?musicaId=${musica.id}`);
-    const dados = await resposta.json();
-
-    // Se o usuário fechou o modal ou abriu outra música enquanto carregava, descarta.
-    if (musicaParaAdicionar !== musica) return;
-
-    if (!resposta.ok) {
-      mostrarMensagemModalPlaylists(dados.mensagem || 'Não foi possível carregar suas playlists.');
-      return;
-    }
-
-    listaPlaylistsModal.innerHTML = '';
-    dados.playlists.forEach((playlist) => {
-      listaPlaylistsModal.appendChild(criarItemPlaylistModal(playlist, musica));
-    });
-
-    const dica = document.createElement('p');
-    dica.className = 'link-cadastro';
-    dica.appendChild(document.createTextNode('Quer outra playlist? '));
-    const link = document.createElement('a');
-    link.href = 'biblioteca.html';
-    link.textContent = 'Crie na Biblioteca';
-    dica.appendChild(link);
-    listaPlaylistsModal.appendChild(dica);
-
-  } catch (erro) {
-    console.error('Erro ao carregar playlists:', erro);
-    if (musicaParaAdicionar === musica) {
-      mostrarMensagemModalPlaylists('Erro de conexão ao carregar suas playlists.');
-    }
-  }
-}
-
-if (btnFecharAddPlaylist && modalAddPlaylist) {
-  btnFecharAddPlaylist.addEventListener('click', () => {
-    modalAddPlaylist.classList.add('hidden');
-    musicaParaAdicionar = null;
-  });
-}
-
-// --- Botões da barra do player: agem sobre a música que está tocando ---
-if (playerFavoritar) {
-  playerFavoritar.addEventListener('click', () => {
-    if (musicaNoPlayer) alternarFavorito(musicaNoPlayer);
-  });
-}
-
-if (playerAddPlaylist) {
-  playerAddPlaylist.addEventListener('click', () => {
-    if (musicaNoPlayer) abrirModalAddPlaylist(musicaNoPlayer);
-  });
-}
+// Moraram aqui até os botões da barra do player (o coração e o "＋")
+// existirem só na home. Agora ficam no favoritos.js, que todas as
+// páginas carregam: pintarCoracao(), atualizarTodosCoracoes(),
+// alternarFavorito(), abrirModalAddPlaylist(), criarBotaoIcone(),
+// carregarFavoritos() e limparFavoritosLocais() vêm de lá.
 
 // --- Botão "Minha Biblioteca" da navbar (a página chega na Parte 4) ---
 const btnBiblioteca = document.getElementById('btn-biblioteca');
@@ -1303,23 +1076,31 @@ function criarDestaqueMusica(musica) {
     tocarMusica(musica, btnPlay);
   });
 
+  // Botão de favoritar: agora fica ao lado do "Tocar" (mesmo estilo/cor),
+  // não mais sobre a capa. A lógica (coração cheio/vazio, fetch de
+  // favoritar/desfavoritar) continua a mesma de sempre.
+  const btnFavoritar = criarBotaoIcone('btn-favoritar-destaque', '♡', 'Favoritar');
+  btnFavoritar.dataset.musicaId = musica.id;
+  pintarCoracao(btnFavoritar, idsFavoritos.has(Number(musica.id)));
+  btnFavoritar.addEventListener('click', () => alternarFavorito(musica));
+
+  const botoesInfo = document.createElement('div');
+  botoesInfo.className = 'msc-info-botoes';
+  botoesInfo.appendChild(btnPlay);
+  botoesInfo.appendChild(btnFavoritar);
+
   info.appendChild(nome);
   info.appendChild(artista);
-  info.appendChild(btnPlay);
+  info.appendChild(botoesInfo);
 
     // A capa agora vai dentro de um wrapper (mesmas medidas, 185px) pra que
-  // os botões de favoritar/adicionar possam ficar ancorados nela.
+  // o botão de adicionar à playlist possa ficar ancorado nela.
   const capaWrapper = document.createElement('div');
   capaWrapper.className = 'msc-capa-wrapper';
   capaWrapper.appendChild(capa);
 
   const acoes = document.createElement('div');
   acoes.className = 'msc-acoes-capa';
-
-  const btnFavoritar = criarBotaoIcone('btn-favoritar-destaque', '♡', 'Favoritar');
-  btnFavoritar.dataset.musicaId = musica.id;
-  pintarCoracao(btnFavoritar, idsFavoritos.has(Number(musica.id)));
-  btnFavoritar.addEventListener('click', () => alternarFavorito(musica));
 
   const btnAddPlaylist = criarBotaoIcone('', '＋', 'Adicionar à playlist');
   btnAddPlaylist.addEventListener('click', () => abrirModalAddPlaylist(musica));
@@ -1529,19 +1310,100 @@ async function carregarMusicasMaisTocadas() {
 }
 
 // Carga inicial da home: as duas requisições de ranking, uma vez só.
+// Os favoritos NÃO entram aqui: quem carrega é o favoritos.js, que roda
+// em todas as páginas — o carrossel só pinta o coração com o que ele
+// já trouxer.
 carregarMusicasMaisTocadas();
 carregarArtistasMaisOuvidos();
-carregarFavoritos();   
 
 // ============================================================
 // BUSCA INLINE (mesma página — não navega, pra não matar o áudio tocando)
+//
+// A busca acha duas coisas: músicas (viram o carrossel, como sempre) e
+// pessoas (viram uma faixa de resultados com link para o perfil). As duas
+// requisições são independentes: uma falhar não esconde a outra.
 // ============================================================
+
+const elBuscaPessoas = document.getElementById('busca-pessoas');
+const elBuscaPessoasLista = document.getElementById('busca-pessoas-lista');
+
+function esconderResultadosDePessoas() {
+  if (elBuscaPessoas) elBuscaPessoas.classList.add('hidden');
+}
+
+function renderizarPessoas(pessoas) {
+  if (!elBuscaPessoas || !elBuscaPessoasLista) return;
+
+  elBuscaPessoasLista.innerHTML = '';
+  if (!pessoas || pessoas.length === 0) { esconderResultadosDePessoas(); return; }
+
+  pessoas.forEach((pessoa) => {
+    const item = document.createElement('li');
+    item.className = 'busca-pessoa';
+
+    const link = document.createElement('a');
+    link.className = 'busca-pessoa-link';
+    link.href = 'perfil.html?u=' + encodeURIComponent(pessoa.nome_usuario);
+    link.title = `Ver o perfil de @${pessoa.nome_usuario}`;
+
+    // Avatar pela mesma pintura da navbar: cai no avatar-padrao e nas
+    // iniciais quando a pessoa não tem foto.
+    const caixa = document.createElement('span');
+    caixa.className = 'os-avatar os-avatar-sm';
+    const iniciais = document.createElement('span');
+    iniciais.className = 'os-avatar-iniciais';
+    const img = document.createElement('img');
+    img.className = 'os-avatar-img';
+    img.src = pessoa.avatar_url || '';
+    img.alt = '';
+    img.loading = 'lazy';
+    caixa.appendChild(iniciais);
+    caixa.appendChild(img);
+    if (window.OS && typeof OS.pintarCaixa === 'function') {
+      OS.pintarCaixa(caixa, pessoa.avatar_url || null, pessoa.nome);
+    }
+
+    const nome = document.createElement('span');
+    nome.className = 'busca-pessoa-nome';
+    nome.textContent = pessoa.nome;
+
+    const arroba = document.createElement('span');
+    arroba.className = 'busca-pessoa-arroba';
+    arroba.textContent = `@${pessoa.nome_usuario}`;
+
+    link.appendChild(caixa);
+    link.appendChild(nome);
+    link.appendChild(arroba);
+    item.appendChild(link);
+    elBuscaPessoasLista.appendChild(item);
+  });
+
+  elBuscaPessoas.classList.remove('hidden');
+}
+
+async function buscarPessoas(termo) {
+  // O servidor exige ao menos 2 letras; nem vale a pena pedir.
+  if (!termo || termo.trim().length < 2) { esconderResultadosDePessoas(); return; }
+  try {
+    const resposta = await fetch(`http://localhost:3000/api/perfil/buscar?q=${encodeURIComponent(termo.trim())}`);
+    if (!resposta.ok) { esconderResultadosDePessoas(); return; }
+    const dados = await resposta.json();
+    renderizarPessoas(dados.pessoas);
+  } catch (erro) {
+    console.error('Erro ao buscar perfis:', erro);
+    esconderResultadosDePessoas();
+  }
+}
 
 if (formBusca) {
   formBusca.addEventListener('submit', async (event) => {
     event.preventDefault(); // intercepta — sem isso ele navegaria pro action do form
     const termo = campoBusca ? campoBusca.value.trim() : '';
-    if (termo) executarBusca(termo);
+    if (!termo) return;
+    // As duas buscas saem juntas; a faixa de pessoas esconde sozinha se
+    // não houver ninguém com aquele @ ou nome.
+    buscarPessoas(termo);
+    executarBusca(termo);
   });
 }
 
@@ -1608,14 +1470,28 @@ function iniciaisArtista(nome) {
   return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
 }
 
+// Formata só o número (600.959), sem o texto "reproduções". O rótulo fica
+// em um <span> separado pra o CSS poder mostrar ou esconder por estado.
+function formatarNumeroBR(quantidade) {
+  const numero = Number(quantidade);
+  if (!Number.isFinite(numero)) return '0';
+  return numero.toLocaleString('pt-BR');
+}
+
 function criarItemArtista(artista, posicao) {
   const item = document.createElement('div');
-  item.className = 'artista-item';
+  // Do 4º em diante o card fica compacto (definido no CSS).
+  item.className = posicao > 3 ? 'artista-item artista-item--compacto' : 'artista-item';
 
   const numero = document.createElement('span');
   numero.className = 'artista-posicao';
-  numero.textContent = `${posicao}`;
+  numero.textContent = `${posicao}º`;
 
+  // Card que agrupa avatar + informações (o número fica fora, à esquerda).
+  const card = document.createElement('div');
+  card.className = 'artista-card';
+
+  // Fallback de iniciais mantido.
   const avatar = document.createElement('span');
   avatar.className = 'artista-avatar';
   avatar.textContent = iniciaisArtista(artista.artista);
@@ -1623,20 +1499,52 @@ function criarItemArtista(artista, posicao) {
   const info = document.createElement('div');
   info.className = 'artista-info';
 
+  // O nome do artista abre o perfil público dele. A rota aceita @ ou id;
+  // aqui o endpoint já devolve o @, que é o identificador "de verdade".
   const nome = document.createElement('p');
   nome.className = 'artista-nome';
-  nome.textContent = artista.artista || 'Artista sem nome';
+  if (artista.nome_usuario && window.OS && typeof OS.linkPerfil === 'function') {
+    nome.appendChild(OS.linkPerfil({
+      identificador: artista.nome_usuario,
+      texto: artista.artista || 'Artista sem nome',
+      descricao: `Ver o perfil de ${artista.artista}`
+    }));
+  } else {
+    nome.textContent = artista.artista || 'Artista sem nome';
+  }
+  nome.title = nome.textContent;
+
+  info.appendChild(nome);
+
+  // Informação secundária real: quantidade de músicas do artista.
+  const totalMusicas = Number(artista.musicas);
+  if (Number.isFinite(totalMusicas)) {
+    const detalhe = document.createElement('p');
+    detalhe.className = 'artista-detalhe';
+    detalhe.textContent = `${totalMusicas} ${totalMusicas === 1 ? 'música' : 'músicas'}`;
+    info.appendChild(detalhe);
+  }
 
   const reproducoes = document.createElement('p');
   reproducoes.className = 'artista-reproducoes';
-  reproducoes.textContent = formatarReproducoes(artista.reproducoes);
 
-  info.appendChild(nome);
+  const valor = document.createElement('span');
+  valor.className = 'artista-reproducoes-valor';
+  valor.textContent = formatarNumeroBR(artista.reproducoes);
+
+  const rotulo = document.createElement('span');
+  rotulo.className = 'artista-reproducoes-rotulo';
+  rotulo.textContent = Number(artista.reproducoes) === 1 ? 'Reprodução' : 'Reproduções';
+
+  reproducoes.appendChild(valor);
+  reproducoes.appendChild(rotulo);
   info.appendChild(reproducoes);
 
+  card.appendChild(avatar);
+  card.appendChild(info);
+
   item.appendChild(numero);
-  item.appendChild(avatar);
-  item.appendChild(info);
+  item.appendChild(card);
 
   return item;
 }
@@ -1685,6 +1593,8 @@ const btnInicio = document.getElementById('btn-inicio');
 if (btnInicio) {
   btnInicio.addEventListener('click', () => {
     if (campoBusca) campoBusca.value = '';
+    // A faixa de pessoas é resultado de busca: sai junto com o campo.
+    if (typeof esconderResultadosDePessoas === 'function') esconderResultadosDePessoas();
     // Só o carrossel: o ranking de artistas não depende da busca e não
     // precisa ser recarregado aqui.
     carregarMusicasMaisTocadas();
@@ -1817,6 +1727,15 @@ const previewTitulo = document.getElementById('preview-upload-titulo');
 const previewArtista = document.getElementById('preview-upload-artista');
 const previewAudio = document.getElementById('preview-upload-audio');
 
+// Nome do arquivo escolhido escrito dentro do cartão do botão, pra quem
+// está vendo o modal saber o que já escolheu sem precisar olhar o
+// preview da esquerda.
+const nomeArquivoAudio = document.getElementById('upload-audio-nome');
+const nomeArquivoCapa = document.getElementById('upload-capa-nome');
+
+const ROTULO_AUDIO_PADRAO = 'MP3, WAV ou OGG';
+const ROTULO_CAPA_PADRAO = 'Opcional · JPG, PNG ou WEBP';
+
 let urlObjetoCapaAtual = null;
 
 function resetarPreviewUpload() {
@@ -1834,6 +1753,8 @@ function resetarPreviewUpload() {
   // o nome já carregado por abrirModalUpload().
   if (previewArtista && nomeArtistaAtual) previewArtista.textContent = nomeArtistaAtual;
   if (previewAudio) previewAudio.textContent = 'Nenhum áudio selecionado';
+  if (nomeArquivoAudio) nomeArquivoAudio.textContent = ROTULO_AUDIO_PADRAO;
+  if (nomeArquivoCapa) nomeArquivoCapa.textContent = ROTULO_CAPA_PADRAO;
 }
 
 if (campoTitulo && previewTitulo) {
@@ -1847,6 +1768,7 @@ if (campoAudio && previewAudio) {
   campoAudio.addEventListener('change', () => {
     const arquivo = campoAudio.files[0];
     previewAudio.textContent = arquivo ? `🎵 ${arquivo.name}` : 'Nenhum áudio selecionado';
+    if (nomeArquivoAudio) nomeArquivoAudio.textContent = arquivo ? arquivo.name : ROTULO_AUDIO_PADRAO;
   });
 }
 
@@ -1864,10 +1786,12 @@ if (campoCapa && previewCapa && previewCapaVazio) {
       previewCapa.src = urlObjetoCapaAtual;
       previewCapa.classList.remove('hidden');
       previewCapaVazio.classList.add('hidden');
+      if (nomeArquivoCapa) nomeArquivoCapa.textContent = arquivo.name;
     } else {
       previewCapa.src = '';
       previewCapa.classList.add('hidden');
       previewCapaVazio.classList.remove('hidden');
+      if (nomeArquivoCapa) nomeArquivoCapa.textContent = ROTULO_CAPA_PADRAO;
     }
   });
 }

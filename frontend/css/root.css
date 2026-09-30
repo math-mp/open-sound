@@ -71,6 +71,24 @@ body {
 
 
 /* =========================================================
+   SELEÇÃO DE TEXTO
+
+   Habilitada em toda a interface, inclusive dentro dos campos de
+   digitação (input/textarea), onde o texto precisa poder ser
+   selecionado para copiar um código ou uma frase.
+   ========================================================= */
+
+body,
+input,
+textarea {
+    -webkit-user-select: auto;
+    -moz-user-select: auto;
+    -ms-user-select: auto;
+    user-select: none;
+}
+
+
+/* =========================================================
    ELEMENTOS DE FORMULÁRIO
    ========================================================= */
 
