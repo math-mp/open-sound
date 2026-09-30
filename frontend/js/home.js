@@ -160,6 +160,7 @@ const formUpload = document.getElementById('form-upload');
 const btnUpload = document.getElementById('btn-upload');
 const listaMusicas = document.getElementById('lista-musicas');
 const listaArtistas = document.getElementById('lista-artistas');
+const listaNovasMusicas = document.getElementById('lista-novas-musicas');
 
 // Elementos do Modal de Cadastro de Artista
 const modalArtista = document.getElementById('modal-artista');
@@ -1315,6 +1316,7 @@ async function carregarMusicasMaisTocadas() {
 // já trouxer.
 carregarMusicasMaisTocadas();
 carregarArtistasMaisOuvidos();
+carregarNovasMusicas();
 
 // ============================================================
 // BUSCA INLINE (mesma página — não navega, pra não matar o áudio tocando)
@@ -1491,10 +1493,21 @@ function criarItemArtista(artista, posicao) {
   const card = document.createElement('div');
   card.className = 'artista-card';
 
-  // Fallback de iniciais mantido.
-  const avatar = document.createElement('span');
-  avatar.className = 'artista-avatar';
-  avatar.textContent = iniciaisArtista(artista.artista);
+  // Foto real quando o artista tem avatar enviado. Sem foto, continua
+  // valendo o fallback de iniciais que já existia aqui — nenhum caminho
+  // inventa imagem.
+  let avatar;
+  if (artista.avatar_url) {
+    avatar = document.createElement('img');
+    avatar.className = 'artista-avatar';
+    avatar.src = artista.avatar_url;
+    avatar.alt = `Foto de ${artista.artista || 'artista'}`;
+    avatar.loading = 'lazy';
+  } else {
+    avatar = document.createElement('span');
+    avatar.className = 'artista-avatar';
+    avatar.textContent = iniciaisArtista(artista.artista);
+  }
 
   const info = document.createElement('div');
   info.className = 'artista-info';
@@ -1583,6 +1596,131 @@ async function carregarArtistasMaisOuvidos() {
   } catch (erro) {
     console.error('Erro ao carregar os artistas mais ouvidos:', erro);
     mostrarMensagemArtistas('Erro de conexão ao carregar os artistas.');
+  }
+}
+
+// ============================================================
+// "DESCUBRA NOVAS MÚSICAS"
+// ============================================================
+// Lista vertical com as músicas mais recém-enviadas. Os dados vêm do
+// catálogo geral (GET /api/musicas), que já vem ordenado por criado_em
+// DESC — a mesma ordem dos outros painéis da home.
+//
+// Não há DURAÇÃO no schema de `musicas` (só id, titulo, artista,
+// url_audio, url_capa, usuario_id, criado_em e reproducoes), então a
+// coluna de duração não é desenhada. Para exibi-la futuramente é
+// preciso gravar a duração no upload (campo novo em `musicas`) e
+// devolvê-la no GET /api/musicas.
+
+// A home mostra 10 itens por painel (o carrossel e o ranking de artistas
+// também mostram 10); a lista rola internamente quando tem mais.
+const LIMITE_NOVAS_MUSICAS = 10;
+
+function mostrarMensagemNovasMusicas(mensagem) {
+  if (!listaNovasMusicas) return;
+  listaNovasMusicas.innerHTML = '';
+  const paragrafo = document.createElement('p');
+  paragrafo.className = 'mensagem-lista';
+  paragrafo.textContent = mensagem;
+  listaNovasMusicas.appendChild(paragrafo);
+}
+
+function criarItemNovaMusica(musica) {
+  const item = document.createElement('div');
+  item.className = 'nm-item';
+
+  // Capa real quando existe; sem capa, o mesmo quadradinho com 🎵 que o
+  // resto do projeto já usa (minhas-musicas.js / biblioteca.js).
+  if (musica.url_capa) {
+    const capa = document.createElement('img');
+    capa.className = 'nm-capa';
+    capa.src = musica.url_capa;
+    capa.alt = `Capa de ${musica.titulo || ''}`.trim();
+    capa.loading = 'lazy';
+    item.appendChild(capa);
+  } else {
+    const capaVazia = document.createElement('div');
+    capaVazia.className = 'nm-capa nm-capa-vazia';
+    capaVazia.textContent = '🎵';
+    item.appendChild(capaVazia);
+  }
+
+  const info = document.createElement('div');
+  info.className = 'nm-info';
+
+  const titulo = document.createElement('p');
+  titulo.className = 'nm-titulo';
+  titulo.textContent = musica.titulo || 'Música sem título';
+  titulo.title = musica.titulo || '';
+
+  const artista = document.createElement('p');
+  artista.className = 'nm-artista';
+  artista.textContent = musica.artista || 'Artista desconhecido';
+
+  info.appendChild(titulo);
+  info.appendChild(artista);
+
+  const acoes = document.createElement('div');
+  acoes.className = 'nm-acoes';
+
+  // Coração: mesma classe que o favoritos.js já repinta
+  // (.btn-favoritar-destaque) e a mesma função de favoritar — nenhum
+  // estado de favorito novo é criado aqui.
+  const btnFavoritar = criarBotaoIcone('btn-favoritar-destaque', '♡', 'Favoritar');
+  btnFavoritar.dataset.musicaId = musica.id;
+  pintarCoracao(btnFavoritar, favoritosAtuais().has(Number(musica.id)));
+  btnFavoritar.addEventListener('click', () => alternarFavorito(musica));
+
+  // Botão de tocar: é o mesmo .btn-play e a mesma tocarMusica() do
+  // carrossel — ou seja, o player global continua sendo o único dono do
+  // áudio. O rótulo "Tocar/Pausar" é trocado pelo próprio player.
+  const btnPlay = document.createElement('button');
+  btnPlay.type = 'button';
+  btnPlay.className = 'btn-play';
+  btnPlay.textContent = '▶ Tocar';
+  btnPlay.addEventListener('click', () => {
+    if (!estaLogado()) {
+      alert('Faça login para tocar as músicas.');
+      if (modalLogin) modalLogin.classList.remove('hidden');
+      return;
+    }
+    tocarMusica(musica, btnPlay);
+  });
+
+  acoes.appendChild(btnFavoritar);
+  acoes.appendChild(btnPlay);
+
+  item.appendChild(info);
+  item.appendChild(acoes);
+
+  return item;
+}
+
+async function carregarNovasMusicas() {
+  if (!listaNovasMusicas) return;
+
+  try {
+    const resposta = await fetch('http://localhost:3000/api/musicas');
+    const dados = await resposta.json();
+
+    if (!resposta.ok) {
+      mostrarMensagemNovasMusicas(dados.mensagem || 'Não foi possível carregar as músicas.');
+      return;
+    }
+
+    if (!dados.musicas || dados.musicas.length === 0) {
+      mostrarMensagemNovasMusicas('Não há músicas disponíveis no momento.');
+      return;
+    }
+
+    listaNovasMusicas.innerHTML = '';
+    dados.musicas.slice(0, LIMITE_NOVAS_MUSICAS).forEach((musica) => {
+      listaNovasMusicas.appendChild(criarItemNovaMusica(musica));
+    });
+
+  } catch (erro) {
+    console.error('Erro ao carregar as novas músicas:', erro);
+    mostrarMensagemNovasMusicas('Erro de conexão ao carregar as músicas.');
   }
 }
 
@@ -1834,6 +1972,9 @@ if (formUpload) {
         formUpload.reset();
         resetarPreviewUpload();
         carregarMusicas();
+        // A música recién-enviada é a mais nova, então o painel de
+        // descoberta também precisa se atualizar.
+        carregarNovasMusicas();
       } else {
         alert(dados.mensagem || 'Não foi possível enviar a música.');
       }

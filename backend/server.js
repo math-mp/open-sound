@@ -1136,6 +1136,7 @@ app.get('/api/artistas/mais-ouvidos', async (req, res) => {
       `SELECT u.id AS usuario_id,
               u.nome_usuario,
               u.nome_artista AS artista,
+              u.url_avatar AS avatar_url,
               COUNT(m.id)::int AS musicas,
               COALESCE(SUM(m.reproducoes), 0)::int AS reproducoes
          FROM usuarios u
@@ -1143,7 +1144,7 @@ app.get('/api/artistas/mais-ouvidos', async (req, res) => {
         WHERE u.eh_artista = TRUE
           AND u.nome_artista IS NOT NULL
           AND u.nome_artista <> ''
-        GROUP BY u.id, u.nome_usuario, u.nome_artista
+        GROUP BY u.id, u.nome_usuario, u.nome_artista, u.url_avatar
         ORDER BY reproducoes DESC, u.nome_artista ASC
         LIMIT 10`
     );

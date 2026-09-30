@@ -168,6 +168,11 @@ body,
 .genres::before,
 .genres::after,
 .lista-musicas,
+.lista-novas-musicas,
+.nm-item,
+.nm-capa,
+.nm-titulo,
+.nm-artista,
 .conteudo-modal,
 .conteudo-modal input,
 .player-barra,
@@ -453,6 +458,15 @@ body,
     align-items: stretch;
 }
 
+/* Telas estreitas: os dois painéis de baixo viram uma coluna, senão
+   cada um fica espremido demais. Mesmo breakpoint das outras colunas
+   da home. */
+@media (max-width: 640px) {
+    .double-div {
+        flex-direction: column;
+    }
+}
+
 
 /* =========================================================
    ARTISTAS
@@ -566,7 +580,8 @@ body,
   transform: translateY(-2px);
 }
 
-/* Avatar de iniciais (fallback mantido) */
+/* Avatar: <img> quando o artista tem foto enviada, <span> com as iniciais
+   quando não tem. O mesmo bloco serve pros dois casos. */
 .artista-avatar {
   display: flex;
   align-items: center;
@@ -582,6 +597,8 @@ body,
 
   font-size: clamp(1.1rem, 5.5cqw, 2.6rem);
   font-weight: 800;
+
+  object-fit: cover;
 }
 
 .artista-info {
@@ -706,7 +723,136 @@ body,
     min-width: 0;
 
     padding: 46px 18px 34px;
+
+    /* Mesma ideia do .artists: deixa a lista de baixo escalar pela
+       largura do painel (unidade cqw). */
+    container-type: inline-size;
 }
+
+/* =========================================================
+   "DESCUBRA NOVAS MÚSICAS"
+   Lista vertical: capa, título, artista e os botões de
+   favoritar/tocar. As cores saem das mesmas variáveis do resto
+   da home — nada de cor nova.
+   ========================================================= */
+
+.lista-novas-musicas {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(4px, 1.4cqw, 12px);
+
+  width: 100%;
+  /* Mesma altura do ranking de artistas, pra os dois painéis de baixo
+     terminarem na mesma linha. */
+  height: clamp(380px, 100cqw, 860px);
+  padding-right: 8px;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  scrollbar-width: thin;
+  scrollbar-color: var(--aba-generos) transparent;
+}
+
+.lista-novas-musicas::-webkit-scrollbar {
+  width: 6px;
+}
+
+.lista-novas-musicas::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.lista-novas-musicas::-webkit-scrollbar-thumb {
+  background: var(--aba-generos);
+  border-radius: 999px;
+}
+
+.lista-novas-musicas::-webkit-scrollbar-thumb:hover {
+  background: var(--cor-secundaria);
+}
+
+.lista-novas-musicas .mensagem-lista {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.nm-item {
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 3cqw, 16px);
+
+  min-width: 0;
+  padding: clamp(5px, 1.6cqw, 10px) clamp(6px, 2cqw, 12px);
+
+  border-radius: var(--raio-pequeno);
+  border-left: clamp(3px, 0.8cqw, 6px) solid transparent;
+
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.nm-item:hover {
+  background: var(--cor-superficie-hover);
+  border-left-color: var(--aba-generos);
+}
+
+/* Capa da música: <img> quando existe, quadradinho com 🎵 quando não. */
+.nm-capa {
+  width: clamp(40px, 14cqw, 64px);
+  height: clamp(40px, 14cqw, 64px);
+  flex-shrink: 0;
+
+  border-radius: var(--raio-pequeno);
+  object-fit: cover;
+}
+
+/* Mesmo fallback visual do .capa-vazia que o resto do projeto usa. */
+.nm-capa.nm-capa-vazia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: var(--cor-superficie-clara);
+  color: var(--cor-texto-fraco);
+
+  font-size: clamp(0.95rem, 3.4cqw, 1.35rem);
+}
+
+.nm-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  min-width: 0;
+  flex-grow: 1;
+}
+
+.nm-titulo {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--cor-texto);
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nm-artista {
+  font-size: 0.78rem;
+  color: var(--cor-texto-secundario);
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nm-acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  flex-shrink: 0;
+}
+
 
 /*===modal register css====*/
 
