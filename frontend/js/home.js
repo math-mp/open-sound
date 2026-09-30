@@ -2,9 +2,29 @@
 // TEMA CLARO / ESCURO (salvo no localStorage e sincronizado com backend)
 // ============================================================
 const btnTema = document.getElementById('btn-tema');
-const CHAVE_TEMA = 'opensound_tema';
 const API_BASE = 'http://localhost:3000';
 const CHAVE_SESSAO = 'tokenSessao';
+
+// O sessao.js entra sem `defer` no <head> e define window.OS. Se ele
+// não vier (404, cache velho, aberto direto do disco), esta versão sem
+// cache evita que o arquivo inteiro abafe aqui e leve junto os modais,
+// o upload, os favoritos e a criação de playlist.
+if (!window.OS) {
+  window.OS = {
+    IDADE_MAXIMA_CACHE: 0,
+    perfilCacheado: () => null,
+    revalidar: () => Promise.resolve(null),
+    aoEntrar: () => Promise.resolve(null),
+    aoTrocarAvatar: () => {},
+    invalidar: () => {},
+    limparCache: () => {},
+    pintarTodos: () => {},
+    aplicarTema: (tema) => {
+      if (tema === 'light') document.documentElement.dataset.theme = 'light';
+      else delete document.documentElement.dataset.theme;
+    }
+  };
+}
 
 function obterTokenSessao() {
   return localStorage.getItem(CHAVE_SESSAO);
@@ -14,6 +34,18 @@ function estaLogado() {
   return !!obterTokenSessao();
 }
 
+// Token rejeitado, logout em outra aba ou revalidação que tomou 401:
+// em todos esses casos a navbar precisa voltar ao estado de visitante
+// no mesmo instante. Passar por aqui (e não só pela classe `hidden`)
+// é o que mantém o atributo data-sessao do <html> em sincronia.
+function encerrarSessaoLocal() {
+  localStorage.removeItem(CHAVE_SESSAO);
+  if (window.OS) OS.limparCache();
+  atualizarUIAutenticacao();
+}
+
+document.addEventListener('opensound:sessao-invalida', encerrarSessaoLocal);
+
 async function fetchComAutenticacao(url, opcoes = {}) {
   const token = obterTokenSessao();
   const headers = { ...(opcoes.headers || {}), Authorization: `Bearer ${token}` };
@@ -21,8 +53,7 @@ async function fetchComAutenticacao(url, opcoes = {}) {
   const resposta = await fetch(url, { ...opcoes, headers });
 
   if (resposta.status === 401) {
-    localStorage.removeItem(CHAVE_SESSAO);
-    atualizarUIAutenticacao();
+    encerrarSessaoLocal();
     alert('Sua sessão expirou. Faça login novamente.');
   }
 
@@ -30,33 +61,18 @@ async function fetchComAutenticacao(url, opcoes = {}) {
 }
 
 function aplicarTema(tema) {
-  if (tema === 'light') {
-    document.documentElement.setAttribute('data-theme', 'light');
-  } else {
-    document.documentElement.removeAttribute('data-theme');
-  }
+  // Quem decide as cores é o theme.css; o atributo no <html> e o
+  // localStorage são centralizados no sessao.js (que já aplicou o
+  // tema salvo antes do primeiro paint, no <head>).
+  OS.aplicarTema(tema);
   if (btnTema) btnTema.textContent = tema === 'light' ? '🌙' : '☀️';
 }
 
-// Aplica tema do localStorage imediatamente (evita flash)
-aplicarTema(localStorage.getItem(CHAVE_TEMA) || 'dark');
-
-async function carregarTemaDoBackend() {
-  if (!estaLogado()) return;
-  try {
-    const resposta = await fetchComAutenticacao(`${API_BASE}/api/perfil`);
-    if (resposta.ok) {
-      const { perfil } = await resposta.json();
-      if (perfil?.usuario?.tema) {
-        const tema = perfil.usuario.tema;
-        localStorage.setItem(CHAVE_TEMA, tema);
-        aplicarTema(tema);
-      }
-    }
-  } catch (erro) {
-    console.error('Erro ao carregar tema do backend:', erro);
-  }
-}
+// O botão da navbar acompanha o tema de qualquer origem (clique aqui,
+// troca em outra aba ou revalidação do perfil) sem duplicar regra.
+document.addEventListener('opensound:tema', (evento) => {
+  if (btnTema && evento.detail) btnTema.textContent = evento.detail.tema === 'light' ? '🌙' : '☀️';
+});
 
 async function salvarTemaNoBackend(tema) {
   if (!estaLogado()) return;
@@ -73,12 +89,14 @@ async function salvarTemaNoBackend(tema) {
 
 if (btnTema) {
   btnTema.addEventListener('click', async () => {
-    const temaAtual = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
-    const novoTema = temaAtual === 'light' ? 'dark' : 'light';
-    localStorage.setItem(CHAVE_TEMA, novoTema);
+    const novoTema = temaAtual() === 'light' ? 'dark' : 'light';
     aplicarTema(novoTema);
     await salvarTemaNoBackend(novoTema);
   });
+}
+
+function temaAtual() {
+  return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
 }
 
 // === ELEMENTOS DO DOM ===
@@ -133,7 +151,6 @@ const formLogin = document.getElementById('form-login');
 const btnEntrar = document.getElementById('btn-entrar');
 const btnSair = document.getElementById('btn-sair');
 const btnPerfilAvatar = document.getElementById('btn-perfil-avatar');
-const perfilAvatarImg = document.getElementById('perfil-avatar-navbar');
 const linkSairDropdown = document.getElementById('link-sair-dropdown');
 
 // Elementos do Modal de Upload e do Container Universal de Músicas
@@ -463,10 +480,6 @@ function atualizarUIAutenticacao() {
   if (btnRegister) btnRegister.classList.toggle('hidden', logado);
   if (btnPerfilAvatar) btnPerfilAvatar.classList.toggle('hidden', !logado);
   if (linkSairDropdown) linkSairDropdown.classList.toggle('hidden', !logado);
-  
-  if (logado) {
-    carregarAvatarPerfil();
-  }
 }
 
 if (btnEntrar && modalLogin) {
@@ -509,7 +522,9 @@ if (formLogin) {
         atualizarUIAutenticacao();
 
         carregarFavoritos();
-        carregarTemaDoBackend();  // Carrega tema salvo no perfil
+        // Traz tema/avatar/nome do banco em UM request só. O que já
+        // estava em cache (pintado antes do paint) aparece na hora.
+        OS.aoEntrar();
 
         if (modalLogin) modalLogin.classList.add('hidden');
         formLogin.reset();
@@ -546,6 +561,7 @@ if (btnSair) {
     if (!confirmou) return;
 
     localStorage.removeItem(CHAVE_SESSAO);
+    OS.limparCache();
     atualizarUIAutenticacao();
     idsFavoritos.clear();        // <- ADICIONAR
     atualizarTodosCoracoes();    // <- ADICIONAR
@@ -560,6 +576,7 @@ if (linkSairDropdown) {
     if (!confirmou) return;
 
     localStorage.removeItem(CHAVE_SESSAO);
+    OS.limparCache();
     atualizarUIAutenticacao();
     idsFavoritos.clear();
     atualizarTodosCoracoes();
@@ -573,28 +590,20 @@ if (btnPerfilAvatar) {
   });
 }
 
-// Estado inicial da navbar ao carregar a página
+// Estado inicial da navbar ao carregar a página. Avatar, nome e tema
+// já foram pintados pelo sessao.js antes do paint; aqui só validamos
+// com o servidor (um único GET /api/perfil, compartilhado).
 atualizarUIAutenticacao();
-if (estaLogado()) carregarTemaDoBackend();
+if (estaLogado()) OS.revalidar();
 
 // ============================================================
-// CARREGAR AVATAR DO PERFIL NA NAVBAR
+// AVATAR / NOME / TEMA DA NAVBAR
 // ============================================================
-async function carregarAvatarPerfil() {
-  if (!estaLogado() || !perfilAvatarImg) return;
-  
-  try {
-    const resposta = await fetchComAutenticacao(`${API_BASE}/api/perfil`);
-    if (resposta.ok) {
-      const { perfil } = await resposta.json();
-      const urlAvatar = perfil.usuario?.avatar_url || '../assets/avatar-padrao.png';
-      perfilAvatarImg.src = urlAvatar;
-    }
-  } catch (erro) {
-    console.error('Erro ao carregar avatar do perfil:', erro);
-    perfilAvatarImg.src = '../assets/avatar-padrao.png';
-  }
-}
+// Não busca mais nada aqui: quem resolve é o sessao.js, que pinta o
+// avatar e o nome a partir do cache local (antes do paint) e revalida
+// em segundo plano. O que sobrou da implementação antiga
+// (carregarAvatarPerfil / carregarTemaDoBackend) foram removidos
+// porque disparavam um GET /api/perfil duplicado a cada carregamento.
 
 // ============================================================
 // MODAL DE LOGIN — MELHORIAS (olho, links, toggle modais)

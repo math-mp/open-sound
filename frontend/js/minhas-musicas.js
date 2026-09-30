@@ -28,6 +28,7 @@ async function fetchComAutenticacao(url, opcoes = {}) {
 
   if (resposta.status === 401) {
     localStorage.removeItem(CHAVE_SESSAO);
+    if (window.OS) OS.limparCache();
     alert('Sua sessão expirou. Faça login novamente.');
     window.location.href = 'home.html';
   }

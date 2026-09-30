@@ -22,20 +22,34 @@ function estaLogado() {
     return !!obterTokenSessao();
 }
 
+// Token rejeitado, logout em outra aba ou revalidação que tomou 401:
+// o perfil deixa de ter dono e volta para a tela de login, em vez de
+// continuar exibindo o cache de 7 dias como se fosse válido.
+function encerrarSessaoLocal() {
+    localStorage.removeItem(CHAVE_SESSAO);
+    if (window.OS) OS.limparCache();
+    mostrarBloqueado();
+}
+
+document.addEventListener('opensound:sessao-invalida', encerrarSessaoLocal);
+
 async function fetchComAutenticacao(url, opcoes = {}) {
     const token = obterTokenSessao();
     const headers = { ...(opcoes.headers || {}), Authorization: `Bearer ${token}` };
     const resposta = await fetch(url, { ...opcoes, headers });
     if (resposta.status === 401) {
-        localStorage.removeItem(CHAVE_SESSAO);
-        mostrarBloqueado();
+        encerrarSessaoLocal();
     }
     return resposta;
 }
 
 // ================================================================
-// CACHE curto de GET /api/perfil e GET /api/musicas
+// CACHE curto de GET /api/musicas
 // ================================================================
+// O perfil (avatar, nome, tema, bio, favorita, playlists) NÃO usa mais
+// um cache próprio: quem cuida disso agora é o sessao.js, compartilhado
+// com as outras páginas e pintado antes do primeiro paint. Aqui sobra
+// só o cache do catálogo público de músicas.
 
 function montarChaveCache(tipo) {
     return `opensound_cache_${tipo}_${(obterTokenSessao() || 'sem-sessao').slice(-12)}`;
@@ -55,10 +69,6 @@ function salvarNoCache(chave, dados) {
     localStorage.setItem(chave, JSON.stringify({ dados, salvoEm: Date.now() }));
 }
 
-function invalidarCachePerfil() {
-    localStorage.removeItem(montarChaveCache('perfil'));
-}
-
 // ================================================================
 // ELEMENTOS DO DOM
 // ================================================================
@@ -71,10 +81,8 @@ const elNome = document.getElementById('perfil-nome');
 const elUsuario = document.getElementById('perfil-usuario');
 const elBioExibicao = document.getElementById('perfil-bio');
 const elEstatisticas = document.getElementById('perfil-estatisticas');
-const elAvatar = document.getElementById('perfil-avatar');
 
 // Janela 2 — Configurações
-const elConfigAvatarPreview = document.getElementById('config-avatar-preview');
 const elConfigAvatarInput = document.getElementById('config-avatar-input');
 const elConfigAvatarEnviar = document.getElementById('config-avatar-enviar');
 const elConfigAvatarRemover = document.getElementById('config-avatar-remover');
@@ -121,6 +129,10 @@ function exibirMensagemLista(elemento, mensagem) {
 // GET /api/perfil — identidade, favorita, playlists e estatísticas.
 // A mesma resposta alimenta a janela Perfil (exibição) e a janela
 // Configurações (valores iniciais dos campos editáveis).
+//
+// O dado vem de OS.revalidar(), que já tem o cache pintado antes do
+// paint e faz UMA requisição compartilhada no servidor (a home usa a
+// mesma rota, então as duas páginas nunca correm em paralelo).
 // ================================================================
 
 function renderizarPerfil(perfil) {
@@ -139,9 +151,9 @@ function renderizarPerfil(perfil) {
     
     elBioExibicao.textContent = usuario.bio || '';
 
-    const urlAvatar = usuario.avatar_url || '../assets/avatar-padrao.png';
-    elAvatar.src = urlAvatar;
-    elConfigAvatarPreview.src = urlAvatar;
+    // Avatar e nome não são mais escritos aqui: quem pinta (e quem
+    // guarda em cache) é o sessao.js, no mesmo formato das outras
+    // páginas. Só o botão "Remover" depende do que veio do servidor.
     elConfigAvatarRemover.classList.toggle('hidden', !usuario.avatar_url);
 
     elEstatisticas.textContent = usuario.eh_artista
@@ -162,24 +174,36 @@ function renderizarPerfil(perfil) {
     renderizarPlaylists(playlists);
 }
 
-async function carregarPerfil({ usarCache = true } = {}) {
-    const chave = montarChaveCache('perfil');
-    if (usarCache) {
-        const emCache = obterDoCache(chave, 20 * 1000);
-        if (emCache !== null) { renderizarPerfil(emCache); return; }
+// O cache do sessao.js é opcional: sem ele (módulo não carregado) a
+// página volta a buscar tudo direto do backend, como sempre fez.
+const perfilDoCache = () => (window.OS ? OS.perfilCacheado() : null);
+const perfilAntigo = () => (window.OS ? OS.perfilCacheado(OS.IDADE_MAXIMA_CACHE) : null);
+
+function carregarPerfil({ forcar = false } = {}) {
+    if (!forcar) {
+        const emCache = perfilDoCache();
+        if (emCache) { renderizarPerfil(emCache); return Promise.resolve(); }
     }
 
-    try {
-        const resposta = await fetchComAutenticacao(`${API_BASE}/api/perfil`);
-        if (resposta.status === 401) return;
-        if (!resposta.ok) throw new Error('Falha ao carregar perfil.');
-        const { perfil } = await resposta.json();
-        renderizarPerfil(perfil);
-        salvarNoCache(chave, perfil);
-    } catch (erro) {
-        elNome.textContent = 'Não foi possível carregar o perfil';
-        console.error('Erro ao carregar perfil:', erro);
+    if (!window.OS) {
+        return fetchComAutenticacao(`${API_BASE}/api/perfil`).then((resposta) => {
+            if (!resposta.ok) { elNome.textContent = 'Não foi possível carregar o perfil'; return null; }
+            return resposta.json().then(({ perfil }) => { renderizarPerfil(perfil); return perfil; });
+        });
     }
+
+    return OS.revalidar({ forcar }).then((perfil) => {
+        if (perfil) { renderizarPerfil(perfil); return; }
+
+        // Revalidação falhou. Melhor exibir o último estado conhecido
+        // (ainda que velho) do que deixar o painel pela metade sem
+        // nenhuma indicação de que algo deu errado.
+        const velho = perfilAntigo();
+        if (velho) { renderizarPerfil(velho); return; }
+
+        elNome.textContent = 'Não foi possível carregar o perfil';
+        console.error('Não foi possível carregar o perfil.');
+    });
 }
 
 // ================================================================
@@ -212,7 +236,7 @@ elConfigBioForm.addEventListener('submit', async (evento) => {
 
         elConfigBioStatus.textContent = 'Biografia salva ✓';
         elBioExibicao.textContent = dados.bio || '';
-        invalidarCachePerfil();
+        if (window.OS) OS.invalidar();
     } catch (erro) {
         elConfigBioStatus.textContent = 'Erro de conexão ao salvar a bio.';
         console.error(erro);
@@ -247,11 +271,9 @@ elConfigAvatarInput.addEventListener('change', async () => {
             return;
         }
 
-        elConfigAvatarPreview.src = dados.avatar_url;
-        elAvatar.src = dados.avatar_url;
         elConfigAvatarRemover.classList.remove('hidden');
         elConfigAvatarStatus.textContent = 'Foto atualizada ✓';
-        invalidarCachePerfil();
+        if (window.OS) { OS.aoTrocarAvatar(dados.avatar_url); OS.invalidar(); }
     } catch (erro) {
         elConfigAvatarStatus.textContent = 'Erro de conexão ao enviar a foto.';
         console.error(erro);
@@ -266,11 +288,9 @@ elConfigAvatarRemover.addEventListener('click', async () => {
         const resposta = await fetchComAutenticacao(`${API_BASE}/api/perfil/avatar`, { method: 'DELETE' });
         if (!resposta.ok) { elConfigAvatarStatus.textContent = 'Não foi possível remover a foto.'; return; }
 
-        elConfigAvatarPreview.src = '../assets/avatar-padrao.png';
-        elAvatar.src = '../assets/avatar-padrao.png';
         elConfigAvatarRemover.classList.add('hidden');
         elConfigAvatarStatus.textContent = 'Foto removida.';
-        invalidarCachePerfil();
+        if (window.OS) { OS.aoTrocarAvatar(null); OS.invalidar(); }
     } catch (erro) {
         elConfigAvatarStatus.textContent = 'Erro de conexão ao remover a foto.';
         console.error(erro);
@@ -281,7 +301,6 @@ elConfigAvatarRemover.addEventListener('click', async () => {
 // TEMA CLARO/ESCURO — salvo no perfil do usuário (backend)
 // ================================================================
 
-const CHAVE_TEMA_LOCAL = 'opensound_tema';
 const elTemaBtn = document.getElementById('config-tema-btn');
 
 function temaAtual() {
@@ -293,13 +312,17 @@ function atualizarTextoBotaoTema() {
 }
 
 function aplicarTema(tema) {
-    if (tema === 'light') {
-        document.documentElement.dataset.theme = 'light';
-    } else {
-        delete document.documentElement.dataset.theme;
-    }
+    // O atributo no <html> e o localStorage são do sessao.js, que já
+    // aplicou o tema salvo antes do paint (inclusive nas outras páginas).
+    if (window.OS) OS.aplicarTema(tema);
+    else if (tema === 'light') document.documentElement.dataset.theme = 'light';
+    else delete document.documentElement.dataset.theme;
     atualizarTextoBotaoTema();
 }
+
+// O rótulo acompanha mudanças de origem externa (outra aba, home,
+// revalidação do perfil) sem duplicar a regra de apply.
+document.addEventListener('opensound:tema', atualizarTextoBotaoTema);
 
 async function salvarTemaNoBackend(tema) {
     try {
@@ -316,7 +339,6 @@ async function salvarTemaNoBackend(tema) {
 elTemaBtn.addEventListener('click', async () => {
     const novoTema = temaAtual() === 'light' ? 'dark' : 'light';
     aplicarTema(novoTema);
-    localStorage.setItem(CHAVE_TEMA_LOCAL, novoTema);
     await salvarTemaNoBackend(novoTema);
 });
 
@@ -412,7 +434,7 @@ async function definirFavorita(musica) {
 
         favoritaAtual = dados.favorita;
         elFavoritaSelecionada.textContent = favoritaAtual ? `Favorita: ${favoritaAtual.titulo}` : 'Nenhuma escolhida ainda.';
-        invalidarCachePerfil();
+        if (window.OS) OS.invalidar();
         renderizarResultadosFavorita(catalogoMusicas.filter((m) =>
             !elFavoritaFiltro.value.trim() ||
             m.titulo.toLowerCase().includes(elFavoritaFiltro.value.trim().toLowerCase()) ||
@@ -462,8 +484,8 @@ async function excluirPlaylist(id) {
     try {
         const resposta = await fetchComAutenticacao(`${API_BASE}/api/perfil/playlists/${id}`, { method: 'DELETE' });
         if (!resposta.ok) { alert('Não foi possível excluir a playlist.'); return; }
-        invalidarCachePerfil();
-        await carregarPerfil({ usarCache: false });
+        if (window.OS) OS.invalidar();
+        await carregarPerfil({ forcar: true });
     } catch (erro) {
         alert('Erro de conexão ao excluir a playlist.');
         console.error(erro);
@@ -477,11 +499,12 @@ async function excluirPlaylist(id) {
 document.addEventListener('DOMContentLoaded', () => {
     if (!estaLogado()) { mostrarBloqueado(); return; }
     mostrarConteudo();
-    
-    // Carrega tema do localStorage primeiro (rápido), depois sincroniza com backend
-    const temaLocal = localStorage.getItem(CHAVE_TEMA_LOCAL);
-    if (temaLocal) aplicarTema(temaLocal);
-    
+
+    // Avatar, nome e tema já entraram pintados a partir do cache
+    // (sessao.js, antes do paint). Falta só o texto do botão do tema
+    // e o resto do perfil, que vem do cache ou do servidor.
+    atualizarTextoBotaoTema();
+
     atualizarContadorBio();
     carregarPerfil();
     carregarCatalogo();
