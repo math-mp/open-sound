@@ -45,6 +45,7 @@
             <span id="titulo-playlist" class="titulo-navbar-config">Playlist</span>
         </div>
         <div class="nav-right">
+            <button class="btn-navbar hidden" id="btn-tocar-playlist">▶ Tocar</button>
             <button class="btn-navbar hidden" id="btn-excluir-playlist">Excluir playlist</button>
         </div>
     </nav>
@@ -55,6 +56,17 @@
             <div id="grade-musicas-playlist" class="grade-cards">
                 <p class="mensagem-lista">Carregando...</p>
             </div>
+
+            <!-- Busca pra somar mais músicas nesta playlist específica -->
+            <section class="busca-playlist" aria-label="Adicionar músicas à playlist">
+                <h3 class="busca-playlist-titulo">Adicionar músicas</h3>
+                <form id="form-busca-playlist" class="busca-playlist-form" autocomplete="off">
+                    <input type="search" id="campo-busca-playlist" class="busca-playlist-input"
+                        placeholder="busque por título ou artista..." maxlength="100">
+                    <button type="submit" id="btn-busca-playlist" class="btn-navbar">Buscar</button>
+                </form>
+                <div id="resultados-busca-playlist" class="busca-playlist-resultados hidden"></div>
+            </section>
         </div>
     </div>
 

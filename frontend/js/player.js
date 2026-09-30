@@ -9,9 +9,9 @@
 // faziam) — este arquivo só CHAMA essas funções dentro de listeners que só
 // disparam bem depois do carregamento, então elas já existem nesse ponto.
 //
-// A BARRA fica em todas as páginas. A LISTA da fila só é desenhada na home
-// (o painel #player-fila existe lá, e só lá). Mesmo escondida, a fila continua
-// sendo executa: ela vive no estado do player, não no DOM.
+// A BARRA e o PAINEL DA FILA ficam em todas as páginas. O player.js monta o
+// que faltar em cada HTML, então não é preciso repetir o mesmo markup uma vez
+// por página.
 const CHAVE_PLAYER = 'playerOpenSound';
 const CHAVE_FILA = 'playerFilaOpenSound';
 const API_PLAYER = 'http://localhost:3000/api/player';
@@ -27,16 +27,83 @@ const playerTempoTotal = document.getElementById('player-tempo-total');
 const playerSeek = document.getElementById('player-seek');
 const playerVolumeBtn = document.getElementById('player-volume-btn');
 const playerVolume = document.getElementById('player-volume');
-const playerFilaBtn = document.getElementById('player-fila-btn');
+// === FILA — interface ===
+// A barra do player é markup repetido em cada HTML. O painel da fila nasceu
+// só na home e por isso sumia em qualquer outra aba: dava pra tocar, mas não
+// dava pra ver nem mexer na fila. Em vez de copiar o mesmo HTML mais um vez
+// por página, o player.js monta o que estiver faltando — a fila passa a ser
+// tão universal quanto a barra. As variáveis começam nulas e só ganham valor
+// depois que a montagem acontece.
+let playerFilaBtn = null;
+let playerFilaPainel = null;
+let playerFilaLista = null;
+let playerFilaVazia = null;
+let playerFilaContagem = null;
+let playerFilaLimpar = null;
+let playerFilaFechar = null;
 
-// Painel da fila: SÓ existe na home. Nas outras páginas fica null e a fila
-// simplesmente continua tocando sem ser desenhada.
-const playerFilaPainel = document.getElementById('player-fila-painel');
-const playerFilaLista = document.getElementById('player-fila-lista');
-const playerFilaVazia = document.getElementById('player-fila-vazia');
-const playerFilaContagem = document.getElementById('player-fila-contagem');
-const playerFilaLimpar = document.getElementById('player-fila-limpar');
-const playerFilaFechar = document.getElementById('player-fila-fechar');
+function montarInterfaceFila() {
+  // Botão de abrir a fila: entra no grupo de botões de ícone (favoritar e
+  // "adicionar à playlist"), nunca dentro do bloco de volume — o #player-volume
+  // é o slider e o pai dele é a div .player-volume, então ancorar nele
+  // colocava o ☰ entre o 🔊 e o slider.
+  if (!playerFilaBtn) {
+    const botao = document.createElement('button');
+    botao.type = 'button';
+    botao.id = 'player-fila-btn';
+    botao.className = 'btn-icone player-fila-btn-abrir hidden';
+    botao.setAttribute('aria-label', 'Ver fila');
+    botao.title = 'Fila';
+    botao.textContent = '☰';
+
+    // Procura dentro da mesma barra do controle de volume, senão uma página
+    // com mais de uma barra (ou com as ids repetidas) ancora no lugar errado.
+    const barra = playerVolume ? playerVolume.closest('.player-barra') : null;
+    const addPlaylist = (barra || document).querySelector('#player-add-playlist');
+    const blocoVolume = playerVolume && playerVolume.closest('.player-volume');
+
+    if (addPlaylist && addPlaylist.parentNode) {
+      addPlaylist.parentNode.insertBefore(botao, addPlaylist.nextSibling);
+      playerFilaBtn = botao;
+    } else if (blocoVolume && blocoVolume.parentNode) {
+      blocoVolume.parentNode.insertBefore(botao, blocoVolume);
+      playerFilaBtn = botao;
+    } else if (playerBarra) {
+      playerBarra.appendChild(botao);
+      playerFilaBtn = botao;
+    }
+  }
+
+  if (playerFilaPainel || !document.body) return;
+
+  // Markup fixo, sem dado de usuário — por isso innerHTML em vez de node a node.
+  const painel = document.createElement('div');
+  painel.id = 'player-fila-painel';
+  painel.className = 'player-fila-painel hidden';
+  painel.innerHTML = `
+    <div class="player-fila-topo">
+      <h2 class="player-fila-titulo-h2">Na fila <span id="player-fila-contagem" class="player-fila-contagem">Fila vazia</span></h2>
+      <div class="player-fila-acoes">
+        <button id="player-fila-limpar" type="button" class="player-fila-btn">Limpar</button>
+        <button id="player-fila-fechar" type="button" class="player-fila-fechar" aria-label="Fechar fila">×</button>
+      </div>
+    </div>
+    <p class="player-fila-dica">Arraste para reordenar.</p>
+    <ul id="player-fila-lista" class="player-fila-lista"></ul>
+    <p id="player-fila-vazia" class="player-fila-vazia hidden">A fila está vazia. Use "＋" num card para adicionar músicas.</p>
+  `;
+  document.body.appendChild(painel);
+
+  playerFilaPainel = painel;
+  playerFilaLista = document.getElementById('player-fila-lista');
+  playerFilaVazia = document.getElementById('player-fila-vazia');
+  playerFilaContagem = document.getElementById('player-fila-contagem');
+  playerFilaLimpar = document.getElementById('player-fila-limpar');
+  playerFilaFechar = document.getElementById('player-fila-fechar');
+}
+
+// Este arquivo é defer, então o documento já está inteiro quando ele roda.
+montarInterfaceFila();
 
 const elementoAudio = new Audio();
 let botaoAudioAtual = null;
@@ -203,22 +270,28 @@ function atualizarBarraComMusicaAtual() {
   if (playerTitulo) playerTitulo.textContent = musicaNoPlayer.titulo;
   if (playerArtista) playerArtista.textContent = musicaNoPlayer.artista;
   mostrarBarra();
-  atualizarContadorFila();
+  // A música atual é desenhada no topo do painel da fila, então trocar de faixa
+  // muda a lista — não só a barra.
+  desenharFila();
   // Só existe no home.js (pinta o coração dos cards) — nas outras páginas
   // esse guard evita um ReferenceError.
   if (typeof atualizarTodosCoracoes === 'function') atualizarTodosCoracoes();
 }
 
 function atualizarContadorFila() {
+  // O painel conta a música que está tocando junto com as próximas: foi o
+  // que o usuário pediu pra ver ao tocar uma playlist inteira.
+  const total = fila.length + (musicaNoPlayer ? 1 : 0);
+
   if (playerFilaContagem) {
-    playerFilaContagem.textContent = fila.length > 0 ? `${fila.length} na fila` : 'Fila vazia';
+    playerFilaContagem.textContent = total > 0 ? `${total} na fila` : 'Fila vazia';
   }
   if (playerFilaBtn) {
-    playerFilaBtn.classList.toggle('hidden', !playerFilaPainel || fila.length === 0);
+    playerFilaBtn.classList.toggle('hidden', !playerFilaPainel || total === 0);
   }
 }
 
-// === FILA — desenha o painel (só existe na home) ===
+// === FILA — desenha o painel (montado em todas as páginas) ===
 function desenharFila() {
   atualizarContadorFila();
   avisarFilaMudou();
@@ -226,8 +299,37 @@ function desenharFila() {
 
   playerFilaLista.innerHTML = '';
 
+  // `fila` guarda só as próximas — a que está tocando mora no player. Aqui
+  // ela entra no topo da lista, senão tocar uma playlist de 10 músicas
+  // mostraria só 9 na fila. Não usa .player-fila-item de propósito: assim o
+  // arrastar reordena só as próximas e não tenta ler um índice que não existe.
+  if (musicaNoPlayer) {
+    const atual = document.createElement('li');
+    atual.className = 'player-fila-atual';
+
+    const capa = document.createElement('img');
+    capa.className = 'player-fila-capa';
+    capa.src = musicaNoPlayer.url_capa || '';
+    capa.alt = '';
+
+    const texto = document.createElement('div');
+    texto.className = 'player-fila-texto';
+
+    const titulo = document.createElement('span');
+    titulo.className = 'player-fila-titulo';
+    titulo.textContent = musicaNoPlayer.titulo;
+
+    const marca = document.createElement('span');
+    marca.className = 'player-fila-agora';
+    marca.textContent = 'Tocando agora';
+
+    texto.append(titulo, marca);
+    atual.append(capa, texto);
+    playerFilaLista.appendChild(atual);
+  }
+
   if (fila.length === 0) {
-    if (playerFilaVazia) playerFilaVazia.classList.remove('hidden');
+    if (playerFilaVazia) playerFilaVazia.classList.toggle('hidden', !!musicaNoPlayer);
     return;
   }
 
@@ -301,6 +403,39 @@ function adicionarAFila(musica, { irParaFila = false } = {}) {
 
   if (irParaFila) tocarMusica(musica, botaoAudioAtual);
   else mostrarBarra();
+}
+
+// Toca uma lista inteira do começo ao fim (botão "Tocar" de uma playlist):
+// a primeira vira a música atual e as outras vão pra fila, nessa ordem.
+// Substitui a fila que existia — do contrário tocar duas playlists seguidas
+// ia embolar a ordem. Devolve false quando não há nada tocável na lista.
+function tocarListaDeMusicas(musicas) {
+  const validas = (Array.isArray(musicas) ? musicas : []).filter((m) => m && m.id && m.url_audio);
+  if (validas.length === 0) return false;
+
+  const [primeira, ...resto] = validas;
+
+  // Só a primeira fica de fora: ela vira a música atual, não um item da fila.
+  // A música que estava tocando antes também entra se fizer parte da lista —
+  // ela deixa de ser a atual assim que a troca acontece.
+  const jaNaFila = new Set([primeira.id]);
+  fila = [];
+  resto.forEach((m) => {
+    if (jaNaFila.has(m.id)) return;
+    jaNaFila.add(m.id);
+    fila.push(m);
+  });
+
+  salvarFilaLocal();
+  desenharFila();
+  sincronizarFila();
+
+  // Botão null de propósito: quem chamou quer recomeçar a lista, e não um
+  // play/pause alternado no botão. forcarReinicio cobre o caso da primeira
+  // música ser justamente a que já estava tocando.
+  tocarMusica(primeira, null, true);
+  mostrarBarra();
+  return true;
 }
 
 function removerDaFila(musicaId) {
@@ -417,13 +552,15 @@ function conectarArrastarFila() {
 }
 
 // === TOCAR ===
-function tocarMusica(musica, botaoClicado) {
+// `forcarReinicio = true` ignora o atalho de play/pause e recomeça a música
+// do zero — usado por tocarListaDeMusicas, que sempre começa do início.
+function tocarMusica(musica, botaoClicado, forcarReinicio = false) {
   if (!musica || !musica.url_audio) return;
 
   const mesmaMusica = musicaNoPlayer && musicaNoPlayer.id === musica.id && elementoAudio.src;
   const clicouNoMesmoBotao = botaoAudioAtual === botaoClicado;
 
-  if (mesmaMusica && clicouNoMesmoBotao) {
+  if (!forcarReinicio && mesmaMusica && clicouNoMesmoBotao) {
     if (elementoAudio.paused) {
       elementoAudio.play();
     } else {

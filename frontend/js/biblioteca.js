@@ -26,7 +26,8 @@ const formNovaPlaylist = document.getElementById('form-nova-playlist');
 const campoPlaylistNome = document.getElementById('playlist-nome');
 const campoPlaylistCapa = document.getElementById('playlist-capa');
 
-// Não usa play — clicar no card leva pra playlist.html, que mostra as músicas.
+// Clicar no card leva pra playlist.html, que mostra as músicas. O botão de
+// tocar vive dentro do card, mas para a propagação do clique pra não navegar.
 function criarCardPlaylist(playlist) {
   const card = document.createElement('div');
   card.className = 'card-playlist';
@@ -60,6 +61,48 @@ function criarCardPlaylist(playlist) {
 
   card.appendChild(capa);
   card.appendChild(info);
+
+  // Botão de tocar: joga todas as músicas da playlist na fila e começa pela
+  // primeira. Fica escondido na playlist vazia — não há o que tocar.
+  const btnTocar = document.createElement('button');
+  btnTocar.type = 'button';
+  btnTocar.className = 'btn-play-card';
+  btnTocar.textContent = '▶ Tocar';
+  btnTocar.title = `Tocar ${playlist.nome}`;
+  btnTocar.setAttribute('aria-label', `Tocar a playlist ${playlist.nome}`);
+  btnTocar.classList.toggle('hidden', total === 0);
+
+  btnTocar.addEventListener('click', async (evento) => {
+    // O card inteiro navega pra playlist.html; sem isso, tocar também
+    // navegaria e a música nem começaria.
+    evento.stopPropagation();
+    if (btnTocar.disabled) return;
+
+    btnTocar.disabled = true;
+    btnTocar.textContent = 'Carregando...';
+
+    try {
+      const resposta = await fetchComAutenticacao(`http://localhost:3000/api/playlists/${playlist.id}`);
+      const dados = await resposta.json();
+
+      if (!resposta.ok) {
+        alert(dados.mensagem || 'Não foi possível tocar esta playlist.');
+        return;
+      }
+
+      if (!tocarListaDeMusicas(dados.musicas)) {
+        alert('Esta playlist não tem músicas para tocar.');
+      }
+    } catch (erro) {
+      console.error('Erro ao tocar playlist:', erro);
+      alert('Erro de conexão com o servidor.');
+    } finally {
+      btnTocar.disabled = false;
+      btnTocar.textContent = '▶ Tocar';
+    }
+  });
+
+  card.appendChild(btnTocar);
 
   card.addEventListener('click', () => {
     window.location.href = `playlist.html?id=${playlist.id}`;

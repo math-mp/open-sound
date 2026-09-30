@@ -465,23 +465,10 @@
     </div>
     </div>
 
-<!-- Painel da fila — SOMENTE na home. Nas outras páginas a fila continua
-     tocando (o estado vive no player), mas a lista não é desenhada. -->
-    <div id="player-fila-painel" class="player-fila-painel hidden">
-        <div class="player-fila-topo">
-            <h2 class="player-fila-titulo-h2">Na fila <span id="player-fila-contagem" class="player-fila-contagem">Fila vazia</span></h2>
-            <div class="player-fila-acoes">
-                <button id="player-fila-limpar" type="button" class="player-fila-btn">Limpar</button>
-                <button id="player-fila-fechar" type="button" class="player-fila-fechar" aria-label="Fechar fila">×</button>
-            </div>
-        </div>
-        <p class="player-fila-dica">Arraste para reordenar.</p>
-        <ul id="player-fila-lista" class="player-fila-lista"></ul>
-        <p id="player-fila-vazia" class="player-fila-vazia hidden">A fila está vazia. Use “＋” num card para adicionar músicas.</p>
-    </div>
-
 <!-- Barra de player fixa no rodapé — só funcional, sem estilo bonito.
-     Fica escondida até a primeira música ser tocada. -->
+     Fica escondida até a primeira música ser tocada. O painel da fila e o
+     botão ☰ não estão aqui: o player.js monta os dois em todas as páginas,
+     então não é preciso repetir esse markup uma vez por arquivo. -->
     <div id="player-barra" class="player-barra hidden">
         <img id="player-capa" class="player-capa" alt="Capa da música atual">
         <div class="player-info">
@@ -495,7 +482,6 @@
         <span id="player-tempo-total" class="player-tempo">0:00</span>
         <button id="player-favoritar" type="button" class="btn-icone" aria-label="Favoritar">♡</button>
         <button id="player-add-playlist" type="button" class="btn-icone" aria-label="Adicionar à playlist">+</button>
-        <button id="player-fila-btn" type="button" class="btn-icone player-fila-btn-abrir hidden" aria-label="Ver fila">☰</button>
         <div class="player-volume">
             <button id="player-volume-btn" type="button" class="btn-volume" aria-label="Volume">🔊</button>
             <input type="range" id="player-volume" class="volume-slider" min="0" max="1" step="0.01" value="1" aria-label="Controle de volume">

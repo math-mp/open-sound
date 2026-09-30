@@ -1226,11 +1226,13 @@ app.get('/api/playlists/:id', verificarAutenticacao, async (req, res) => {
     const playlist = resultadoPlaylist.rows[0];
     if (!playlist) return falha(res, 404, 'Playlist não encontrada.');
 
+    // Ordem em que a música entrou na playlist: é essa ordem que o botão
+    // "Tocar" respeita. O id desempata quando duas entraram no mesmo instante.
     const resultadoMusicas = await pool.query(
       `SELECT m.* FROM musicas m
          JOIN playlist_musicas pm ON pm.musica_id = m.id
         WHERE pm.playlist_id = $1
-        ORDER BY pm.adicionado_em DESC`,
+        ORDER BY pm.adicionado_em ASC, pm.id ASC`,
       [idPlaylist]
     );
 
