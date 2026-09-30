@@ -203,8 +203,11 @@ app.post('/api/registro', limitarRegistroIP, async (req, res) => {
     logarCodigoEmDev('código 2FA (cadastro)', codigo);
     logInfo('2FA', 'Cadastro pendente criado', { email, idVerificacao: null });
 
-    const senhaHash = await bcrypt.hash(password, 10);
-    const codigoHash = await bcrypt.hash(codigo, 10);
+    // Os dois hashes são independentes: rodam em paralelo.
+    const [senhaHash, codigoHash] = await Promise.all([
+      bcrypt.hash(password, 10),
+      bcrypt.hash(codigo, 10)
+    ]);
     const idVerificacao = crypto.randomUUID();
     const expiraEm = new Date(Date.now() + EXPIRACAO_CODIGO_MS);
 
@@ -214,15 +217,18 @@ app.post('/api/registro', limitarRegistroIP, async (req, res) => {
       [idVerificacao, email, senhaHash, nomeUsuario, codigoHash, expiraEm]
     );
 
-    const enviado = await enviarEmail(email, 'Seu código de verificação 2FA', `Seu código de confirmação é: ${codigo}`);
-    if (!enviado) {
-      await pool.query('DELETE FROM verificacoes_2fa WHERE id = $1', [idVerificacao]);
-      logError('2FA', 'Falha ao enviar e-mail de verificação', { email });
-      return falha(res, 500, 'Falha ao enviar o e-mail com o código de verificação.');
-    }
+    // O e-mail é enviado em segundo plano: o Gmail leva alguns segundos e a
+    // resposta não precisa esperar por ele. Se falhar, o cadastro pendente é
+    // mantido de propósito — o usuário usa "Reenviar código" (que avisa o erro
+    // na hora) ou o pendente expira sozinho em 10 minutos.
+    enviarEmail(email, 'Seu código de verificação 2FA', `Seu código de confirmação é: ${codigo}`)
+      .then((enviado) => {
+        if (enviado) logInfo('2FA', 'Código enviado por e-mail', { email });
+        else logError('2FA', 'Falha ao enviar e-mail de verificação (cadastro pendente mantido para reenvio)', { email });
+      })
+      .catch((erroEnvio) => logError('2FA', 'Erro inesperado ao enviar e-mail de verificação', { email, erro: erroEnvio.message }));
 
-    logInfo('2FA', 'Código enviado por e-mail', { email });
-    return sucesso(res, { mensagem: 'Código enviado com sucesso!', idVerificacao });
+    return sucesso(res, { mensagem: 'Cadastro recebido! O código está a caminho do seu e-mail.', idVerificacao });
   } catch (erro) {
     logError('AUTH', 'Erro no registro', { erro: erro.message });
     return falhaInterna(res, 'POST /api/registro', erro);
