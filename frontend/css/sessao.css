@@ -48,7 +48,7 @@ html[data-sessao="visitante"] [data-os-so-visitor] {
     z-index: 0;
     display: grid;
     place-items: center;
-    font-size: 0.75rem;
+    font-size: var(--texto-pequeno);
     font-weight: 800;
     line-height: 1;
     letter-spacing: 0.02em;
@@ -58,15 +58,15 @@ html[data-sessao="visitante"] [data-os-so-visitor] {
 }
 
 .os-avatar-md .os-avatar-iniciais {
-    font-size: 1.25rem;
+    font-size: var(--texto-titulo);
 }
 
 .os-avatar-sm .os-avatar-iniciais {
-    font-size: 0.9rem;
+    font-size: var(--texto-base);
 }
 
 .os-avatar-gr .os-avatar-iniciais {
-    font-size: 1.75rem;
+    font-size: var(--texto-destaque);
 }
 
 .os-avatar-img {

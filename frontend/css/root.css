@@ -10,6 +10,22 @@
 
     --fonte-principal: 'Baloo 2', 'Segoe UI', sans-serif;
 
+    /* Escala de texto.
+       Antes o projeto usava 43 tamanhos diferentes (0.65rem, 0.68rem,
+       0.7rem, 0.72rem, 0.75rem, 0.78rem, 0.8rem, 0.82rem, 0.85rem,
+       0.88rem, 0.9rem, 0.92rem, 0.95rem, 0.98rem, 1rem, 1.05rem...),
+       e é por isso que a hierarquia ficava estranha em alguns lugares:
+       o @ do perfil tinha o mesmo tamanho do nome, e o status vazava do
+       bloco. Escrever texto com um destes cinco, nunca com número solto.
+       O rem continua valendo (o site é responsivo por container query). */
+    --texto-minimo: 0.72rem;   /* contador, dica, legenda, timestamp */
+    --texto-pequeno: 0.8rem;   /* label de campo, texto secundário */
+    --texto-base: 0.9rem;      /* texto de parágrafo e de lista */
+    --texto-grande: 1.05rem;   /* texto de destaque, botão, item de menu */
+    --texto-titulo: 1.25rem;   /* título de bloco, nome grande */
+    --texto-destaque: 1.6rem;  /* número gigante: artista em destaque, capa */
+    --texto-display: 2.5rem;   /* número herói do carrossel */
+
 
     /* =========================
        ESPAÇAMENTOS

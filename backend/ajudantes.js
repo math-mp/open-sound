@@ -277,10 +277,15 @@ const FONTES_NOME = ['padrao', 'baloo', 'terminal', 'serifada'];
 const EFEITOS_PERFIL = ['nenhum', 'chuva', 'petalas', 'fogo', 'estrelas', 'nevoa'];
 
 // Cores de fábrica por aba, quando a pessoa ainda não escolheu nenhuma.
-// São as pastéis que já existem no tema.
+// Estes valores são as MESMAS abas do tema escuro (--aba-perfil,
+// --aba-config, --aba-biblioteca). Estavam divergentes: o backend
+// mandava lilás para a aba Perfil e pêssego para a de Configurações,
+// enquanto o CSS usava o contrário — então quem nunca mexeu nas cores
+// via as abas trocadas. Precisa bater com o tema, senão o CSS nem
+// importa: o que vem do servidor é o que vale.
 const ACENTOS_PADRAO = {
-  perfil: '#cfbaf0',
-  config: '#fde4cf',
+  perfil: '#fde4cf',
+  config: '#fbf8cc',
   biblioteca: '#98f5e1'
 };
 

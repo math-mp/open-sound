@@ -42,7 +42,7 @@
     border: 1px solid var(--painel-borda);
     box-shadow: var(--painel-sombra);
     color: var(--cor-texto);
-    font-size: 1.4rem;
+    font-size: var(--texto-destaque);
     font-weight: 800;
     text-decoration: none;
     transition: transform var(--transicao-rapida), filter var(--transicao-rapida), border-color var(--transicao-rapida), box-shadow var(--transicao-rapida);
@@ -91,7 +91,7 @@
 }
 
 .perfil-bloqueado-texto {
-    font-size: 1rem;
+    font-size: var(--texto-grande);
     color: var(--cor-texto);
 }
 
@@ -102,7 +102,7 @@
     color: var(--texto-sobre-pastel);
     text-decoration: none;
     font-weight: 700;
-    font-size: 0.85rem;
+    font-size: var(--texto-base);
     transition: transform var(--transicao-rapida);
 }
 
@@ -161,7 +161,7 @@
     min-height: 34px;
     padding: var(--espaco-1) var(--espaco-4);
     border-radius: var(--raio-pequeno) var(--raio-pequeno) 0 0;
-    font-size: 0.95rem;
+    font-size: var(--texto-base);
     font-weight: 800;
     color: var(--texto-sobre-pastel);
     white-space: nowrap;
@@ -252,25 +252,35 @@
    o @ ficava do mesmo tamanho do nome — que é a hierarquia errada: o @ é
    o identificador, o nome é o título. */
 .perfil-usuario {
-    font-size: 0.82rem;
+    font-size: var(--texto-pequeno);
     color: var(--cor-texto-fraco);
     word-break: break-all;
 }
 
 .perfil-status {
+    /* flex-wrap: sem isto a linha de flex não quebra, e um status longo
+       VAZA do bloco em vez de descer para a linha de baixo. */
     display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
     gap: 6px;
 
-    font-size: 0.85rem;
+    font-size: var(--texto-base);
     color: var(--cor-texto-secundario);
     margin-top: 2px;
+}
+
+.perfil-status-texto {
+    /* min-width:0 é o que permite o item encolher dentro do flex; sem
+       isso o padrão é min-content e o texto não quebra nunca. */
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .perfil-status-emoji {
     /* O emoji vem do usuário e pode ser qualquer um; line-height 1 evita
        que ele estoure a altura da linha. */
-    font-size: 0.95rem;
+    font-size: var(--texto-base);
     line-height: 1;
     flex-shrink: 0;
 }
@@ -289,7 +299,7 @@
 
     background: var(--cor-superficie-clara);
 
-    font-size: 0.75rem;
+    font-size: var(--texto-pequeno);
     color: var(--cor-texto-secundario);
 
     cursor: pointer;
@@ -351,7 +361,7 @@
     border-radius: var(--raio-pequeno);
     background: var(--input-fundo);
 
-    font-size: 1.15rem;
+    font-size: var(--texto-titulo);
     line-height: 1;
     cursor: pointer;
 }
@@ -375,7 +385,7 @@
     border: none;
     background: var(--cor-erro);
     color: var(--texto-sobre-pastel);
-    font-size: 0.65rem;
+    font-size: var(--texto-minimo);
     line-height: 1;
     cursor: pointer;
     z-index: 3;
@@ -389,13 +399,13 @@
 }
 
 .perfil-nome {
-    font-size: 1.2rem;
+    font-size: var(--texto-titulo);
     font-weight: 700;
     color: var(--cor-texto);
 }
 
 .perfil-bio-exibicao {
-    font-size: 0.88rem;
+    font-size: var(--texto-base);
     color: var(--cor-texto-secundario);
     max-width: 60ch;
     min-height: 1.4em;
@@ -409,7 +419,7 @@
 }
 
 .perfil-estatisticas {
-    font-size: 0.72rem;
+    font-size: var(--texto-minimo);
     color: var(--cor-texto-fraco);
     margin-top: var(--espaco-1);
 }
@@ -437,7 +447,7 @@
 }
 
 .perfil-coluna-titulo {
-    font-size: 0.85rem;
+    font-size: var(--texto-base);
     font-weight: 800;
     color: var(--cor-texto);
 }
@@ -454,7 +464,7 @@
     background: var(--input-fundo);
     color: var(--input-texto);
     font-family: inherit;
-    font-size: 0.85rem;
+    font-size: var(--texto-base);
 }
 
 .perfil-filtro::placeholder { color: var(--input-placeholder); }
@@ -471,7 +481,7 @@
     border: none;
     border-radius: var(--raio-pequeno);
     font-weight: 700;
-    font-size: 0.85rem;
+    font-size: var(--texto-base);
     cursor: pointer;
     background: var(--cor-primaria);
     color: var(--texto-sobre-pastel);
@@ -491,7 +501,7 @@
 }
 
 .perfil-estado-mensagem {
-    font-size: 0.78rem;
+    font-size: var(--texto-pequeno);
     font-style: italic;
     color: var(--cor-texto-fraco);
     padding: var(--espaco-2) 0;
@@ -533,7 +543,7 @@
 }
 
 .perfil-resultado-titulo {
-    font-size: 0.8rem;
+    font-size: var(--texto-pequeno);
     font-weight: 600;
     color: var(--cor-texto);
     white-space: nowrap;
@@ -543,7 +553,7 @@
 
 .perfil-resultado-artista,
 .perfil-playlist-faixas {
-    font-size: 0.7rem;
+    font-size: var(--texto-minimo);
     color: var(--cor-texto-secundario);
     white-space: nowrap;
     overflow: hidden;
@@ -555,7 +565,7 @@
     border: none;
     color: var(--cor-texto-fraco);
     cursor: pointer;
-    font-size: 0.85rem;
+    font-size: var(--texto-base);
     flex-shrink: 0;
     padding: 0 var(--espaco-1);
 }
@@ -565,7 +575,7 @@
 }
 
 .perfil-selecao-atual {
-    font-size: 0.75rem;
+    font-size: var(--texto-pequeno);
     color: var(--cor-texto-secundario);
     min-height: 1.2em;
 }
@@ -611,13 +621,13 @@
 }
 
 .perfil-favorita-titulo {
-    font-size: 0.85rem;
+    font-size: var(--texto-base);
     font-weight: 700;
     color: var(--cor-texto);
 }
 
 .perfil-favorita-artista {
-    font-size: 0.72rem;
+    font-size: var(--texto-minimo);
     color: var(--cor-texto-fraco);
 }
 
@@ -632,7 +642,7 @@
    ============================================================ */
 .perfil-config-rotulo {
     display: block;
-    font-size: 0.75rem;
+    font-size: var(--texto-pequeno);
     font-weight: 600;
     color: var(--cor-texto-secundario);
     margin-bottom: 4px;
@@ -648,7 +658,7 @@
     background: var(--input-fundo);
     color: var(--input-texto);
     font-family: inherit;
-    font-size: 0.85rem;
+    font-size: var(--texto-base);
 }
 
 .perfil-config-input:focus {
@@ -661,7 +671,7 @@
 }
 
 .perfil-config-dica {
-    font-size: 0.7rem;
+    font-size: var(--texto-minimo);
     color: var(--cor-texto-fraco);
     line-height: 1.5;
     margin-bottom: var(--espaco-3);
@@ -704,7 +714,7 @@
 }
 
 .perfil-config-banner-vazio {
-    font-size: 0.7rem;
+    font-size: var(--texto-minimo);
     color: var(--cor-texto-fraco);
 }
 
@@ -712,7 +722,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.8rem;
+    font-size: var(--texto-pequeno);
     color: var(--cor-texto-secundario);
     cursor: pointer;
     margin-bottom: var(--espaco-2);
@@ -735,7 +745,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.78rem;
+    font-size: var(--texto-pequeno);
     color: var(--cor-texto-secundario);
     cursor: pointer;
 }
@@ -764,7 +774,7 @@
     color: var(--input-texto);
 
     font-family: inherit;
-    font-size: 0.85rem;
+    font-size: var(--texto-base);
     cursor: pointer;
 }
 
@@ -788,7 +798,7 @@
 }
 
 .perfil-biblioteca-nota {
-    font-size: 0.7rem;
+    font-size: var(--texto-minimo);
     color: var(--cor-texto-fraco);
     padding: var(--espaco-3) var(--espaco-4);
     border-top: 1px dashed var(--painel-borda);
@@ -829,6 +839,23 @@
 .perfil-janela-tab.aba-config {
     background: var(--config-acento);
     color: var(--config-texto-acento);
+}
+
+/* A Configurações é a ÚNICA aba com borda em vez de preenchimento.
+
+   Motivo medido: o amarelo é o matiz mais claro da paleta e não tem como
+   virar preenchimento legível sobre branco — no melhor caso ele chega a
+   1,28:1, o que é indistinguível do fundo. Como BORDA, o mesmo tom
+   funciona, porque uma linha é comparada com a superfície e não precisa
+   de preenchimento.
+
+   Nas outras duas abas o preenchimento pastel continua sendo a regra;
+   aqui a regra é uma exceção, e é por isso que ela fica escrita
+   separada em vez de espremida no bloco de cima. */
+.perfil-janela-tab.aba-config {
+    background: var(--cor-superficie);
+    border: 1px solid var(--config-acento);
+    color: var(--cor-texto);
 }
 
 .perfil-janela-tab.aba-biblioteca {
@@ -1057,7 +1084,7 @@
 }
 
 .perfil-config-titulo {
-    font-size: 0.85rem;
+    font-size: var(--texto-base);
     font-weight: 800;
     color: var(--cor-texto);
     text-transform: uppercase;
@@ -1098,7 +1125,7 @@
     border-radius: var(--raio-pequeno);
     background: transparent;
     color: var(--cor-texto-secundario);
-    font-size: 0.75rem;
+    font-size: var(--texto-pequeno);
     font-weight: 600;
     cursor: pointer;
     transition: background var(--transicao-rapida);
@@ -1118,7 +1145,7 @@
     background: var(--input-fundo);
     color: var(--input-texto);
     font-family: inherit;
-    font-size: 0.85rem;
+    font-size: var(--texto-base);
     line-height: 1.4;
 }
 
@@ -1139,12 +1166,12 @@
 }
 
 .perfil-config-contador {
-    font-size: 0.72rem;
+    font-size: var(--texto-minimo);
     color: var(--cor-texto-fraco);
 }
 
 .perfil-config-status {
-    font-size: 0.72rem;
+    font-size: var(--texto-minimo);
     color: var(--cor-texto-secundario);
     min-height: 1.2em;
 }
@@ -1155,7 +1182,7 @@
 
 .perfil-btn-tema {
     align-self: flex-start;
-    font-size: 0.8rem;
+    font-size: var(--texto-pequeno);
 }
 
 /* ============================================================
@@ -1192,7 +1219,7 @@
 
 .player-titulo {
     font-weight: 700;
-    font-size: 0.85rem;
+    font-size: var(--texto-base);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1200,7 +1227,7 @@
 }
 
 .player-artista {
-    font-size: 0.75rem;
+    font-size: var(--texto-pequeno);
     color: var(--cor-texto-secundario);
 }
 
@@ -1210,7 +1237,7 @@
     width: 36px;
     height: 36px;
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: var(--texto-base);
     flex-shrink: 0;
     background: var(--cor-primaria);
     /* Texto sobre fundo --cor-primaria é sempre --texto-sobre-pastel;
@@ -1230,7 +1257,7 @@
     border-radius: 50%;
     background: transparent;
     color: var(--cor-texto-secundario);
-    font-size: 1rem;
+    font-size: var(--texto-grande);
     cursor: pointer;
     flex-shrink: 0;
     transition: background var(--transicao-rapida), color var(--transicao-rapida), transform var(--transicao-rapida);
@@ -1247,7 +1274,7 @@
 }
 
 .player-tempo {
-    font-size: 0.75rem;
+    font-size: var(--texto-pequeno);
     min-width: 35px;
     text-align: center;
     flex-shrink: 0;
@@ -1271,7 +1298,7 @@
     border: none;
     background: transparent;
     color: var(--cor-texto);
-    font-size: 1rem;
+    font-size: var(--texto-grande);
     cursor: pointer;
     padding: 4px 8px;
     border-radius: var(--raio-pequeno);
@@ -1355,7 +1382,7 @@
     width: 32px;
     height: 32px;
     cursor: pointer;
-    font-size: 1rem;
+    font-size: var(--texto-grande);
     flex-shrink: 0;
     transition: background 0.2s ease;
 }

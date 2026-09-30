@@ -62,7 +62,7 @@
 }
 
 .conteudo-modal h2 {
-    font-size: 1.2rem;
+    font-size: var(--texto-titulo);
 }
 
 .conteudo-modal input[type="email"],
@@ -73,7 +73,7 @@
     border-radius: var(--raio-pequeno);
     border: none;
     font-family: inherit;
-    font-size: 0.9rem;
+    font-size: var(--texto-base);
 }
 
 .conteudo-modal button[type="submit"] {
@@ -81,7 +81,7 @@
     border-radius: var(--raio-medio);
     border: none;
     font-weight: 700;
-    font-size: 0.95rem;
+    font-size: var(--texto-base);
     cursor: pointer;
 }
 
@@ -112,7 +112,7 @@
     border-radius: 10px;
     background: transparent;
     color: var(--cor-texto);
-    font-size: 1.45rem;
+    font-size: var(--texto-destaque);
     line-height: 1;
     font-weight: 800;
     cursor: pointer;
@@ -133,7 +133,7 @@
 .link-cadastro {
     text-align: center;
     margin-top: 20px;
-    font-size: .85rem;
+    font-size: var(--texto-base);
     color: var(--cor-texto-secundario);
 }
 
@@ -192,7 +192,7 @@
     border-radius: var(--raio-medio);
 
     text-align: left;
-    font-size: 0.92rem;
+    font-size: var(--texto-base);
     font-weight: 700;
 
     transition:
@@ -218,7 +218,7 @@
     border-radius: var(--raio-pequeno);
     object-fit: cover;
 
-    font-size: 1.2rem;
+    font-size: var(--texto-titulo);
 }
 
 .item-playlist-nome {
@@ -230,6 +230,6 @@
 .item-playlist-estado {
     margin-left: auto;
     flex-shrink: 0;
-    font-size: 0.75rem;
+    font-size: var(--texto-pequeno);
     font-weight: 700;
 }

@@ -78,7 +78,7 @@ body,
     border: 1px solid var(--cor-borda);
     border-radius: var(--raio-medio);
     box-shadow: var(--sombra-suave);
-    font-size: 14px;
+    font-size: var(--texto-base);
     font-weight: 700;
     text-decoration: none;
     transition: transform 0.2s ease, filter 0.2s ease, background-color 0.3s ease, color 0.3s ease;
@@ -144,7 +144,7 @@ body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
     min-height: 36px;
     padding: 8px 22px;
     border-radius: 12px 12px 0 0;
-    font-size: 1.05rem;
+    font-size: var(--texto-grande);
     font-weight: 800;
     color: var(--texto-sobre-pastel);
     white-space: nowrap;
@@ -186,7 +186,7 @@ body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
     border: 1px solid var(--cor-borda);
     background: var(--cor-superficie-clara);
     color: var(--cor-texto);
-    font-size: 1.35rem;
+    font-size: var(--texto-titulo);
     font-weight: 800;
     display: flex;
     align-items: center;
@@ -269,7 +269,7 @@ body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
     border: 1px solid var(--cor-borda);
     background: var(--cor-superficie-clara);
     color: var(--cor-texto);
-    font-size: 0.8rem;
+    font-size: var(--texto-pequeno);
     font-weight: 700;
     display: flex;
     align-items: center;
@@ -332,7 +332,7 @@ body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2.5rem;
+    font-size: var(--texto-display);
 }
 
 .info-musica {
@@ -347,7 +347,7 @@ body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
 
 .titulo-musica {
     width: 100%;
-    font-size: 0.85rem;
+    font-size: var(--texto-base);
     font-weight: 800;
     color: var(--card-texto);
     overflow: hidden;
@@ -357,7 +357,7 @@ body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
 
 .artista-musica {
     width: 100%;
-    font-size: 0.72rem;
+    font-size: var(--texto-minimo);
     font-weight: 500;
     color: var(--cor-texto-secundario);
     overflow: hidden;
@@ -388,7 +388,7 @@ body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
     border: none;
     border-radius: 999px;
     padding: 8px 10px;
-    font-size: 0.75rem;
+    font-size: var(--texto-pequeno);
     font-weight: 800;
     cursor: pointer;
     transition: transform var(--transicao-rapida), filter var(--transicao-rapida), background-color 0.3s ease, color 0.3s ease;
@@ -489,7 +489,7 @@ body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
 .mensagem-cooldown {
     width: 100%;
     padding: 0 6px 4px;
-    font-size: 0.65rem;
+    font-size: var(--texto-minimo);
     font-weight: 600;
     color: var(--cor-erro);
     text-align: center;
@@ -509,7 +509,7 @@ body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
     text-align: center;
     padding: 40px 20px;
     color: var(--cor-texto-fraco);
-    font-size: 0.95rem;
+    font-size: var(--texto-base);
     line-height: 1.5;
 }
 
@@ -555,7 +555,7 @@ body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
 
 .player-titulo {
     font-weight: 700;
-    font-size: 0.85rem;
+    font-size: var(--texto-base);
     color: var(--cor-texto);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -563,7 +563,7 @@ body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
 }
 
 .player-artista {
-    font-size: 0.75rem;
+    font-size: var(--texto-pequeno);
     color: var(--cor-texto-secundario);
 }
 
@@ -572,7 +572,7 @@ body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
     border-radius: var(--raio-circular);
     width: 36px;
     height: 36px;
-    font-size: 0.9rem;
+    font-size: var(--texto-base);
     flex-shrink: 0;
 
     background: var(--cor-primaria);
@@ -598,7 +598,7 @@ body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
     border-radius: 50%;
     background: transparent;
     color: var(--cor-texto-secundario);
-    font-size: 1rem;
+    font-size: var(--texto-grande);
     cursor: pointer;
     flex-shrink: 0;
     transition: background var(--transicao-rapida), color var(--transicao-rapida), transform var(--transicao-rapida);
@@ -615,7 +615,7 @@ body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
 }
 
 .player-tempo {
-    font-size: 0.75rem;
+    font-size: var(--texto-pequeno);
     min-width: 35px;
     text-align: center;
     flex-shrink: 0;
@@ -641,7 +641,7 @@ body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
     border: none;
     background: transparent;
     color: var(--cor-texto);
-    font-size: 1rem;
+    font-size: var(--texto-grande);
     padding: 4px 8px;
     border-radius: var(--raio-pequeno);
     flex-shrink: 0;
@@ -712,7 +712,7 @@ body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
     border: none;
     border-radius: var(--raio-circular);
 
-    font-size: 1.1rem;
+    font-size: var(--texto-grande);
     font-weight: 800;
     line-height: 1;
 
@@ -770,7 +770,7 @@ body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
 
     .secao-titulo.aba-biblioteca {
         padding: 6px 16px;
-        font-size: 0.95rem;
+        font-size: var(--texto-base);
         top: -32px;
         border-radius: 10px 10px 0 0;
     }
@@ -787,7 +787,7 @@ body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
     .msc-seta {
         width: 36px;
         height: 36px;
-        font-size: 1.15rem;
+        font-size: var(--texto-titulo);
     }
 
     .card-musica {
@@ -804,23 +804,23 @@ body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
     }
 
     .titulo-musica {
-        font-size: 0.8rem;
+        font-size: var(--texto-pequeno);
     }
 
     .artista-musica {
-        font-size: 0.68rem;
+        font-size: var(--texto-minimo);
     }
 
     .btn-acao {
         max-width: 62px;
         padding: 7px 8px;
-        font-size: 0.7rem;
+        font-size: var(--texto-minimo);
     }
 
     .carrossel-indicador {
         width: 24px;
         height: 24px;
-        font-size: 0.72rem;
+        font-size: var(--texto-minimo);
     }
 
     /* No celular o player fica só com o essencial: capa, título e play.

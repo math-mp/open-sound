@@ -73,7 +73,7 @@ html, body {
     border: 1px solid var(--cor-borda);
     border-radius: var(--raio-medio);
     box-shadow: var(--sombra-suave);
-    font-size: 14px;
+    font-size: var(--texto-base);
     font-weight: 700;
     text-decoration: none;
     cursor: pointer;
@@ -97,7 +97,7 @@ html, body {
     border-radius: var(--raio-medio);
     box-shadow: var(--sombra-suave);
     color: var(--cor-texto);
-    font-size: 14px;
+    font-size: var(--texto-base);
     font-weight: 700;
     cursor: pointer;
     transition: transform 0.2s ease, filter 0.2s ease, background-color 0.3s ease, color 0.3s ease;
@@ -132,7 +132,7 @@ html, body {
   }
 
   .fixed-bar button {
-  font-size: 14px;
+  font-size: var(--texto-base);
   font-weight: 700;
   padding: 10px 20px;
   border: none;
@@ -237,7 +237,7 @@ body,
 
     border-radius: 12px 12px 0 0;
 
-    font-size: 1.05rem;
+    font-size: var(--texto-grande);
     font-weight: 800;
 
     color: var(--texto-sobre-pastel);
@@ -744,7 +744,7 @@ body,
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: var(--texto-grande);
   padding: 0;
   display: flex;
   align-items: center;
@@ -755,7 +755,7 @@ body,
   list-style: none;
   padding: 0;
   margin: 0;
-  font-size: 0.82rem;
+  font-size: var(--texto-pequeno);
   text-align: left;
   display: flex;
   flex-direction: column;
@@ -777,7 +777,7 @@ body,
   width: 38px;
   height: 48px;
   text-align: center;
-  font-size: 1.2rem;
+  font-size: var(--texto-titulo);
   font-weight: 800;
   border-radius: var(--raio-pequeno);
   border: none;
@@ -790,18 +790,18 @@ body,
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.85rem;
+  font-size: var(--texto-base);
   cursor: pointer;
 }
 
 /*====textos do modal de cadastro de artista e do modal de upload====*/
 .texto-artista-info {
-  font-size: 0.85rem;
+  font-size: var(--texto-base);
   line-height: 1.4;
 }
 
 .upload-artista-atual {
-  font-size: 0.85rem;
+  font-size: var(--texto-base);
 }
 
 /*====campo de arquivo====
@@ -833,7 +833,7 @@ body,
 }
 
 .preview-upload-capa-vazio {
-  font-size: 0.7rem;
+  font-size: var(--texto-minimo);
   text-align: center;
   padding: 4px;
 }
@@ -848,16 +848,16 @@ body,
 
 .preview-upload-titulo {
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: var(--texto-base);
   word-break: break-word;
 }
 
 .preview-upload-artista {
-  font-size: 0.8rem;
+  font-size: var(--texto-pequeno);
 }
 
 .preview-upload-audio {
-  font-size: 0.75rem;
+  font-size: var(--texto-pequeno);
   word-break: break-word;
 }
 
@@ -1031,7 +1031,7 @@ body,
 }
 
 .busca-pessoas-titulo {
-  font-size: 0.75rem;
+  font-size: var(--texto-pequeno);
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1078,13 +1078,13 @@ body,
 }
 
 .busca-pessoa-nome {
-  font-size: 0.85rem;
+  font-size: var(--texto-base);
   font-weight: 700;
   white-space: nowrap;
 }
 
 .busca-pessoa-arroba {
-  font-size: 0.75rem;
+  font-size: var(--texto-pequeno);
   color: var(--cor-texto-fraco);
   white-space: nowrap;
 }
@@ -1114,7 +1114,7 @@ body,
     border-radius: 50%;
     border: 1px solid var(--cor-borda);
 
-    font-size: 1.35rem;
+    font-size: var(--texto-titulo);
     font-weight: 800;
 
     display: flex;
@@ -1381,7 +1381,7 @@ body,
     width: 100%;
     max-width: 230px;
 
-    font-size: 1.65rem;
+    font-size: var(--texto-destaque);
     font-weight: 800;
 
     line-height: 1.1;
@@ -1407,7 +1407,7 @@ body,
     width: 100%;
     max-width: 230px;
 
-    font-size: 1.05rem;
+    font-size: var(--texto-grande);
     font-weight: 500;
 
     margin-bottom: 8px;
@@ -1582,7 +1582,7 @@ body,
     background: var(--cor-primaria);
     color: var(--texto-sobre-pastel);
 
-    font-size: 0.85rem;
+    font-size: var(--texto-base);
     font-weight: 800;
 
     transition:
@@ -1606,7 +1606,7 @@ body,
 
     padding: 8px;
 
-    font-size: 0.85rem;
+    font-size: var(--texto-base);
     font-weight: 800;
 
     transition:
@@ -1679,14 +1679,14 @@ body,
 
 .player-titulo {
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: var(--texto-base);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .player-artista {
-  font-size: 0.75rem;
+  font-size: var(--texto-pequeno);
 }
 
 #player-play-pause {
@@ -1695,12 +1695,12 @@ body,
   width: 36px;
   height: 36px;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: var(--texto-base);
   flex-shrink: 0;
 }
 
 .player-tempo {
-  font-size: 0.75rem;
+  font-size: var(--texto-pequeno);
   min-width: 35px;
   text-align: center;
   flex-shrink: 0;
@@ -1718,7 +1718,7 @@ body,
   border-radius: 50%;
   background: transparent;
   color: var(--cor-texto-secundario);
-  font-size: 1rem;
+  font-size: var(--texto-grande);
   cursor: pointer;
   flex-shrink: 0;
   transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
@@ -1750,7 +1750,7 @@ body,
   border: none;
   background: transparent;
   color: var(--cor-texto);
-  font-size: 1rem;
+  font-size: var(--texto-grande);
   cursor: pointer;
   padding: 4px 8px;
   border-radius: var(--raio-pequeno);
@@ -1845,7 +1845,7 @@ body,
   display: block;
   padding: 10px 16px;
   text-decoration: none;
-  font-size: 14px;
+  font-size: var(--texto-base);
   font-weight: 700;
 }
 
@@ -1887,7 +1887,7 @@ body,
   border-radius: var(--raio-pequeno);
   border: none;
   font-family: inherit;
-  font-size: 0.9rem;
+  font-size: var(--texto-base);
 }
 
 .secao-config button {
@@ -1909,7 +1909,7 @@ body,
 }
 
 .mensagem-cooldown {
-  font-size: 0.85rem;
+  font-size: var(--texto-base);
 }
 
 /* Botão de redefinir senha durante o cooldown de 24h — escurecido e
@@ -1973,7 +1973,7 @@ body,
     color: var(--cor-texto);
 
     font-family: inherit;
-    font-size: .9rem;
+    font-size: var(--texto-base);
 }
 
 #modal-registro .input-com-icone input::placeholder {
@@ -2078,7 +2078,7 @@ body,
 
     margin: 0 42px 14px 0;
 
-    font-size: 1.55rem;
+    font-size: var(--texto-destaque);
     line-height: 1.1;
 
     font-weight: 800;
@@ -2106,7 +2106,7 @@ body,
 }
 
 .campo-cadastro > label {
-    font-size: .9rem;
+    font-size: var(--texto-base);
     font-weight: 700;
 
     color: var(--cor-texto);
@@ -2140,7 +2140,7 @@ body,
     background: var(--cor-fundo-secundario);
     color: var(--cor-texto);
 
-    font-size: .95rem;
+    font-size: var(--texto-base);
 
     transition:
         border-color var(--transicao-rapida),
@@ -2242,7 +2242,7 @@ body,
 
     gap: 8px;
 
-    font-size: .72rem;
+    font-size: var(--texto-minimo);
     color: var(--cor-texto-fraco);
 }
 
@@ -2271,7 +2271,7 @@ body,
     margin: 0;
     padding: 0;
 
-    font-size: .78rem;
+    font-size: var(--texto-pequeno);
     line-height: 1.35;
 
     font-weight: 600;
@@ -2308,7 +2308,7 @@ body,
 
     color: var(--cor-texto-secundario);
 
-    font-size: .75rem;
+    font-size: var(--texto-pequeno);
 
     line-height: 1.45;
 }
@@ -2320,7 +2320,7 @@ body,
 
     color: var(--cor-texto);
 
-    font-size: .82rem;
+    font-size: var(--texto-pequeno);
 }
 
 .termos-box p {
@@ -2343,7 +2343,7 @@ body,
 
     cursor: pointer;
 
-    font-size: .75rem;
+    font-size: var(--texto-pequeno);
     line-height: 1.35;
 
     color: var(--cor-texto-secundario);
@@ -2385,7 +2385,7 @@ body,
 
     color: var(--texto-sobre-pastel);
 
-    font-size: .98rem;
+    font-size: var(--texto-base);
     font-weight: 800;
 
     transition:
@@ -2443,7 +2443,7 @@ body,
 
 #modal-login .campo-login > label,
 #modal-esqueci-senha .campo-login > label {
-    font-size: .9rem;
+    font-size: var(--texto-base);
     font-weight: 700;
     color: var(--cor-texto);
 }
@@ -2465,7 +2465,7 @@ body,
     background: var(--cor-fundo-secundario) !important;
     color: var(--cor-texto) !important;
     font-family: inherit !important;
-    font-size: .95rem !important;
+    font-size: var(--texto-base) !important;
     transition:
         border-color var(--transicao-rapida),
         box-shadow var(--transicao-rapida),
@@ -2550,13 +2550,13 @@ body,
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.85rem;
+    font-size: var(--texto-base);
     cursor: pointer;
     color: var(--cor-texto-secundario);
 }
 
 .link-esqueci {
-    font-size: 0.85rem;
+    font-size: var(--texto-base);
     color: var(--cor-primaria);
     text-decoration: none;
     font-weight: 600;
@@ -2578,7 +2578,7 @@ body,
     border-radius: 13px !important;
     background: linear-gradient(90deg, var(--pastel-rosa), var(--pastel-pessego)) !important;
     color: var(--texto-sobre-pastel) !important;
-    font-size: .98rem !important;
+    font-size: var(--texto-base) !important;
     font-weight: 800 !important;
     cursor: pointer !important;
     transition: transform var(--transicao-rapida), filter var(--transicao-rapida), box-shadow var(--transicao-rapida) !important;
@@ -2602,7 +2602,7 @@ body,
 
 /* TEXTO EXPLICATIVO ESQUECI SENHA */
 .texto-esqueci {
-    font-size: .85rem;
+    font-size: var(--texto-base);
     line-height: 1.4;
     color: var(--cor-texto-secundario);
     margin-top: -4px;
@@ -2627,7 +2627,7 @@ body,
 #esqueci-regras-senha li {
     margin: 0;
     padding: 0;
-    font-size: .78rem;
+    font-size: var(--texto-pequeno);
     line-height: 1.35;
     font-weight: 600;
     color: var(--cor-texto-fraco);
@@ -2661,7 +2661,7 @@ body,
     }
 
     #modal-registro #etapa-registro h2 {
-        font-size: 1.6rem;
+        font-size: var(--texto-destaque);
     }
 }
 
@@ -2684,7 +2684,7 @@ body,
   background: linear-gradient(90deg, var(--pastel-rosa), var(--pastel-pessego));
   color: var(--texto-sobre-pastel);
   font-family: inherit;
-  font-size: .98rem;
+  font-size: var(--texto-base);
   font-weight: 800;
   cursor: pointer;
   transition:
@@ -2718,7 +2718,7 @@ body,
   background: transparent;
   color: var(--cor-texto-secundario);
   font-family: inherit;
-  font-size: .9rem;
+  font-size: var(--texto-base);
   font-weight: 700;
   cursor: pointer;
   transition:
@@ -2883,7 +2883,7 @@ body,
   background: var(--aba-modal);
   color: var(--texto-sobre-pastel);
 
-  font-size: .92rem;
+  font-size: var(--texto-base);
   font-weight: 800;
   white-space: nowrap;
 
@@ -2960,7 +2960,7 @@ body,
   width: 28px;
   height: 28px;
   border-radius: 0 0 0 10px;
-  font-size: 1.2rem;
+  font-size: var(--texto-titulo);
   color: var(--texto-sobre-pastel);
   opacity: 0;
   transition:
@@ -3072,7 +3072,7 @@ body,
 }
 
 .campo-upload label {
-  font-size: .82rem;
+  font-size: var(--texto-pequeno);
   font-weight: 700;
   color: var(--cor-texto);
 }
@@ -3155,12 +3155,12 @@ body,
 }
 
 .btn-upload-texto strong {
-  font-size: .87rem;
+  font-size: var(--texto-base);
   font-weight: 700;
 }
 
 .btn-upload-texto small {
-  font-size: .74rem;
+  font-size: var(--texto-minimo);
   color: var(--cor-texto-fraco);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3170,7 +3170,7 @@ body,
 /* O preview é uma coluna: capa grande em cima (tamanho definido em
    .preview-upload-capa-wrapper, lá no bloco do preview), textos embaixo. */
 .preview-upload-capa-vazio {
-  font-size: .8rem;
+  font-size: var(--texto-pequeno);
 }
 
 .preview-upload-info {
@@ -3180,15 +3180,15 @@ body,
 }
 
 .preview-upload-titulo {
-  font-size: .95rem;
+  font-size: var(--texto-base);
 }
 
 .preview-upload-artista {
-  font-size: .82rem;
+  font-size: var(--texto-pequeno);
 }
 
 .preview-upload-audio {
-  font-size: .74rem;
+  font-size: var(--texto-minimo);
 }
 
 /* ---- Telas estreitas: as colunas viram uma só ---- */
@@ -3288,7 +3288,7 @@ body,
   border: none;
   border-radius: 50%;
 
-  font-size: 1rem;
+  font-size: var(--texto-grande);
 
   background: var(--cor-primaria);
   color: var(--texto-sobre-pastel);
@@ -3392,7 +3392,7 @@ body,
   align-items: center;
   justify-content: center;
 
-  font-size: 2.8rem;
+  font-size: var(--texto-display);
   line-height: 1;
   /* A Baloo 2 só carrega 500/600/700/800 — 300 cairia numa fonte
      sintética, que destoa do resto do site. */
@@ -3437,7 +3437,7 @@ body,
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2.2rem;
+  font-size: var(--texto-display);
 }
 
 .info-musica {
@@ -3449,14 +3449,14 @@ body,
 
 .titulo-musica {
   font-weight: 700;
-  font-size: 0.92rem;
+  font-size: var(--texto-base);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .artista-musica {
-  font-size: 0.78rem;
+  font-size: var(--texto-pequeno);
 }
 
 /*===================================================
@@ -3475,7 +3475,7 @@ body,
   background: var(--cor-primaria);
   color: var(--texto-sobre-pastel);
 
-  font-size: 0.82rem;
+  font-size: var(--texto-pequeno);
   font-weight: 800;
   white-space: nowrap;
 
@@ -3514,7 +3514,7 @@ body,
 .busca-playlist-titulo {
   margin-bottom: var(--espaco-3);
 
-  font-size: 1.05rem;
+  font-size: var(--texto-grande);
   font-weight: 800;
 }
 
@@ -3533,7 +3533,7 @@ body,
   outline: none;
 
   font-family: inherit;
-  font-size: 0.95rem;
+  font-size: var(--texto-base);
 }
 
 .busca-playlist-input:focus {
@@ -3580,7 +3580,7 @@ body,
   align-items: center;
   justify-content: center;
 
-  font-size: 1.3rem;
+  font-size: var(--texto-destaque);
 }
 
 .item-busca-texto {
@@ -3679,7 +3679,7 @@ body,
 }
 
 .descobrir-artista {
-    font-size: 0.78rem;
+    font-size: var(--texto-pequeno);
     color: var(--cor-texto-secundario);
     white-space: nowrap;
     overflow: hidden;
@@ -3687,7 +3687,7 @@ body,
 }
 
 .descobrir-duracao {
-    font-size: 0.75rem;
+    font-size: var(--texto-pequeno);
     color: var(--cor-texto-fraco);
     font-variant-numeric: tabular-nums;
 }

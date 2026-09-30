@@ -38,16 +38,18 @@
        Não significa que todas serão usadas ao mesmo tempo.
        ----------------------------------------------------- */
 
-    --pastel-amarelo: #fbf8cc;
+    /* Só entram cores que a identidade realmente usa. O verde-água e o
+       verde foram removidos: nenhuma das duas estava em uso, e a
+       verde-água era justamente a cor que atrapalhava no tema claro
+       (1,27:1 sobre branco) e que ninguém gostava. */
     --pastel-pessego: #fde4cf;
     --pastel-rosa: #ffcfd2;
     --pastel-rosa-lilas: #f1c0e8;
     --pastel-lilas: #cfbaf0;
     --pastel-azul: #a3c4f3;
+    --pastel-amarelo: #fbf8cc;
     --pastel-azul-claro: #90dbf4;
     --pastel-ciano: #8eeff5;
-    --pastel-verde-agua: #98f5e1;
-    --pastel-verde: #b9fbc0;
 
 
     /* -----------------------------------------------------
@@ -237,22 +239,33 @@
 
 
     /* -----------------------------------------------------
-       ABAS / ETIQUETAS
+       ABAS / ETIQUETAS — TEMA CLARO
+
+       Estas são DIFERENTES das do escuro de propósito. Um pastel
+       precisa de superfície escura para existir: em fundo escuro as
+       abas ficam entre 8:1 e 13:1 de contraste, em fundo branco
+       caem para 1,1:1-1,8:1 e desaparecem. Por isso aqui elas são
+       a mesma família de cor (mesmo matiz, a identidade é a mesma)
+       só que mais funda, com o texto escuro por cima funcionando.
+
+       A Configuração é a exceção: o amarelo é claro demais para ser
+       preenchimento (1,08:1 sobre branco), então vira BORDa — e como
+       borda ele funciona, porque a linha é escura contra a superfície.
        ----------------------------------------------------- */
 
-    --aba-musicas: #ffcfd2;
-    --aba-artistas: #cfbaf0;
-    --aba-generos: #a3c4f3;
-    --aba-biblioteca: #98f5e1;
-    --aba-perfil: #fde4cf;
-    --aba-config: #fbf8cc;
+    --aba-musicas: #ff999f;      /* rosa mais fundo */
+    --aba-artistas: #c5abed;     /* roxo mais fundo */
+    --aba-generos: #a5c5f3;      /* azul mais fundo */
+    --aba-biblioteca: #f9b276;   /* pêssego mais fundo (era verde-água) */
+    --aba-perfil: #f9b276;       /* pêssego mais fundo */
+    --aba-config: #9e9040;       /* âmbar escuro: usado como BORDA, não preenchimento */
 
-    /* A aba dos MODAIS é uma cor só, compartilhada por todos eles, e é
-       quente de propósito: o rosa das músicas, para o popup não se
-       confundir com as abas verde-água/lilas/azul das seções. */
-    --aba-modal: #ffcfd2;
+    /* A aba dos MODAIS é a mesma rosa das músicas, para o popup não se
+       confundir com as abas das seções. */
+    --aba-modal: #ff999f;
 
-    --aba-playlists: #cfbaf0;
+    --aba-playlists: #c5abed;    /* mesma roxa dos artistas */
+
 
 
 
@@ -734,7 +747,7 @@
     border: none;
     border-radius: var(--raio-circular);
 
-    font-size: 1.1rem;
+    font-size: var(--texto-grande);
     font-weight: 800;
     line-height: 1;
 
@@ -869,7 +882,7 @@
 
 
 .player-fila-titulo-h2 {
-  font-size: 0.95rem;
+  font-size: var(--texto-base);
   font-weight: 800;
   display: flex;
   align-items: baseline;
@@ -879,7 +892,7 @@
 
 
 .player-fila-contagem {
-  font-size: 0.7rem;
+  font-size: var(--texto-minimo);
   font-weight: 600;
   color: var(--cor-texto-fraco);
 }
@@ -900,7 +913,7 @@
   border-radius: var(--raio-pequeno);
   background: transparent;
   color: var(--cor-texto-secundario);
-  font-size: 0.72rem;
+  font-size: var(--texto-minimo);
   font-weight: 700;
   padding: 4px 10px;
   cursor: pointer;
@@ -919,14 +932,14 @@
 
 .player-fila-fechar {
   padding: 2px 8px;
-  font-size: 1rem;
+  font-size: var(--texto-grande);
   line-height: 1;
 }
 
 
 
 .player-fila-dica {
-  font-size: 0.68rem;
+  font-size: var(--texto-minimo);
   color: var(--cor-texto-fraco);
 }
 
@@ -971,7 +984,7 @@
 
 
 .player-fila-posicao {
-  font-size: 0.7rem;
+  font-size: var(--texto-minimo);
   font-weight: 700;
   color: var(--cor-texto-fraco);
   min-width: 16px;
@@ -1001,7 +1014,7 @@
 
 
 .player-fila-titulo {
-  font-size: 0.78rem;
+  font-size: var(--texto-pequeno);
   font-weight: 700;
   color: var(--cor-texto);
   white-space: nowrap;
@@ -1012,7 +1025,7 @@
 
 
 .player-fila-artista {
-  font-size: 0.68rem;
+  font-size: var(--texto-minimo);
   color: var(--cor-texto-secundario);
   white-space: nowrap;
   overflow: hidden;
@@ -1026,7 +1039,7 @@
   background: none;
   color: var(--cor-texto-fraco);
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: var(--texto-pequeno);
   padding: 0 4px;
   flex-shrink: 0;
   transition: color 0.2s ease;
@@ -1041,7 +1054,7 @@
 
 
 .player-fila-vazia {
-  font-size: 0.75rem;
+  font-size: var(--texto-pequeno);
   font-style: italic;
   color: var(--cor-texto-fraco);
   padding: 10px 2px;
@@ -1090,7 +1103,7 @@
 
 
 .player-fila-agora {
-  font-size: 0.7rem;
+  font-size: var(--texto-minimo);
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.04em;
