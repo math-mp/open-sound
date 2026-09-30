@@ -160,6 +160,10 @@ const formUpload = document.getElementById('form-upload');
 const btnUpload = document.getElementById('btn-upload');
 const listaMusicas = document.getElementById('lista-musicas');
 const listaArtistas = document.getElementById('lista-artistas');
+// Declarado aqui, e não junto das funções da seção: carregarDescobrirMusicas()
+// roda na carga inicial (mais abaixo) e um const declarado depois ficaria
+// inacessível — "Cannot access before initialization".
+const listaDescobrir = document.getElementById('lista-descobrir');
 
 // Elementos do Modal de Cadastro de Artista
 const modalArtista = document.getElementById('modal-artista');
@@ -1315,6 +1319,7 @@ async function carregarMusicasMaisTocadas() {
 // já trouxer.
 carregarMusicasMaisTocadas();
 carregarArtistasMaisOuvidos();
+carregarDescobrirMusicas();
 
 // ============================================================
 // BUSCA INLINE (mesma página — não navega, pra não matar o áudio tocando)
@@ -1491,10 +1496,21 @@ function criarItemArtista(artista, posicao) {
   const card = document.createElement('div');
   card.className = 'artista-card';
 
-  // Fallback de iniciais mantido.
-  const avatar = document.createElement('span');
-  avatar.className = 'artista-avatar';
-  avatar.textContent = iniciaisArtista(artista.artista);
+  // Foto real quando o artista tem avatar enviado (o endpoint devolve
+  // avatar_url). Sem foto, continua o fallback de iniciais que já existia
+  // aqui — nenhum caminho inventa imagem.
+  let avatar;
+  if (artista.avatar_url) {
+    avatar = document.createElement('img');
+    avatar.className = 'artista-avatar';
+    avatar.src = artista.avatar_url;
+    avatar.alt = `Foto de ${artista.artista || 'artista'}`;
+    avatar.loading = 'lazy';
+  } else {
+    avatar = document.createElement('span');
+    avatar.className = 'artista-avatar';
+    avatar.textContent = iniciaisArtista(artista.artista);
+  }
 
   const info = document.createElement('div');
   info.className = 'artista-info';
@@ -1583,6 +1599,130 @@ async function carregarArtistasMaisOuvidos() {
   } catch (erro) {
     console.error('Erro ao carregar os artistas mais ouvidos:', erro);
     mostrarMensagemArtistas('Erro de conexão ao carregar os artistas.');
+  }
+}
+
+// ============================================================
+// "DESCUBRA NOVAS MÚSICAS"
+// ============================================================
+// Lista as músicas mais recém-enviadas. Os dados vêm do catálogo geral
+// (GET /api/musicas), que já vem ordenado por criado_em DESC.
+// O #lista-descobrir é lido lá em cima, junto dos outros elementos do DOM.
+
+function mostrarMensagemDescobrir(mensagem, estado) {
+  if (!listaDescobrir) return;
+  listaDescobrir.innerHTML = '';
+  listaDescobrir.dataset.estado = estado;
+  const item = document.createElement('li');
+  item.className = 'mensagem-lista';
+  item.textContent = mensagem;
+  listaDescobrir.appendChild(item);
+}
+
+// mm:ss. Sem valor (null/NaN) vira '--:--' — nunca um tempo chutado.
+function formatarDuracao(segundos) {
+  if (segundos === null || Number.isNaN(Number(segundos))) return '--:--';
+  const min = Math.floor(segundos / 60);
+  const seg = Math.floor(segundos % 60).toString().padStart(2, '0');
+  return `${min}:${seg}`;
+}
+
+// Duração real, lida do metadata do próprio arquivo pelo navegador. Não
+// existe coluna de duração no banco, e não é preciso criar uma: o
+// HTMLAudioElement sabe quanto tempo o áudio dura sem baixar ele inteiro.
+// Arquivo indisponível/CORS bloqueado resolve null e a célula fica '--:--'.
+function obterDuracaoReal(urlAudio) {
+  return new Promise((resolve) => {
+    if (!urlAudio) return resolve(null);
+    const audio = new Audio();
+    audio.preload = 'metadata';
+    audio.addEventListener('loadedmetadata', () => resolve(audio.duration));
+    audio.addEventListener('error', () => resolve(null));
+    audio.src = urlAudio;
+  });
+}
+
+function criarItemDescobrir(musica) {
+  const item = document.createElement('li');
+  item.className = 'descobrir-item';
+
+  // Capa real quando existe. Sem capa, o mesmo quadradinho com 🎵 que o
+  // resto do projeto já usa (minhas-musicas.js / biblioteca.js) — não há
+  // imagem de placeholder genérica no repositório para apontar.
+  if (musica.url_capa) {
+    const capa = document.createElement('img');
+    capa.className = 'descobrir-capa';
+    capa.src = musica.url_capa;
+    capa.alt = `Capa de ${musica.titulo || ''}`.trim();
+    capa.loading = 'lazy';
+    item.appendChild(capa);
+  } else {
+    const capaVazia = document.createElement('span');
+    capaVazia.className = 'descobrir-capa descobrir-capa-vazia';
+    capaVazia.textContent = '🎵';
+    item.appendChild(capaVazia);
+  }
+
+  const info = document.createElement('div');
+  info.className = 'descobrir-info';
+
+  const titulo = document.createElement('span');
+  titulo.className = 'descobrir-titulo';
+  titulo.textContent = musica.titulo || 'Música sem título';
+
+  const artista = document.createElement('span');
+  artista.className = 'descobrir-artista';
+  artista.textContent = musica.artista || 'Artista desconhecido';
+
+  info.append(titulo, artista);
+
+  const duracao = document.createElement('span');
+  duracao.className = 'descobrir-duracao';
+  duracao.textContent = '--:--';
+  // Preenche depois, sem travar a lista inteira esperando cada áudio.
+  obterDuracaoReal(musica.url_audio).then((segundos) => {
+    duracao.textContent = formatarDuracao(segundos);
+  });
+
+  item.append(info, duracao);
+
+  // Tocar pelo player global: mesma função e mesma guarda de login que o
+  // carrossel usa. O botão que receive o rótulo é o da barra do player,
+  // então aqui não há segundo estado de áudio.
+  item.addEventListener('click', () => {
+    if (!estaLogado()) {
+      alert('Faça login para tocar as músicas.');
+      if (modalLogin) modalLogin.classList.remove('hidden');
+      return;
+    }
+    tocarMusica(musica);
+  });
+
+  return item;
+}
+
+async function carregarDescobrirMusicas() {
+  if (!listaDescobrir) return;
+
+  try {
+    const resposta = await fetch('http://localhost:3000/api/musicas');
+    if (!resposta.ok) throw new Error('Falha ao buscar músicas.');
+    const { musicas } = await resposta.json();
+
+    if (!musicas || musicas.length === 0) {
+      mostrarMensagemDescobrir('Não há músicas disponíveis no momento.', 'vazio');
+      return;
+    }
+
+    listaDescobrir.innerHTML = '';
+    listaDescobrir.dataset.estado = 'pronto';
+    musicas.forEach((musica) => {
+      listaDescobrir.appendChild(criarItemDescobrir(musica));
+    });
+
+  } catch (erro) {
+    console.error('Erro ao carregar as músicas:', erro);
+    mostrarMensagemDescobrir('Não foi possível carregar as músicas.', 'erro');
   }
 }
 

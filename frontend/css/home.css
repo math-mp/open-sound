@@ -168,6 +168,11 @@ body,
 .genres::before,
 .genres::after,
 .lista-musicas,
+.descobrir-item,
+.descobrir-capa,
+.descobrir-titulo,
+.descobrir-artista,
+.descobrir-duracao,
 .conteudo-modal,
 .conteudo-modal input,
 .player-barra,
@@ -566,7 +571,8 @@ body,
   transform: translateY(-2px);
 }
 
-/* Avatar de iniciais (fallback mantido) */
+/* Avatar: <img> quando o artista tem foto enviada, <span> com as iniciais
+   quando não tem. O mesmo bloco serve pros dois casos. */
 .artista-avatar {
   display: flex;
   align-items: center;
@@ -582,6 +588,8 @@ body,
 
   font-size: clamp(1.1rem, 5.5cqw, 2.6rem);
   font-weight: 800;
+
+  object-fit: cover;
 }
 
 .artista-info {
@@ -3583,4 +3591,103 @@ body,
 .item-busca-playlist .btn-play-card {
   margin: 0;
   flex-shrink: 0;
+}
+
+
+/* ===================================================
+   DESCUBRA NOVAS MÚSICAS (lista com capa, título, artista e duração)
+
+   Nenhuma regra acima é alterada: estas classes são novas e não colidem
+   com o ranking de artistas nem com o carrossel. A lista de músicas rola
+   por dentro do painel em vez de esticar a página inteira.
+   ================================================= */
+
+.lista-descobrir {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espaco-2);
+    list-style: none;
+    max-height: 420px;
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    scrollbar-width: thin;
+    scrollbar-color: var(--aba-generos) transparent;
+}
+
+.lista-descobrir::-webkit-scrollbar {
+    width: 6px;
+}
+
+.lista-descobrir::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.lista-descobrir::-webkit-scrollbar-thumb {
+    background: var(--aba-generos);
+    border-radius: 999px;
+}
+
+.lista-descobrir .mensagem-lista {
+    text-align: center;
+    padding: 24px 12px;
+}
+
+.descobrir-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--espaco-3);
+    padding: var(--espaco-2) var(--espaco-3);
+    border-radius: var(--raio-pequeno);
+    cursor: pointer;
+    transition: background var(--transicao-rapida);
+}
+
+.descobrir-item:hover {
+    background: var(--cor-superficie-hover);
+}
+
+.descobrir-capa {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--raio-pequeno);
+    object-fit: cover;
+}
+
+/* Sem capa: o mesmo quadradinho com 🎵 usado nas outras grades do projeto. */
+.descobrir-capa-vazia {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--cor-superficie-clara);
+    color: var(--cor-texto-fraco);
+}
+
+.descobrir-info {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.descobrir-titulo {
+    font-weight: 700;
+    color: var(--card-texto);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.descobrir-artista {
+    font-size: 0.78rem;
+    color: var(--cor-texto-secundario);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.descobrir-duracao {
+    font-size: 0.75rem;
+    color: var(--cor-texto-fraco);
+    font-variant-numeric: tabular-nums;
 }
