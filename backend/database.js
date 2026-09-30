@@ -2,6 +2,11 @@
 // Este arquivo é a única fonte da verdade do schema (o perfil.routes.js
 // não é mais necessário).
 const { Pool } = require('pg');
+const { logInfo, logWarn, logError } = require('./ajudantes');
+
+// NUNCA logamos host/usuário/database: a conexão é montada aqui e a string
+// completa carrega a senha. O log serve para saber QUE banco, não COMO.
+logInfo('DB', 'Conectando ao PostgreSQL');
 
 const pool = new Pool({
   host: process.env.DB_HOST,
@@ -13,6 +18,11 @@ const pool = new Pool({
     rejectUnauthorized: false
   }
 });
+
+// 'connect' só dispara quando o pool realmente abre a primeira conexão — ou
+// seja, é a prova de que a conexão funcionou, não só de que ela foi pedida.
+pool.on('connect', () => logInfo('DB', 'Conexão estabelecida'));
+pool.on('error', (erro) => logError('ERROR', 'Erro na conexão do pool PostgreSQL', { codigo: erro.code, mensagem: erro.message }));
 
 // Tudo é idempotente ("IF NOT EXISTS" / "ADD COLUMN IF NOT EXISTS"): roda em
 // toda subida do servidor, em banco novo ou antigo, sem apagar nada.
@@ -183,15 +193,20 @@ END $$;
 `;
 
 const criarTabelas = async () => {
+  logInfo('DB', `Verificando schema (${COMANDOS.length} comandos idempotentes)`);
+
   for (const comando of COMANDOS) {
     await pool.query(comando);
   }
 
+  logInfo('DB', 'Tabelas verificadas/criadas');
+
   // Passos "extras": se falharem, o servidor sobe mesmo assim.
   try {
     await pool.query(CONVERTER_FUSO);
+    logInfo('DB', 'Colunas de data convertidas para TIMESTAMPTZ');
   } catch (erro) {
-    console.warn('Aviso: não foi possível converter colunas de data para TIMESTAMPTZ:', erro.message);
+    logWarn('DB', 'Não foi possível converter colunas de data para TIMESTAMPTZ', { mensagem: erro.message });
   }
 
   try {
@@ -199,11 +214,12 @@ const criarTabelas = async () => {
     await pool.query(
       'CREATE UNIQUE INDEX IF NOT EXISTS uq_playlists_favoritos_por_usuario ON playlists(usuario_id) WHERE eh_favoritos'
     );
+    logInfo('DB', 'Índice único de Favoritos verificado');
   } catch (erro) {
-    console.warn('Aviso: índice único de Favoritos não criado (há Favoritos duplicados?):', erro.message);
+    logWarn('DB', 'Índice único de Favoritos não criado (há Favoritos duplicados?)', { mensagem: erro.message });
   }
 
-  console.log('Tabelas e colunas verificadas/criadas com sucesso no PostgreSQL.');
+  logInfo('DB', 'Banco pronto');
 };
 
 const esperar = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -219,10 +235,18 @@ const criarTabelasComRetry = async ({ tentativas = 10, intervaloMs = 1000 } = {}
     } catch (erro) {
       const repetivel = erro && ERROS_REPETIVEIS.includes(erro.code);
       if (!repetivel || tentativa === tentativas) {
-        console.error('Erro ao criar tabelas no PostgreSQL:', erro);
+        logError('ERROR', 'Erro ao criar tabelas no PostgreSQL', {
+          codigo: erro.code,
+          mensagem: erro.message,
+          tentativas
+        });
         return false;
       }
-      console.warn(`Banco ainda não pronto (${erro.code}). Tentativa ${tentativa}/${tentativas}.`);
+      logWarn('DB', 'Banco ainda não pronto, repetindo', {
+        codigo: erro.code,
+        tentativa,
+        tentativas
+      });
       await esperar(intervaloMs);
     }
   }

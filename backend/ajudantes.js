@@ -3,6 +3,10 @@
 
 
 // ---------- Sistema de Logs de Desenvolvimento ----------
+// Fonte única da formatação: todo o resto do projeto chama logInfo/logWarn/
+// logError, então remover o sistema inteiro é apagar este bloco e os helpers.
+// Controla-se com DEBUG_LOGS=true (ou LOG_LEVEL=debug) no .env. Erro e aviso
+// SEMPRE aparecem, independente do flag — silenciar erro esconde problema.
 const DEBUG_LOGS = process.env.DEBUG_LOGS === 'true' || process.env.LOG_LEVEL === 'debug';
 
 function logTimestamp() {
@@ -153,7 +157,7 @@ async function removerArquivosDoStorage(supabase, bucket, urlsPublicas) {
   for (let i = 0; i < caminhos.length; i += 100) {
     const { error } = await supabase.storage.from(bucket).remove(caminhos.slice(i, i + 100));
     if (error) {
-      console.error('Não foi possível apagar arquivos do Storage:', error);
+      logError('ERROR', 'Não foi possível apagar arquivos do Storage', { codigo: error.code, mensagem: error.message });
       tudoCerto = false;
     }
   }

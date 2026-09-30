@@ -1303,23 +1303,31 @@ function criarDestaqueMusica(musica) {
     tocarMusica(musica, btnPlay);
   });
 
+  // Botão de favoritar: agora fica ao lado do "Tocar" (mesmo estilo/cor),
+  // não mais sobre a capa. A lógica (coração cheio/vazio, fetch de
+  // favoritar/desfavoritar) continua a mesma de sempre.
+  const btnFavoritar = criarBotaoIcone('btn-favoritar-destaque', '♡', 'Favoritar');
+  btnFavoritar.dataset.musicaId = musica.id;
+  pintarCoracao(btnFavoritar, idsFavoritos.has(Number(musica.id)));
+  btnFavoritar.addEventListener('click', () => alternarFavorito(musica));
+
+  const botoesInfo = document.createElement('div');
+  botoesInfo.className = 'msc-info-botoes';
+  botoesInfo.appendChild(btnPlay);
+  botoesInfo.appendChild(btnFavoritar);
+
   info.appendChild(nome);
   info.appendChild(artista);
-  info.appendChild(btnPlay);
+  info.appendChild(botoesInfo);
 
     // A capa agora vai dentro de um wrapper (mesmas medidas, 185px) pra que
-  // os botões de favoritar/adicionar possam ficar ancorados nela.
+  // o botão de adicionar à playlist possa ficar ancorado nela.
   const capaWrapper = document.createElement('div');
   capaWrapper.className = 'msc-capa-wrapper';
   capaWrapper.appendChild(capa);
 
   const acoes = document.createElement('div');
   acoes.className = 'msc-acoes-capa';
-
-  const btnFavoritar = criarBotaoIcone('btn-favoritar-destaque', '♡', 'Favoritar');
-  btnFavoritar.dataset.musicaId = musica.id;
-  pintarCoracao(btnFavoritar, idsFavoritos.has(Number(musica.id)));
-  btnFavoritar.addEventListener('click', () => alternarFavorito(musica));
 
   const btnAddPlaylist = criarBotaoIcone('', '＋', 'Adicionar à playlist');
   btnAddPlaylist.addEventListener('click', () => abrirModalAddPlaylist(musica));
@@ -1608,14 +1616,28 @@ function iniciaisArtista(nome) {
   return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
 }
 
+// Formata só o número (600.959), sem o texto "reproduções". O rótulo fica
+// em um <span> separado pra o CSS poder mostrar ou esconder por estado.
+function formatarNumeroBR(quantidade) {
+  const numero = Number(quantidade);
+  if (!Number.isFinite(numero)) return '0';
+  return numero.toLocaleString('pt-BR');
+}
+
 function criarItemArtista(artista, posicao) {
   const item = document.createElement('div');
-  item.className = 'artista-item';
+  // Do 4º em diante o card fica compacto (definido no CSS).
+  item.className = posicao > 3 ? 'artista-item artista-item--compacto' : 'artista-item';
 
   const numero = document.createElement('span');
   numero.className = 'artista-posicao';
-  numero.textContent = `${posicao}`;
+  numero.textContent = `${posicao}º`;
 
+  // Card que agrupa avatar + informações (o número fica fora, à esquerda).
+  const card = document.createElement('div');
+  card.className = 'artista-card';
+
+  // Fallback de iniciais mantido.
   const avatar = document.createElement('span');
   avatar.className = 'artista-avatar';
   avatar.textContent = iniciaisArtista(artista.artista);
@@ -1626,17 +1648,39 @@ function criarItemArtista(artista, posicao) {
   const nome = document.createElement('p');
   nome.className = 'artista-nome';
   nome.textContent = artista.artista || 'Artista sem nome';
+  nome.title = nome.textContent;
+
+  info.appendChild(nome);
+
+  // Informação secundária real: quantidade de músicas do artista.
+  const totalMusicas = Number(artista.musicas);
+  if (Number.isFinite(totalMusicas)) {
+    const detalhe = document.createElement('p');
+    detalhe.className = 'artista-detalhe';
+    detalhe.textContent = `${totalMusicas} ${totalMusicas === 1 ? 'música' : 'músicas'}`;
+    info.appendChild(detalhe);
+  }
 
   const reproducoes = document.createElement('p');
   reproducoes.className = 'artista-reproducoes';
-  reproducoes.textContent = formatarReproducoes(artista.reproducoes);
 
-  info.appendChild(nome);
+  const valor = document.createElement('span');
+  valor.className = 'artista-reproducoes-valor';
+  valor.textContent = formatarNumeroBR(artista.reproducoes);
+
+  const rotulo = document.createElement('span');
+  rotulo.className = 'artista-reproducoes-rotulo';
+  rotulo.textContent = Number(artista.reproducoes) === 1 ? 'Reprodução' : 'Reproduções';
+
+  reproducoes.appendChild(valor);
+  reproducoes.appendChild(rotulo);
   info.appendChild(reproducoes);
 
+  card.appendChild(avatar);
+  card.appendChild(info);
+
   item.appendChild(numero);
-  item.appendChild(avatar);
-  item.appendChild(info);
+  item.appendChild(card);
 
   return item;
 }
