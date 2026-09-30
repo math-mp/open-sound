@@ -38,7 +38,19 @@ const {
 } = require('./ajudantes');
 
 const app = express();
-app.use(cors());
+
+// Atrás do proxy do Render, sem isto o req.ip é sempre o IP do proxy: todos os
+// usuários dividiriam o mesmo limite do rate limit. Só ativa em produção.
+if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
+
+// CORS: em produção, liste o(s) endereço(s) do frontend em CORS_ORIGINS, separados
+// por vírgula (ex.: https://open-sound.vercel.app). Sem a variável, libera tudo
+// (útil em desenvolvimento local).
+const ORIGENS_PERMITIDAS = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((origem) => origem.trim().replace(/\/$/, ''))
+  .filter(Boolean);
+app.use(cors(ORIGENS_PERMITIDAS.length ? { origin: ORIGENS_PERMITIDAS } : undefined));
 app.use(express.json());
 
 // ============================================================

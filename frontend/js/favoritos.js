@@ -21,7 +21,7 @@
 // de cada página: assim este arquivo funciona sozinho e não depende da
 // ordem em que o script da página foi avaliado.
 
-const API_FAVORITOS = 'http://localhost:3000';
+const API_FAVORITOS = API_URL;
 const CHAVE_TOKEN_FAVORITOS = 'tokenSessao';
 
 // IDs (números) das músicas favoritadas pela conta logada.

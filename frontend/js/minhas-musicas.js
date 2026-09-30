@@ -366,7 +366,7 @@ function criarCardMinhaMusica(musica) {
     btnExcluir.classList.add('excluindo');
 
     try {
-      const resposta = await fetchComAutenticacao(`http://localhost:3000/api/musicas/${musica.id}`, {
+      const resposta = await fetchComAutenticacao(`${API_URL}/api/musicas/${musica.id}`, {
         method: 'DELETE'
       });
 
@@ -428,7 +428,7 @@ async function carregarMinhasMusicas() {
   if (!listaMinhasMusicas) return;
 
   try {
-    const resposta = await fetchComAutenticacao('http://localhost:3000/api/musicas/minhas');
+    const resposta = await fetchComAutenticacao(API_URL + '/api/musicas/minhas');
     const dados = await resposta.json();
 
     if (!resposta.ok) {
