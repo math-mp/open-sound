@@ -710,92 +710,11 @@ body,
 
 /*===modal register css====*/
 
-/*faz o popup ficar invisivel*/
-.hidden{
-  display: none !important;
-}
-
-/* ===================================================
-   FUNDO DOS MODAIS
-   =================================================== */
-
-.modal {
-    position: fixed;
-
-    inset: 0;
-
-    width: 100%;
-    height: 100%;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    padding: 28px 18px;
-
-    z-index: 1100;
-}
-
-/* Caixa principal do popup.
-   Largura, altura, borda de rolagem e animação valem para TODOS os
-   modais — cada um ajusta só o que é dele (o cadastro e o upload, por
-   exemplo, são mais altos). Antes essas partes estavam em regras por id
-   e os modais novos ficavam sem cartão nenhum. */
-.conteudo-modal {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  padding: 20px;
-  border-radius: var(--raio-grande);
-  position: relative;
-  width: min(360px, calc(100vw - 36px));
-  max-height: calc(100vh - 56px);
-  overflow: hidden;
-  animation: cadastroEntrada .25s ease;
-}
-
-/* O upload é o único com preview de capa, então precisa de mais largura
-   que os outros. */
-#modal-upload .conteudo-modal {
-  width: min(420px, calc(100vw - 36px));
-}
-
-.conteudo-modal h2 {
-  font-size: 1.2rem;
-}
-
-.conteudo-modal input[type="email"],
-.conteudo-modal input[type="password"],
-.conteudo-modal input[type="text"],
-.conteudo-modal input[type="file"] {
-  padding: 10px 14px;
-  border-radius: var(--raio-pequeno);
-  border: none;
-  font-family: inherit;
-  font-size: 0.9rem;
-}
-
-.conteudo-modal button[type="submit"] {
-  padding: 12px;
-  border-radius: var(--raio-medio);
-  border: none;
-  font-weight: 700;
-  font-size: 0.95rem;
-  cursor: pointer;
-}
-
-/* BOTÃO DE FECHAR
-
-   O formato do × é o mesmo em todos os modais, então mora na regra
-   genérica .btn-fechar (lá no fim do arquivo). Antes ele era repetido
-   por id — registro/login/esqueci tinham a versão completa e artista/
-   upload/add-playlist ficavam só com um texto solto no canto. */
-
-.etapa{
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
+/* O formato dos popups (.modal, .conteudo-modal, .etapa, .btn-fechar),
+   o .hidden que esconde/mostra eles e a lista de playlists do modal
+   "Adicionar à Playlist" moram no modal-playlist.css: o modal de
+   adicionar à playlist é montado pelo favoritos.js em todas as páginas,
+   não só nesta. */
 
 /*====conteudo campo senha modal register====*/
 .campo-senha {
@@ -2121,17 +2040,8 @@ body,
     padding-right: 0;
 }
 
-@keyframes cadastroEntrada {
-    from {
-        opacity: 0;
-        transform: translateY(12px) scale(.97);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
+/* A animação de entrada dos popups (cadastroEntrada) foi para o
+   modal-playlist.css, junto com o formato do modal. */
 
 /* ===================================================
    AJUSTES DOS CAMPOS DO CADASTRO
@@ -2783,25 +2693,9 @@ body,
     transform: translateY(1px) scale(.99) !important;
 }
 
-/* LINK "NÃO POSSUI CONTA / VOLTAR" */
-.link-cadastro {
-    text-align: center;
-    margin-top: 20px;
-    font-size: .85rem;
-    color: var(--cor-texto-secundario);
-}
-
-.link-cadastro a {
-    color: var(--cor-primaria);
-    font-weight: 700;
-    text-decoration: none;
-    transition: color var(--transicao-rapida);
-}
-
-.link-cadastro a:hover {
-    color: var(--cor-primaria-hover);
-    text-decoration: underline;
-}
+/* LINK "NÃO POSSUI CONTA / VOLTAR" — o formato (.link-cadastro) foi para
+   o modal-playlist.css, porque o modal "Adicionar à Playlist" também usa
+   ele na dica "Crie na Biblioteca". */
 
 /* TEXTO EXPLICATIVO ESQUECI SENHA */
 .texto-esqueci {
@@ -2866,43 +2760,6 @@ body,
     #modal-registro #etapa-registro h2 {
         font-size: 1.6rem;
     }
-}
-
-/*===================================================
-   BOTÃO DE FECHAR (todos os modais)
-   O formato é único e compartilhado: registro, login, esqueci,
-   artista, upload, adicionar à playlist e nova playlist usam
-   esta regra, sem nenhuma variação por id.
-====================================================*/
-.btn-fechar {
-  position: absolute;
-  top: 9px;
-  right: 10px;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: none;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--cor-texto);
-  font-size: 1.45rem;
-  line-height: 1;
-  font-weight: 800;
-  cursor: pointer;
-  z-index: 20;
-  transition:
-    background-color var(--transicao-rapida),
-    color var(--transicao-rapida),
-    transform var(--transicao-rapida);
-}
-
-.btn-fechar:hover {
-  background: var(--cor-superficie-clara);
-  color: var(--cor-texto);
-  transform: scale(1.08);
 }
 
 /*===================================================
@@ -3556,72 +3413,13 @@ body,
   color: #fff8f3;
 }
 
-/* Lista de playlists dentro do modal "Adicionar à Playlist". */
-.lista-playlists-modal {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-
-  max-height: 260px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.item-playlist-modal {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-
-  width: 100%;
-  padding: 8px 10px;
-
-  border-style: solid;
-  border-width: 1px;
-  border-radius: var(--raio-medio);
-
-  text-align: left;
-  font-size: 0.92rem;
-  font-weight: 700;
-
-  transition:
-    transform var(--transicao-rapida),
-    background-color 0.3s ease,
-    border-color 0.3s ease;
-}
-
-.item-playlist-modal:hover {
-  transform: translateX(3px);
-}
-
-/* Capa (ou emoji, quando a playlist não tem imagem). */
-.item-playlist-capa {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  width: 44px;
-  height: 44px;
-  flex-shrink: 0;
-
-  border-radius: var(--raio-pequeno);
-  object-fit: cover;
-
-  font-size: 1.2rem;
-}
-
-.item-playlist-nome {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.item-playlist-estado {
-  margin-left: auto;
-  flex-shrink: 0;
-  font-size: 0.75rem;
-  font-weight: 700;
-}
+/* A lista de playlists do modal "Adicionar à Playlist"
+   (.lista-playlists-modal, .item-playlist-modal, .item-playlist-capa,
+   .item-playlist-nome, .item-playlist-estado) foi para o
+   modal-playlist.css: esse modal é montado pelo favoritos.js em todas
+   as páginas, não só na home. */
 /*===================================================
-  GRADE DE CARDS (Biblioteca, Playlist, Minhas Músicas)
+   GRADE DE CARDS (Biblioteca, Playlist, Minhas Músicas)
   Reintroduz .card-musica/.capa-musica/.info-musica/.titulo-musica/
   .artista-musica, que sumiram do CSS na reforma pro carrossel — a página
   "Minhas Músicas" já usava essas classes e ficava sem estilo.
