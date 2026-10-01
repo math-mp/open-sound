@@ -4154,10 +4154,9 @@ body,
    CAPTCHA (CLOUDFLARE TURNSTILE)
    --------------------------------------------------- */
 
-/* O widget é invisível na maior parte do tempo (aparece só quando o
-   Cloudflare pede interação), então a caixa precisa reservar o espaço
-   mínimo e centralizar — sem isso o formulário "pula" quando ele
-   finalmente aparece. */
+/* Centraliza e reserva o espaço do widget (300x65), que é o tamanho
+   padrão do Turnstile. O `overflow: hidden` esconde a borda arredondada
+   que o widget traz, que destoa do design do modal. */
 .turnstile-caixa {
     display: flex;
     justify-content: center;
@@ -4166,4 +4165,19 @@ body,
     margin: 12px 0;
 
     overflow: hidden;
+}
+
+.turnstile-aviso {
+    margin: -4px 0 8px;
+
+    color: var(--cor-erro);
+
+    font-size: var(--texto-pequeno);
+    text-align: center;
+}
+
+/* Vazio por padrão: o <p> reserva linha só quando há mensagem, senão
+   empurra o botão para baixo sem necessidade. */
+.turnstile-aviso:empty {
+    display: none;
 }

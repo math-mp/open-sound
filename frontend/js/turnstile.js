@@ -59,18 +59,30 @@ function montarTurnstile(idContainer, aoResolver) {
 
       const widgetId = turnstile.render(container, {
         sitekey: TURNSTILE_SITE_KEY,
-        // interaction-only é o que faz o widget não atrapalhar: ele só
-        // aparece se o Cloudflare exigir interação. Invisible seria ainda
-        // mais discreto, mas praticamente nunca desafia ninguém, e o
-        // formulário inteiro ficaria sem challenge até para um humano.
-        appearance: 'interaction-only',
+        // 'always' deixa o widget à vista o tempo todo. 'interaction-only'
+        // era a ideia original (só aparecer se o Cloudflare desafiasse), mas
+        // na prática ele não aparece nunca em navegação normal — o usuário
+        // via um retângulo vazio de 65px e achava que faltava algo. Visível
+        // é o padrão do Turnstile e dá para o usuário ver que a verificação
+        // aconteceu.
+        appearance: 'always',
+        theme: 'auto',
         execution: 'render',
         callback: (token) => {
           tokensTurnstile.set(idContainer, token);
+          marcarTurnstile(idContainer, '');
           if (typeof aoResolver === 'function') aoResolver(token);
         },
-        'expired-callback': () => tokensTurnstile.delete(idContainer),
-        'error-callback': () => tokensTurnstile.delete(idContainer),
+        'expired-callback': () => {
+          tokensTurnstile.delete(idContainer);
+          marcarTurnstile(idContainer, 'O tempo da verificação acabou. Tente de novo.');
+        },
+        'error-callback': () => {
+          tokensTurnstile.delete(idContainer);
+          // A causa quase sempre é o domínio não estar liberado no painel do
+          // Cloudflare. Dizer isso vale mais que um retângulo vazio.
+          marcarTurnstile(idContainer, 'Não foi possível verificar. Recarregue a página.');
+        },
         'timeout-callback': () => tokensTurnstile.delete(idContainer)
       });
 
@@ -84,6 +96,14 @@ function montarTurnstile(idContainer, aoResolver) {
       // consegue se cadastrar. O backend decide o que fazer.
       return false;
     });
+}
+
+// O widget não tem slot para texto, então o aviso vai num <p> ao lado dele.
+// Existe porque o callback de erro do Turnstile é silencioso: sem isso, uma
+// site key com domínio não liberado deixa o formulário só "morto".
+function marcarTurnstile(idContainer, texto) {
+  const aviso = document.getElementById(`${idContainer}-aviso`);
+  if (aviso) aviso.textContent = texto || '';
 }
 
 function obterTokenTurnstile(idContainer) {
