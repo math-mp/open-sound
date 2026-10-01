@@ -3541,6 +3541,160 @@ body,
 }
 
 /*===================================================
+  AÇÕES DO CARD DE MÚSICA (grade de playlist / biblioteca)
+
+  Mesma anatomia da página "Minhas Músicas" (minhas-musicas.css),
+  replicada aqui porque esta página não carrega aquele arquivo. A
+  fileira de baixo tem só Tocar e Remover, dividindo a largura; o
+  botão de fila mora sobre a capa, no canto superior direito.
+===================================================*/
+
+/* Âncora do botão de fila. Sem width/height fixos: a capa dentro dela é
+   .capa-musica, que já resolve a largura pelo grid e a altura pela
+   aspect-ratio. */
+.card-capa {
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+  width: 100%;
+}
+
+.card-capa .capa-musica {
+  display: block;
+}
+
+/* Botão de fila sobre a capa: translúcido nos dois temas, porque quem
+   manda no contraste ali é a imagem, não o tema. Mesmos valores de
+   .msc-acoes-capa .btn-icone (theme.css), só mudando o canto da âncora. */
+.card-fila-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 5;
+
+  background: rgba(20, 16, 30, 0.62);
+  color: #fff8f3;
+}
+
+.card-fila-btn:hover:not(:disabled) {
+  background: rgba(20, 16, 30, 0.82);
+}
+
+.card-fila-btn:disabled {
+  cursor: not-allowed;
+  transform: none !important;
+  filter: grayscale(0.6) brightness(0.8) !important;
+}
+
+/* Confirmação de "adicionada": fica marcado por um instante. O botão já
+   está desabilitado nesse intervalo, então o feedback não some. */
+.card-fila-btn.na-fila {
+  background: var(--cor-primaria);
+  color: var(--texto-sobre-pastel);
+}
+
+.card-acoes {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: auto;
+  padding: 0 10px 10px;
+}
+
+.btn-acao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  min-width: 0;
+  max-width: 110px;
+  padding: 8px 10px;
+
+  border: none;
+  border-radius: 999px;
+
+  font-size: var(--texto-pequeno);
+  font-weight: 800;
+  white-space: nowrap;
+
+  cursor: pointer;
+
+  transition:
+    transform var(--transicao-rapida),
+    filter var(--transicao-rapida),
+    background-color 0.3s ease;
+}
+
+.btn-acao:hover:not(:disabled) {
+  transform: scale(1.05);
+  filter: brightness(1.05);
+}
+
+.btn-acao:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.btn-acao:disabled {
+  cursor: not-allowed;
+  transform: none !important;
+  filter: grayscale(0.6) brightness(0.8) !important;
+}
+
+.btn-acao-icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.btn-acao svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  /* Os SVGs são desenhados só com traço (fill:none), então o fill
+     precisa ficar transparente pra não virar um borrão. */
+  fill: none;
+}
+
+/* O play é um triângulo sólido: só o traço dele ficaria quase invisível
+   dentro de um botão colorido. A pausa é o oposto — dois blocos, que
+   ficam melhores no traço. */
+.btn-tocar svg path {
+  fill: currentColor;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+/* Estado "tocando": destaca o botão que está com o áudio carregado. */
+.btn-tocar.tocando {
+  background: var(--cor-primaria-hover);
+  filter: brightness(1.08);
+}
+
+.btn-tocar {
+  flex: 1;
+  background: var(--cor-primaria);
+  color: var(--texto-sobre-pastel);
+}
+
+.btn-tocar:hover:not(:disabled) {
+  background: var(--cor-primaria-hover);
+}
+
+.btn-excluir {
+  flex: 1;
+  background: var(--cor-erro);
+  color: var(--texto-sobre-pastel);
+}
+
+/*===================================================
   TOCAR PLAYLIST + BUSCA DE MÚSICAS
   ====================================================*/
 

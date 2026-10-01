@@ -223,6 +223,10 @@ function renderizarPerfil(perfil) {
     } else {
         aparenciaSalva = { ...personalizacaoPadrao(), banner_url: usuario.banner_url || null };
     }
+    // O wallpaper é público igual ao resto da aparência: quem está só
+    // olhando vê o mesmo fundo que o dono vê. A URL vem da coluna do usuário
+    // (fundo_url), nunca do JSONB — é o upload que escreve nela.
+    aparenciaSalva.fundo_url = usuario.fundo_url || null;
 
     if (!modoVisitante) {
         aparenciaEditando = JSON.parse(JSON.stringify(aparenciaSalva));
@@ -617,11 +621,16 @@ function personalizacaoPadrao() {
         acentos: { ...ACENTOS_PADRAO },
         borda_avatar: 'nenhuma',
         fonte_nome: 'padrao',
-        efeito: 'nenhum',
-        textura_banner: false,
-        degrade_nome: { cor1: null, cor2: null }
+    efeito: 'nenhum',
+    textura_banner: false,
+    fundo_opacidade: FUNDO_OPACIDADE_PADRAO,
+    degrade_nome: { cor1: null, cor2: null }
     };
 }
+
+// Mesma constante do backend (ajudantes.js): o front precisa de um valor
+// inicial sem depender de nada ter vindo gravado.
+const FUNDO_OPACIDADE_PADRAO = 45;
 
 let aparenciaSalva = personalizacaoPadrao();
 let aparenciaEditando = personalizacaoPadrao();
@@ -713,6 +722,24 @@ function aplicarAparencia(aparencia) {
         banner.classList.toggle('com-textura', !!aparencia.textura_banner && !!url);
     }
 
+    // Wallpaper: a imagem + a opacidade escolhida, ambas por atributo. Fora
+    // do .perfil-container de propósito — a camada é filha do body, porque
+    // precisa cobrir a tela toda, e não só a faixa das três janelas.
+    const fundo = document.getElementById('perfil-fundo');
+    if (fundo) {
+        const url = aparencia.fundo_url || '';
+        const opacidade = Number(aparencia.fundo_opacidade);
+        fundo.style.backgroundImage = url ? `url("${url}")` : '';
+        // A opacidade vai por variável, não em style.opacity: o CSS decide
+        // com isso se a camada pinta ou não (a classe .com-fundo). Sem
+        // imagem a classe não entra, então o valor é irrelevante.
+        fundo.style.setProperty(
+            '--fundo-opacidade',
+            String((Number.isFinite(opacidade) ? opacidade : FUNDO_OPACIDADE_PADRAO) / 100)
+        );
+        fundo.classList.toggle('com-fundo', !!url);
+    }
+
     if (typeof aplicarEfeitoPerfil === 'function') aplicarEfeitoPerfil(aparencia.efeito);
 }
 
@@ -751,6 +778,136 @@ function preencherControlesAparencia(aparencia) {
     const vazio = document.getElementById('config-banner-vazio');
     if (preview) preview.style.backgroundImage = aparencia.banner_url ? `url("${aparencia.banner_url}")` : '';
     if (vazio) vazio.classList.toggle('hidden', !!aparencia.banner_url);
+
+    // Fundo: mesma coisa do banner (prévia, botão remover, estado vazio),
+    // mais o slider na posição da opacidade e o rótulo em porcentagem.
+    const removerFundo = document.getElementById('config-fundo-remover');
+    if (removerFundo) removerFundo.classList.toggle('hidden', !aparencia.fundo_url);
+
+    const previewFundo = document.getElementById('config-fundo-preview');
+    const vazioFundo = document.getElementById('config-fundo-vazio');
+    if (previewFundo) previewFundo.style.backgroundImage = aparencia.fundo_url ? `url("${aparencia.fundo_url}")` : '';
+    if (vazioFundo) vazioFundo.classList.toggle('hidden', !!aparencia.fundo_url);
+
+    // A prévia respeita a opacidade: sem imagem, o preview fica apagado
+    // também, senão a caixa mostraria a imagem a 100% enquanto a página
+    // real mostra a mesma imagem quase invisível.
+    if (previewFundo) {
+        const opacidade = Number(aparencia.fundo_opacidade);
+        previewFundo.style.opacity = aparencia.fundo_url
+            ? (Number.isFinite(opacidade) ? opacidade / 100 : FUNDO_OPACIDADE_PADRAO / 100)
+            : '1';
+    }
+
+    const sliderFundo = document.getElementById('config-fundo-opacidade');
+    const valorFundo = Number(aparencia.fundo_opacidade);
+    const opacidadeFinal = Number.isFinite(valorFundo) ? valorFundo : FUNDO_OPACIDADE_PADRAO;
+    if (sliderFundo) sliderFundo.value = String(opacidadeFinal);
+    pintarValorOpacidadeFundo(opacidadeFinal);
+}
+
+// ================================================================
+// CONFIGURAÇÕES — FUNDO (WALLPAPER) E OPACIDADE
+//
+// O arquivo e o número seguem caminhos diferentes, igual ao banner: o
+// upload é imediato e devolve a URL, e a opacidade entra no objeto de
+// aparência que só é gravado no "Salvar aparência". É por isso que o
+// slider mexe em aparenciaEditando e não faz PUT sozinho.
+// ================================================================
+
+// As handles ficam no escopo do arquivo (e não dentro dos ifs de registro
+// abaixo) porque pintarValorOpacidadeFundo é chamada de
+// preencherControlesAparencia, que é definida antes daqui.
+const elFundoInput = document.getElementById('config-fundo-input');
+const elFundoEnviar = document.getElementById('config-fundo-enviar');
+const elFundoRemover = document.getElementById('config-fundo-remover');
+const elFundoStatus = document.getElementById('config-fundo-status');
+const elFundoOpacidade = document.getElementById('config-fundo-opacidade');
+const elFundoOpacidadeValor = document.getElementById('config-fundo-opacidade-valor');
+
+function pintarValorOpacidadeFundo(valor) {
+    if (elFundoOpacidadeValor) elFundoOpacidadeValor.textContent = `${valor}%`;
+}
+
+// Os três `if` abaixo checam elJanelaConfig porque no modo visitante a janela
+// inteira de configurações é removida do DOM: listener registrado sem essa
+// guarda ficaria preso a um elemento órfão.
+if (elJanelaConfig && elFundoOpacidade) {
+    // "input" e não "change": a prévia acompanha o arraste, sem ir à rede a
+    // cada pixel. O salvamento é o mesmo botão das outras abas de aparência.
+    elFundoOpacidade.addEventListener('input', () => {
+        const valor = Number(elFundoOpacidade.value);
+        const seguro = Number.isFinite(valor) ? valor : FUNDO_OPACIDADE_PADRAO;
+        aparenciaEditando.fundo_opacidade = seguro;
+        pintarValorOpacidadeFundo(seguro);
+        aplicarAparencia(aparenciaEditando);
+        marcarAparenciaAlterada();
+    });
+}
+
+if (elJanelaConfig && elFundoEnviar && elFundoInput) {
+    elFundoEnviar.addEventListener('click', () => elFundoInput.click());
+
+    elFundoInput.addEventListener('change', async () => {
+        const arquivo = elFundoInput.files[0];
+        if (!arquivo) return;
+
+        const formulario = new FormData();
+        formulario.append('fundo', arquivo);
+
+        if (elFundoStatus) elFundoStatus.textContent = 'Enviando...';
+        try {
+            const resposta = await fetchComAutenticacao(`${API_BASE}/api/perfil/fundo`, {
+                method: 'POST',
+                body: formulario
+            });
+            const dados = await resposta.json().catch(() => null);
+
+            if (!resposta.ok) {
+                if (elFundoStatus) elFundoStatus.textContent = dados?.mensagem || 'Não foi possível enviar o fundo.';
+                return;
+            }
+
+            // Mesmo do banner: a URL entra nas DUAS camadas. Na editando pra
+            // a prévia mostrar na hora, na salva pra o "Desfazer" não
+            // descartar um upload que o servidor já aceitou.
+            aparenciaEditando.fundo_url = dados.fundo_url;
+            aparenciaSalva.fundo_url = dados.fundo_url;
+            preencherControlesAparencia(aparenciaEditando);
+            aplicarAparencia(aparenciaEditando);
+            marcarAparenciaAlterada();
+            if (window.OS) OS.invalidar();
+            if (elFundoStatus) elFundoStatus.textContent = 'Fundo enviado ✓';
+        } catch (erro) {
+            if (elFundoStatus) elFundoStatus.textContent = 'Erro de conexão ao enviar o fundo.';
+            console.error(erro);
+        } finally {
+            elFundoInput.value = '';
+        }
+    });
+}
+
+if (elJanelaConfig && elFundoRemover) {
+    elFundoRemover.addEventListener('click', async () => {
+        if (elFundoStatus) elFundoStatus.textContent = 'Removendo...';
+        try {
+            const resposta = await fetchComAutenticacao(`${API_BASE}/api/perfil/fundo`, { method: 'DELETE' });
+            if (!resposta.ok) {
+                if (elFundoStatus) elFundoStatus.textContent = 'Não foi possível remover o fundo.';
+                return;
+            }
+            aparenciaEditando.fundo_url = null;
+            aparenciaSalva.fundo_url = null;
+            preencherControlesAparencia(aparenciaEditando);
+            aplicarAparencia(aparenciaEditando);
+            marcarAparenciaAlterada();
+            if (window.OS) OS.invalidar();
+            if (elFundoStatus) elFundoStatus.textContent = 'Fundo removido.';
+        } catch (erro) {
+            if (elFundoStatus) elFundoStatus.textContent = 'Erro de conexão ao remover o fundo.';
+            console.error(erro);
+        }
+    });
 }
 
 function marcarAparenciaAlterada() {
@@ -858,9 +1015,10 @@ if (elJanelaConfig) {
                 const resposta = await fetchComAutenticacao(`${API_BASE}/api/perfil/personalizacao`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    // banner_url NÃO vai aqui: quem manda no arquivo é o
-                    // upload. Mandar a URL no PUT deixaria o campo editável
-                    // pelo navegador, e é justamente o que não queremos.
+                    // banner_url e fundo_url NÃO vão aqui: quem manda no
+                    // arquivo é o upload. Mandar a URL no PUT deixaria o
+                    // campo editável pelo navegador, e é justamente o que
+                    // não queremos.
                     body: JSON.stringify({ personalizacao: aparenciaEditando })
                 });
                 const dados = await resposta.json().catch(() => null);
@@ -874,6 +1032,9 @@ if (elJanelaConfig) {
                 // resposta dele, não o que foi enviado.
                 aparenciaSalva = dados.personalizacao;
                 aparenciaSalva.banner_url = aparenciaEditando.banner_url;
+                // A URL do fundo também não volta no PUT: ela é reposta
+                // da camada de edição, senão a próxima gravação perderia.
+                aparenciaSalva.fundo_url = aparenciaEditando.fundo_url;
                 aparenciaEditando = JSON.parse(JSON.stringify(aparenciaSalva));
                 preencherControlesAparencia(aparenciaEditando);
                 aplicarAparencia(aparenciaEditando);

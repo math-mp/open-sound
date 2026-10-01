@@ -300,6 +300,24 @@ const acentoSeguro = (chave, valor) =>
 const emLista = (valor, lista, padrao) =>
   (typeof valor === 'string' && lista.includes(valor) ? valor : padrao);
 
+// Opacidade do wallpaper, de 0 a 100. O slider manda string (o value de um
+// input[type=range] chega assim), então o número é convertido antes. Fora da
+// faixa vira o padrão em vez de dar erro — mesmo motivo das cores: um valor
+// gravado que saiu do ar não pode deixar a página quebrada.
+//
+// null/undefined/vazio caem no padrão, e não em 0: Number(null) e Number('')
+// dão 0, que é um valor VÁLIDO aqui (fundo totalmente apagado). Sem essa
+// guarda, um cliente que mandasse null no lugar da chave apagaria o fundo
+// de quem só queria não mexer nele.
+const FUNDO_OPACIDADE_PADRAO = 45;
+
+const opacidadeFundoSegura = (valor) => {
+  if (valor === null || valor === undefined || valor === '') return FUNDO_OPACIDADE_PADRAO;
+  const numero = Number(valor);
+  if (!Number.isFinite(numero)) return FUNDO_OPACIDADE_PADRAO;
+  return Math.min(100, Math.max(0, Math.round(numero)));
+};
+
 // Aceita só as chaves conhecidas e descarta o resto. Devolve o objeto
 // completo (com padrões preenchidos), para o front nunca receber um
 // campo faltando.
@@ -325,6 +343,10 @@ function normalizarPersonalizacao(bruto) {
     fonte_nome: emLista(entrada.fonte_nome, FONTES_NOME, 'padrao'),
     efeito: emLista(entrada.efeito, EFEITOS_PERFIL, 'nenhum'),
     textura_banner: entrada.textura_banner === true,
+    // A URL do arquivo NÃO entra aqui: ela mora na coluna usuarios.url_fundo,
+    // e é o upload que manda nela. Mandar a URL pelo PUT deixaria o campo
+    // editável pelo navegador, que é justamente o que não queremos.
+    fundo_opacidade: opacidadeFundoSegura(entrada.fundo_opacidade),
     degrade_nome: degradê
   };
 }

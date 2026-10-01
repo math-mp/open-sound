@@ -48,6 +48,76 @@ let resultadosDaBusca = [];
 let buscaEmCurso = false;
 let temporizadorBusca = null;
 
+// ============================================================
+// ÍCONES (SVG inline)
+// ============================================================
+// Os mesmos SVGs de minhas-musicas.js, copiados em vez de compartilhados: as
+// páginas são scripts soltos, sem módulos, e cada uma carrega o seu player.
+// Repetir duas constantes é mais barato que um arquivo a mais na pasta js/
+// só por causa disso.
+//
+// O botão de fila NÃO entra aqui: ele nasce de criarBotaoIcone() (favoritos.js)
+// com o glifo "⇥", exatamente como o "Tocar depois" da home.
+
+const ICONE_PLAY = `
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M6 4l14 8-14 8z"></path>
+  </svg>`;
+
+const ICONE_PAUSE = `
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M7 4h4v16H7z"></path>
+    <path d="M13 4h4v16h-4z"></path>
+  </svg>`;
+
+// O botão dono da música carregada ganha o ícone de pausa e a classe
+// .tocando; os outros voltam a mostrar o play. Roda depois dos listeners
+// do player.js porque o script é carregado antes.
+function pintarBotoesTocarPlaylist() {
+  if (!gradeMusicasPlaylist) return;
+
+  const tocando = botaoAudioAtual && !elementoAudio.paused;
+  const idNoPlayer = musicaNoPlayer ? Number(musicaNoPlayer.id) : null;
+
+  gradeMusicasPlaylist.querySelectorAll('.btn-tocar').forEach((botao) => {
+    // Duas formas de ser o botão ativo: ser o botaoAudioAtual (o clique veio
+    // daqui) OU carregar a música que está tocando. A segunda cobre o "Tocar
+    // playlist", que chama tocarListaDeMusicas com botão null — sem ela, o
+    // card da primeira música ficaria mostrando play durante a reprodução.
+    const ativo = tocando && (botao === botaoAudioAtual
+      || (idNoPlayer !== null && Number(botao.dataset.musicaId) === idNoPlayer));
+
+    botao.classList.toggle('tocando', ativo);
+
+    const icone = botao.querySelector('.btn-acao-icone');
+    if (icone) icone.innerHTML = ativo ? ICONE_PAUSE : ICONE_PLAY;
+
+    const rotulo = botao.querySelector('.btn-acao-rotulo');
+    if (rotulo) rotulo.textContent = ativo ? 'Pausar' : 'Tocar';
+  });
+}
+
+elementoAudio.addEventListener('play', pintarBotoesTocarPlaylist);
+elementoAudio.addEventListener('pause', pintarBotoesTocarPlaylist);
+elementoAudio.addEventListener('ended', pintarBotoesTocarPlaylist);
+
+function criarIcone(svg) {
+  const span = document.createElement('span');
+  span.className = 'btn-acao-icone';
+  span.innerHTML = svg;
+  return span;
+}
+
+// O rótulo vai num span próprio porque o texto muda: o de remover vira
+// "Removendo..." durante a requisição, e o de tocar vira "Pausar". Escrever
+// no textContent do botão apagaria o ícone que está junto.
+function criarRotulo(texto) {
+  const span = document.createElement('span');
+  span.className = 'btn-acao-rotulo';
+  span.textContent = texto;
+  return span;
+}
+
 // Tocar pelo detalhe da playlist e tocar pelo card da biblioteca são a mesma
 // coisa: a fila é substituída pela lista e a primeira começa a tocar.
 function tocarPlaylistAtual() {
@@ -56,6 +126,7 @@ function tocarPlaylistAtual() {
     return;
   }
   tocarListaDeMusicas(musicasDaPlaylist);
+  pintarBotoesTocarPlaylist();
 }
 
 function criarCardMusicaPlaylist(musica) {
@@ -66,6 +137,13 @@ function criarCardMusicaPlaylist(musica) {
   capa.className = 'capa-musica';
   capa.src = musica.url_capa || '';
   capa.alt = `Capa de ${musica.titulo}`;
+
+  // A capa vai dentro de um wrapper só para servir de âncora do botão de
+  // fila: é a mesma ideia do .msc-capa-wrapper da home, com a mesma
+  // pegada de <img> quebrando a razão de aspecto se sair do fluxo.
+  const capaWrapper = document.createElement('div');
+  capaWrapper.className = 'card-capa';
+  capaWrapper.appendChild(capa);
 
   const info = document.createElement('div');
   info.className = 'info-musica';
@@ -81,16 +159,95 @@ function criarCardMusicaPlaylist(musica) {
   info.appendChild(titulo);
   info.appendChild(artista);
 
+  // ---------- tocar e remover, na fileira de baixo ----------
+  // Os dois dividem a largura. O de fila não mora aqui: ele fica sobre a
+  // capa, no canto superior direito, e é um botão de ícone translúcido — o
+  // mesmo formato dos botões que a home ancora sobre a capa dela.
+  const acoes = document.createElement('div');
+  acoes.className = 'card-acoes';
+
+  const btnTocar = document.createElement('button');
+  btnTocar.type = 'button';
+  btnTocar.className = 'btn-acao btn-tocar';
+  // O id vai no atributo (e não emclosure no handler) porque a repintagem
+  // precisa achar de novo, a cada play/pause, qual botão pertence à música
+  // que está tocando — inclusive quando o clique veio do "Tocar playlist".
+  btnTocar.dataset.musicaId = String(musica.id);
+  btnTocar.setAttribute('aria-label', `Tocar ${musica.titulo}`);
+  btnTocar.title = 'Tocar';
+  btnTocar.appendChild(criarIcone(ICONE_PLAY));
+  btnTocar.appendChild(criarRotulo('Tocar'));
+
+  btnTocar.addEventListener('click', () => {
+    if (!estaLogado()) {
+      alert('Faça login para tocar as músicas.');
+      window.location.href = 'home.html';
+      return;
+    }
+
+    // Caso especial: este botão já é o dono da música tocando, mas o player
+    // guardou outro botão (o "Tocar playlist" passa null). Se delegássemos ao
+    // tocarMusica, ele veria "mesma música, botão diferente" e recomeçaria do
+    // zero em vez de pausar — então o pause é chamado direto.
+    if (btnTocar.classList.contains('tocando') && botaoAudioAtual !== btnTocar) {
+      elementoAudio.pause();
+      return;
+    }
+
+    tocarMusica(musica, btnTocar);
+    pintarBotoesTocarPlaylist();
+  });
+
+  // Botão de ícone ancorado na capa. Nasce de criarBotaoIcone(), o mesmo
+  // helper que a home usa para o "Tocar depois" (vive no favoritos.js, que
+  // esta página também carrega), então o formato — círculo de 34px, com
+  // title — é literalmente o mesmo das duas pontas. A classe extra só
+  // ancora o botão no canto da capa; o fundo translúcido vem do CSS daqui,
+  // com os mesmos valores de .msc-acoes-capa .btn-icone.
+  const btnFila = criarBotaoIcone('card-fila-btn', '⇥', 'Adicionar à fila');
+  // O aria-label do helper é genérico; aqui ele nomeia a música, como os
+  // outros dois botões do card.
+  btnFila.setAttribute('aria-label', `Adicionar ${musica.titulo} à fila`);
+
+  btnFila.addEventListener('click', () => {
+    if (!estaLogado()) {
+      alert('Faça login para usar a fila.');
+      window.location.href = 'home.html';
+      return;
+    }
+    // irParaFila fica false de propósito: somar à fila não pode roubar a
+    // música que está tocando. A confirmação é o próprio botão, que fica
+    // marcado por um instante — nada de alert bloqueando a navegação.
+    adicionarAFila(musica);
+    btnFila.classList.add('na-fila');
+    btnFila.disabled = true;
+    setTimeout(() => {
+      btnFila.classList.remove('na-fila');
+      btnFila.disabled = false;
+    }, 1200);
+  });
+
+  capaWrapper.appendChild(btnFila);
+
+  // Sem .btn-excluir-musica de propósito: aquela classe traz uma margin
+  // própria da página "Minhas Músicas", e aqui quem controla o espaço é o
+  // padding do .card-acoes. A cor de erro vem do .btn-excluir.
   const btnRemover = document.createElement('button');
-  btnRemover.className = 'btn-excluir-musica';
-  btnRemover.textContent = 'Remover';
+  btnRemover.type = 'button';
+  btnRemover.className = 'btn-acao btn-excluir';
+  btnRemover.setAttribute('aria-label', `Remover ${musica.titulo} da playlist`);
+  btnRemover.title = 'Remover da playlist';
+  // O texto do botão mora no span do rótulo, então é ele que muda durante a
+  // requisição — escrever no textContent do botão apagaria o span.
+  const rotuloRemover = criarRotulo('Remover');
+  btnRemover.appendChild(rotuloRemover);
 
   btnRemover.addEventListener('click', async () => {
     const confirmou = confirm(`Remover "${musica.titulo}" desta playlist?`);
     if (!confirmou) return;
 
     btnRemover.disabled = true;
-    btnRemover.textContent = 'Removendo...';
+    rotuloRemover.textContent = 'Removendo...';
 
     try {
       const resposta = await fetchComAutenticacao(
@@ -116,19 +273,22 @@ function criarCardMusicaPlaylist(musica) {
       } else {
         alert(dados.mensagem || 'Não foi possível remover a música.');
         btnRemover.disabled = false;
-        btnRemover.textContent = 'Remover';
+        rotuloRemover.textContent = 'Remover';
       }
     } catch (erro) {
       console.error('Erro de conexão:', erro);
       alert('Erro de conexão com o servidor.');
       btnRemover.disabled = false;
-      btnRemover.textContent = 'Remover';
+      rotuloRemover.textContent = 'Remover';
     }
   });
 
-  card.appendChild(capa);
+  acoes.appendChild(btnTocar);
+  acoes.appendChild(btnRemover);
+
+  card.appendChild(capaWrapper);
   card.appendChild(info);
-  card.appendChild(btnRemover);
+  card.appendChild(acoes);
 
   return card;
 }

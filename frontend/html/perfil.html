@@ -52,6 +52,13 @@
 
 <body>
 
+    <!-- Camada do wallpaper. Fixa atrás de tudo (z-index -1 no CSS) e só
+         aparece quando há url_fundo; a opacidade vai em --fundo-opacidade.
+         Criada no HTML em vez de por JS porque ela precisa existir ANTES do
+         primeiro paint: se o JS a montasse, haveria um piscar de fundo liso
+         em quem já tem wallpaper salvo. -->
+    <div class="perfil-fundo" id="perfil-fundo" aria-hidden="true"></div>
+
     <main class="perfil-container">
         <!-- Botão voltar no topo -->
         <div class="perfil-topo">
@@ -189,6 +196,41 @@
                             <span>Textura de TV sobre o banner</span>
                         </label>
                         <p id="config-banner-status" class="perfil-config-status"></p>
+                    </div>
+
+                    <hr class="perfil-config-divisor">
+
+                    <!-- Wallpaper de fundo do perfil. A URL do arquivo é
+                         enviada por /api/perfil/fundo (fora do PUT de
+                         personalização, de propósito); a opacidade é só um
+                         número de 0 a 100 e viaja no "Salvar aparência". -->
+                    <div class="perfil-config-secao">
+                        <h2 class="perfil-config-titulo">Fundo do perfil</h2>
+                        <p class="perfil-config-dica">
+                            Aparece no fundo da página do seu perfil, tanto
+                            pra você quanto pra quem te visita.
+                        </p>
+                        <div class="perfil-config-banner-linha">
+                            <div class="perfil-config-banner-preview" id="config-fundo-preview">
+                                <span class="perfil-config-banner-vazio" id="config-fundo-vazio">Sem fundo</span>
+                            </div>
+                            <div class="perfil-config-avatar-botoes">
+                                <button type="button" id="config-fundo-enviar" class="perfil-btn-salvar">Enviar fundo</button>
+                                <button type="button" id="config-fundo-remover" class="perfil-btn-secundario hidden">Remover</button>
+                                <input type="file" id="config-fundo-input"
+                                    accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+                            </div>
+                        </div>
+                        <label class="perfil-config-rotulo" for="config-fundo-opacidade">
+                            Opacidade do fundo — <span id="config-fundo-opacidade-valor">45%</span>
+                        </label>
+                        <input type="range" id="config-fundo-opacidade" class="perfil-config-range"
+                            min="0" max="100" step="5" value="45">
+                        <p class="perfil-config-dica">
+                            Mais baixo deixa o conteúdo do perfil mais legível
+                            sobre a imagem.
+                        </p>
+                        <p id="config-fundo-status" class="perfil-config-status"></p>
                     </div>
 
                     <hr class="perfil-config-divisor">

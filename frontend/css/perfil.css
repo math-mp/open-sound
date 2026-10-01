@@ -17,6 +17,40 @@
     position: relative;
 }
 
+/* ============================================================
+   WALLPAPER DO PERFIL
+
+   Uma camada fixa no body, atrás de tudo. O z-index -1 é o mesmo
+   do .perfil-container::before de grão logo abaixo: negativo fixo
+   atrás do conteúdo, e ainda acima do background do body, porque
+   o elemento tem position próprio.
+
+   A opacidade é escrita pelo JS numa variável custom property
+   (aplicarAparencia), não em style.opacity: assim a regra .com-fundo
+   abaixo é a única fonte de verdade do valor, e a transição pega
+   numa troca de imagem sem piscar.
+   ============================================================ */
+.perfil-fundo {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+
+    /* Sem imagem, a camada precisa sair de cena por completo: sem a
+       classe .com-fundo a opacidade vale 0 e ela não pinta nada. */
+    opacity: 0;
+    transition: opacity var(--transicao-padrao);
+}
+
+.perfil-fundo.com-fundo {
+    opacity: var(--fundo-opacidade, 0.45);
+}
+
 /* Botão voltar no topo da página de perfil */
 .perfil-topo {
     position: fixed;
@@ -912,6 +946,50 @@
     color: var(--cor-texto-secundario);
     cursor: pointer;
     margin-bottom: var(--espaco-2);
+}
+
+/* Slider de opacidade do wallpaper. O trilho é o input-fundo do tema e o
+   botão na cor primária, então o controle acompanha a paleta sem CSS
+   condicional por tema. */
+.perfil-config-range {
+    width: 100%;
+    height: 6px;
+    margin: 0 0 var(--espaco-2);
+    padding: 0;
+
+    -webkit-appearance: none;
+    appearance: none;
+
+    border-radius: 999px;
+    background: var(--input-fundo);
+    border: 1px solid var(--input-borda);
+    cursor: pointer;
+}
+
+.perfil-config-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--cor-primaria);
+    border: 1px solid var(--input-borda-foco);
+    cursor: pointer;
+}
+
+.perfil-config-range::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--cor-primaria);
+    border: 1px solid var(--input-borda-foco);
+    cursor: pointer;
+}
+
+.perfil-config-range:focus-visible {
+    outline: 2px solid var(--input-borda-foco);
+    outline-offset: 2px;
 }
 
 .perfil-config-check input {

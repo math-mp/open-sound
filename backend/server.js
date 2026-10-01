@@ -2237,6 +2237,23 @@ const uploadBanner = multer({
 
 const limitarBannerIP = criarLimitador(60 * 60 * 1000, 20, 'Muitos envios de banner a partir deste IP. Tente novamente mais tarde.');
 
+// ---------- fundo (wallpaper) ----------
+// A coluna usuarios.url_fundo já existia e as duas rotas de perfil já a
+// devolviam (como fundo_url); só faltava a rota de escrita. A sequência é a
+// mesma do banner e do avatar: valida pelos bytes, sobe, grava no banco, e só
+// então apaga o anterior — se o banco falhar depois do upload, o arquivo novo
+// é removido para não sobrar órfão.
+//
+// O limite é maior que o do banner (25 MB) porque o fundo cobre a janela
+// inteira, e wallpaper em resolução grande estoura 5 MB com facilidade.
+const FUNDO_MAX_BYTES = 25 * 1024 * 1024;
+const uploadFundo = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: FUNDO_MAX_BYTES, files: 1 }
+});
+
+const limitarFundoIP = criarLimitador(60 * 60 * 1000, 20, 'Muitos envios de fundo a partir deste IP. Tente novamente mais tarde.');
+
 // Salva a personalização inteira. O corpo é o objeto já normalizado pelo
 // frontend; o servidor normaliza de novo (whitelist + formato de cor) e é
 // esse resultado que vale. Nunca se concatena nada do corpo direto no
@@ -2344,6 +2361,89 @@ app.delete('/api/perfil/banner', verificarAutenticacao, async (req, res) => {
     return sucesso(res, { banner_url: null });
   } catch (erro) {
     return falhaInterna(res, 'DELETE /api/perfil/banner', erro);
+  }
+});
+
+app.post(
+  '/api/perfil/fundo',
+  verificarAutenticacao,
+  limitarFundoIP,
+  tratarMulter(uploadFundo.single('fundo'), `${FUNDO_MAX_BYTES / (1024 * 1024)} MB`),
+  async (req, res) => {
+    const arquivo = req.file;
+    if (!arquivo) return falha(res, 400, 'Envie uma imagem no campo "fundo".');
+
+    // GIF entra: o fundo cobre a página inteira, e wallpaper animado é boa
+    // parte do motivo de alguém usar isso.
+    const tipo = detectarTipoImagemComGif(arquivo.buffer);
+    if (!tipo) {
+      return falha(res, 400, 'Formato não suportado. Use JPEG, PNG, WEBP ou GIF.');
+    }
+
+    const usuarioId = req.usuario.id;
+    // Nome gerado pelo servidor (nunca o originalname do cliente).
+    const caminhoNovo = `fundos/${usuarioId}-${Date.now()}.${tipo.extensao}`;
+
+    logInfo('PERFIL', 'Upload de fundo iniciado', { usuarioId, tipo: tipo.extensao, tamanhoBytes: arquivo.size });
+
+    try {
+      const anterior = await pool.query('SELECT url_fundo FROM usuarios WHERE id = $1', [usuarioId]);
+      if (anterior.rows.length === 0) return falha(res, 404, 'Usuário não encontrado.');
+      const urlAnterior = anterior.rows[0].url_fundo;
+
+      const { error: erroUpload } = await supabase.storage
+        .from(SUPABASE_BUCKET)
+        .upload(caminhoNovo, arquivo.buffer, { contentType: tipo.mime, cacheControl: '3600' });
+
+      if (erroUpload) {
+        logError('ERROR', 'Falha ao enviar fundo ao Storage', { mensagem: erroUpload.message });
+        return falha(res, 500, 'Falha ao enviar a imagem.');
+      }
+      logInfo('PERFIL', 'Fundo enviado ao Storage', { caminho: caminhoNovo });
+
+      const urlNova = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(caminhoNovo).data.publicUrl;
+
+      try {
+        await pool.query('UPDATE usuarios SET url_fundo = $1 WHERE id = $2', [urlNova, usuarioId]);
+        logInfo('PERFIL', 'Banco atualizado com o novo fundo');
+      } catch (erroBanco) {
+        logWarn('PERFIL', 'Banco falhou; desfazendo upload do fundo', { mensagem: erroBanco.message });
+        await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, urlNova);
+        logInfo('PERFIL', 'Rollback do fundo concluído');
+        throw erroBanco;
+      }
+
+      // Só agora que a nova está confirmada é seguro descartar a antiga.
+      if (urlAnterior && urlAnterior !== urlNova) {
+        await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, urlAnterior);
+        logInfo('PERFIL', 'Fundo anterior removido do Storage');
+      }
+
+      logInfo('PERFIL', 'Fundo atualizado com sucesso', { usuarioId });
+      return sucesso(res, { fundo_url: urlNova });
+    } catch (erro) {
+      return falhaInterna(res, 'POST /api/perfil/fundo', erro);
+    }
+  }
+);
+
+app.delete('/api/perfil/fundo', verificarAutenticacao, async (req, res) => {
+  try {
+    logInfo('PERFIL', 'Remoção de fundo iniciada', { usuarioId: req.usuario.id });
+
+    const anterior = await pool.query('SELECT url_fundo FROM usuarios WHERE id = $1', [req.usuario.id]);
+    if (anterior.rows.length === 0) return falha(res, 404, 'Usuário não encontrado.');
+
+    // Banco primeiro: mesmo que apagar o arquivo falhe, o perfil já não aponta pra ele.
+    await pool.query('UPDATE usuarios SET url_fundo = NULL WHERE id = $1', [req.usuario.id]);
+    logInfo('PERFIL', 'url_fundo atualizado para NULL');
+
+    await removerArquivoDoStorage(supabase, SUPABASE_BUCKET, anterior.rows[0].url_fundo);
+    logInfo('PERFIL', 'Arquivo do fundo removido do Storage');
+
+    return sucesso(res, { fundo_url: null });
+  } catch (erro) {
+    return falhaInterna(res, 'DELETE /api/perfil/fundo', erro);
   }
 });
 
