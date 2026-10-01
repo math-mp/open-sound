@@ -2,7 +2,7 @@
 // TEMA CLARO / ESCURO (salvo no localStorage e sincronizado com backend)
 // ============================================================
 const btnTema = document.getElementById('btn-tema');
-const API_BASE = 'http://localhost:3000';
+const API_BASE = 'https://open-sound.onrender.com';
 const CHAVE_SESSAO = 'tokenSessao';
 
 // O sessao.js entra sem `defer` no <head> e define window.OS. Se ele
@@ -331,7 +331,7 @@ if (formRegistro) {
     }
 
     try {
-      const resposta = await fetch('http://localhost:3000/api/registro', {
+      const resposta = await fetch('https://open-sound.onrender.com/api/registro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, nomeUsuario })
@@ -389,7 +389,7 @@ if (btnConfirmar2FA) {
     }
 
     try {
-      const resposta = await fetch('http://localhost:3000/api/validar-2fa', {
+      const resposta = await fetch('https://open-sound.onrender.com/api/validar-2fa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -449,7 +449,7 @@ if (btnReenviar2FA) {
     if (mensagemTimer) mensagemTimer.textContent = 'Enviando novo código...';
 
     try {
-      const resposta = await fetch('http://localhost:3000/api/reenviar-2fa', {
+      const resposta = await fetch('https://open-sound.onrender.com/api/reenviar-2fa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idVerificacao: idVerificacaoAtual })
@@ -513,7 +513,7 @@ if (formLogin) {
     }
 
     try {
-      const resposta = await fetch('http://localhost:3000/api/login', {
+      const resposta = await fetch('https://open-sound.onrender.com/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, lembrarDeMim })
@@ -812,7 +812,7 @@ if (formEsqueciSenha) {
 
     try {
       // TODO: Endpoint não existe ainda no backend — implementar POST /api/auth/esqueci-senha
-      const resposta = await fetch('http://localhost:3000/api/auth/esqueci-senha', {
+      const resposta = await fetch('https://open-sound.onrender.com/api/auth/esqueci-senha', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
@@ -879,7 +879,7 @@ if (btnReenviarEsqueci) {
 
     try {
       // TODO: Endpoint não existe ainda — implementar POST /api/auth/reenviar-esqueci
-      const resposta = await fetch('http://localhost:3000/api/auth/reenviar-esqueci', {
+      const resposta = await fetch('https://open-sound.onrender.com/api/auth/reenviar-esqueci', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idVerificacao: esqueciIdVerificacao })
@@ -915,7 +915,7 @@ if (btnConfirmarEsqueci) {
 
     try {
       // TODO: Endpoint não existe ainda — implementar POST /api/auth/validar-esqueci
-      const resposta = await fetch('http://localhost:3000/api/auth/validar-esqueci', {
+      const resposta = await fetch('https://open-sound.onrender.com/api/auth/validar-esqueci', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ codigo: codigoDigitado, idVerificacao: esqueciIdVerificacao })
@@ -963,7 +963,7 @@ if (formEsqueciNovaSenha) {
 
     try {
       // TODO: Endpoint não existe ainda — implementar POST /api/auth/confirmar-esqueci
-      const resposta = await fetch('http://localhost:3000/api/auth/confirmar-esqueci', {
+      const resposta = await fetch('https://open-sound.onrender.com/api/auth/confirmar-esqueci', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ novaSenha, idVerificacao: esqueciIdVerificacao })
@@ -1259,7 +1259,7 @@ async function carregarMusicas() {
   if (tituloSecaoMusicas) tituloSecaoMusicas.textContent = 'Todas as músicas';
 
   try {
-    const resposta = await fetch('http://localhost:3000/api/musicas');
+    const resposta = await fetch('https://open-sound.onrender.com/api/musicas');
     const dados = await resposta.json();
 
     if (!resposta.ok) {
@@ -1303,7 +1303,7 @@ async function carregarMusicasMaisTocadas() {
   if (tituloSecaoMusicas) tituloSecaoMusicas.textContent = 'Músicas mais tocadas';
 
   try {
-    const resposta = await fetch('http://localhost:3000/api/musicas/mais-tocadas');
+    const resposta = await fetch('https://open-sound.onrender.com/api/musicas/mais-tocadas');
     const dados = await resposta.json();
 
     if (!resposta.ok || !dados.musicas || dados.musicas.length === 0) {
@@ -1658,6 +1658,89 @@ function criarItemPessoa(pessoa) {
   link.href = 'perfil.html?u=' + encodeURIComponent(pessoa.nome_usuario);
   link.title = `Ver o perfil de @${pessoa.nome_usuario}`;
 
+    // Avatar pela mesma pintura da navbar: cai no avatar-padrao e nas
+    // iniciais quando a pessoa não tem foto.
+    const caixa = document.createElement('span');
+    caixa.className = 'os-avatar os-avatar-sm';
+    const iniciais = document.createElement('span');
+    iniciais.className = 'os-avatar-iniciais';
+    const img = document.createElement('img');
+    img.className = 'os-avatar-img';
+    img.src = pessoa.avatar_url || '';
+    img.alt = '';
+    img.loading = 'lazy';
+    caixa.appendChild(iniciais);
+    caixa.appendChild(img);
+    if (window.OS && typeof OS.pintarCaixa === 'function') {
+      OS.pintarCaixa(caixa, pessoa.avatar_url || null, pessoa.nome);
+    }
+
+    const nome = document.createElement('span');
+    nome.className = 'busca-pessoa-nome';
+    nome.textContent = pessoa.nome;
+
+    const arroba = document.createElement('span');
+    arroba.className = 'busca-pessoa-arroba';
+    arroba.textContent = `@${pessoa.nome_usuario}`;
+
+    link.appendChild(caixa);
+    link.appendChild(nome);
+    link.appendChild(arroba);
+    item.appendChild(link);
+    elBuscaPessoasLista.appendChild(item);
+  });
+
+  elBuscaPessoas.classList.remove('hidden');
+}
+
+async function buscarPessoas(termo) {
+  // O servidor exige ao menos 2 letras; nem vale a pena pedir.
+  if (!termo || termo.trim().length < 2) { esconderResultadosDePessoas(); return; }
+  try {
+    const resposta = await fetch(`https://open-sound.onrender.com/api/perfil/buscar?q=${encodeURIComponent(termo.trim())}`);
+    if (!resposta.ok) { esconderResultadosDePessoas(); return; }
+    const dados = await resposta.json();
+    renderizarPessoas(dados.pessoas);
+  } catch (erro) {
+    console.error('Erro ao buscar perfis:', erro);
+    esconderResultadosDePessoas();
+  }
+}
+
+if (formBusca) {
+  formBusca.addEventListener('submit', async (event) => {
+    event.preventDefault(); // intercepta — sem isso ele navegaria pro action do form
+    const termo = campoBusca ? campoBusca.value.trim() : '';
+    if (!termo) return;
+    // As duas buscas saem juntas; a faixa de pessoas esconde sozinha se
+    // não houver ninguém com aquele @ ou nome.
+    buscarPessoas(termo);
+    executarBusca(termo);
+  });
+}
+
+async function executarBusca(termo) {
+  if (!listaMusicas) return;
+
+  if (tituloSecaoMusicas) tituloSecaoMusicas.textContent = `Resultados para "${termo}"`;
+  listaMusicas.innerHTML = '';
+  const carregando = document.createElement('p');
+  carregando.className = 'mensagem-lista';
+  carregando.textContent = 'Buscando...';
+  listaMusicas.appendChild(carregando);
+
+  try {
+    const resposta = await fetch(`https://open-sound.onrender.com/api/musicas/buscar?q=${encodeURIComponent(termo)}`);
+    const dados = await resposta.json();
+
+    if (!resposta.ok) {
+      listaMusicas.innerHTML = '';
+      const mensagem = document.createElement('p');
+      mensagem.className = 'mensagem-lista';
+      mensagem.textContent = dados.mensagem || 'Não foi possível buscar as músicas.';
+      listaMusicas.appendChild(mensagem);
+      return;
+    }
   const nome = pessoa.nome || pessoa.nome_usuario;
   const ehArtista = Boolean(pessoa.eh_artista);
 
@@ -1991,7 +2074,7 @@ async function carregarArtistasMaisOuvidos() {
   if (!listaArtistas) return;
 
   try {
-    const resposta = await fetch('http://localhost:3000/api/artistas/mais-ouvidos');
+    const resposta = await fetch('https://open-sound.onrender.com/api/artistas/mais-ouvidos');
     const dados = await resposta.json();
 
     if (!resposta.ok) {
@@ -2118,7 +2201,7 @@ async function carregarDescobrirMusicas() {
   if (!listaDescobrir) return;
 
   try {
-    const resposta = await fetch('http://localhost:3000/api/musicas');
+    const resposta = await fetch('https://open-sound.onrender.com/api/musicas');
     if (!resposta.ok) throw new Error('Falha ao buscar músicas.');
     const { musicas } = await resposta.json();
 
@@ -2183,7 +2266,7 @@ if (btnUpload) {
 // primeiro (só na primeira vez); se já tiver, vai direto pro upload.
 async function abrirFluxoUpload() {
   try {
-    const resposta = await fetchComAutenticacao('http://localhost:3000/api/usuarios/eu');
+    const resposta = await fetchComAutenticacao('https://open-sound.onrender.com/api/usuarios/eu');
     const dados = await resposta.json();
 
     if (!resposta.ok) {
@@ -2238,7 +2321,7 @@ if (formArtista) {
     }
 
     try {
-      const resposta = await fetchComAutenticacao('http://localhost:3000/api/usuarios/artista', {
+      const resposta = await fetchComAutenticacao('https://open-sound.onrender.com/api/usuarios/artista', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nomeArtista })
@@ -2379,7 +2462,7 @@ if (formUpload) {
     }
 
     try {
-      const resposta = await fetchComAutenticacao('http://localhost:3000/api/musicas', {
+      const resposta = await fetchComAutenticacao('https://open-sound.onrender.com/api/musicas', {
         method: 'POST',
         body: dadosFormulario
       });

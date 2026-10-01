@@ -151,6 +151,24 @@ html, body {
   filter: brightness(0.9);
 }
 
+/* Botão do logo (início) */
+.fixed-bar .btn-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.btn-logo .logo-navbar-img {
+  width: 38px;
+  height: 38px;
+  display: block;
+  object-fit: contain;
+}
+
 /* Transição suave ao trocar de tema (claro/escuro) — evita a mudança
    brusca de cor quando o botão de tema é clicado. Elementos que já têm
    uma transição própria (botões com hover, etc.) foram estendidos nas

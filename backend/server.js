@@ -1,6 +1,6 @@
 // Professora, nosso códgo ja virou legado....
 require('dotenv').config();
-const express = require('express');
+const express = require('express');  
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
@@ -38,6 +38,7 @@ const {
 } = require('./ajudantes');
 
 const app = express();
+app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json());
 

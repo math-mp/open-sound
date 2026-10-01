@@ -66,7 +66,7 @@ function formatarTempoRestante(ms) {
 // === CARREGA OS DADOS DA CONTA (cooldown + identificador pra frase) ===
 async function carregarDadosConta() {
   try {
-    const resposta = await fetchComAutenticacao('http://localhost:3000/api/usuarios/eu');
+    const resposta = await fetchComAutenticacao('https://open-sound.onrender.com/api/usuarios/eu');
     const dados = await resposta.json();
 
     if (!resposta.ok) {
@@ -139,7 +139,7 @@ if (formSenhaEtapa1) {
     }
 
     try {
-      const resposta = await fetchComAutenticacao('http://localhost:3000/api/usuarios/redefinir-senha/solicitar', {
+      const resposta = await fetchComAutenticacao('https://open-sound.onrender.com/api/usuarios/redefinir-senha/solicitar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ novaSenha })
@@ -180,7 +180,7 @@ if (btnConfirmarRedefinicao) {
     }
 
     try {
-      const resposta = await fetchComAutenticacao('http://localhost:3000/api/usuarios/redefinir-senha/confirmar', {
+      const resposta = await fetchComAutenticacao('https://open-sound.onrender.com/api/usuarios/redefinir-senha/confirmar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ codigo, idRedefinicao: idRedefinicaoAtual })
@@ -224,7 +224,7 @@ if (btnDeletarConta) {
     btnDeletarConta.textContent = 'Excluindo...';
 
     try {
-      const resposta = await fetchComAutenticacao('http://localhost:3000/api/usuarios/eu', {
+      const resposta = await fetchComAutenticacao('https://open-sound.onrender.com/api/usuarios/eu', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fraseConfirmacao: frase })
