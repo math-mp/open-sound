@@ -14,7 +14,7 @@
 // por página.
 const CHAVE_PLAYER = 'playerOpenSound';
 const CHAVE_FILA = 'playerFilaOpenSound';
-const API_PLAYER = 'http://localhost:3000/api/player';
+const API_PLAYER = 'https://open-sound.onrender.com/api/player';
 
 const playerBarra = document.getElementById('player-barra');
 const playerCapa = document.getElementById('player-capa');
@@ -273,7 +273,7 @@ async function registrarReproducao(musica) {
   if (!temSessaoNoBackend()) return;
 
   try {
-    const resposta = await fetchComAutenticacao(`http://localhost:3000/api/musicas/${musica.id}/reproduzir`, {
+    const resposta = await fetchComAutenticacao(`https://open-sound.onrender.com/api/musicas/${musica.id}/reproduzir`, {
       method: 'POST'
     });
     if (!resposta.ok) {

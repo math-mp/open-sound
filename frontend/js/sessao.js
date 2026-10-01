@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  const API_BASE = 'http://localhost:3000';
+  const API_BASE = 'https://open-sound.onrender.com';
   const CHAVE_SESSAO = 'tokenSessao';
   const CHAVE_TEMA = 'opensound_tema';
   const PREFIXO_CACHE = 'opensound_usuario_';
