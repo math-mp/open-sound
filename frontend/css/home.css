@@ -4149,3 +4149,21 @@ body,
         height: 34px;
     }
 }
+
+/* ---------------------------------------------------
+   CAPTCHA (CLOUDFLARE TURNSTILE)
+   --------------------------------------------------- */
+
+/* O widget é invisível na maior parte do tempo (aparece só quando o
+   Cloudflare pede interação), então a caixa precisa reservar o espaço
+   mínimo e centralizar — sem isso o formulário "pula" quando ele
+   finalmente aparece. */
+.turnstile-caixa {
+    display: flex;
+    justify-content: center;
+
+    min-height: 65px;
+    margin: 12px 0;
+
+    overflow: hidden;
+}

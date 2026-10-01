@@ -16,6 +16,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="../assets/favicon-16.png">
     <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
     <script src="../js/sessao.js"></script>
+    <script src="../js/turnstile.js" defer></script>
     <script src="../js/player.js" defer></script>
     <script src="../js/favoritos.js" defer></script>
     <script src="../js/home.js" defer></script>  <!-- ou biblioteca.js / playlist.js / etc, conforme a página -->
@@ -367,6 +368,8 @@ Dúvidas sobre este Termo, solicitações de remoção de conteúdo por violaç�
              </label>
             </div>
 
+            <div id="turnstile-registro" class="turnstile-caixa"></div>
+
             <button type="submit" class="btn-cadastrar">
                 Criar minha conta
             </button>
@@ -474,6 +477,7 @@ Dúvidas sobre este Termo, solicitações de remoção de conteúdo por violaç�
                     <input type="email" id="esqueci-email" placeholder="Seu e-mail" required autocomplete="email">
                 </div>
             </div>
+            <div id="turnstile-esqueci" class="turnstile-caixa"></div>
             <button type="submit" class="btn-entrar-modal">Enviar código</button>
         </form>
 

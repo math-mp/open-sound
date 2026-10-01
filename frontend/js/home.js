@@ -241,7 +241,10 @@ if (btnHamburguer && dropdownHamburguer) {
 
 // === CONTROLE DO MODAL ===
 if (btnRegister && modal) {
-  btnRegister.addEventListener('click', () => modal.classList.remove('hidden'));
+  btnRegister.addEventListener('click', () => {
+    modal.classList.remove('hidden');
+    montarTurnstile('turnstile-registro');
+  });
 }
 
 if (btnFechar && modal) {
@@ -334,7 +337,12 @@ if (formRegistro) {
       const resposta = await fetch('https://open-sound.onrender.com/api/registro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, nomeUsuario })
+        body: JSON.stringify({
+          email,
+          password,
+          nomeUsuario,
+          turnstileToken: obterTokenTurnstile('turnstile-registro')
+        })
       });
 
       const dados = await resposta.json();
@@ -352,6 +360,10 @@ if (formRegistro) {
 
         iniciarTimer2FA();
       } else {
+        // Token é de uso único: qualquer erro devolve o formulário pro
+        // começo, e o widget precisa gerar um token novo para a próxima.
+        resetarTurnstile('turnstile-registro');
+
         if (dados.codigo === 'EMAIL_JA_CADASTRADO') {
           alert(dados.mensagem);
           if (modal) modal.classList.add('hidden');
@@ -369,6 +381,7 @@ if (formRegistro) {
       console.error('Erro de conexão:', erro);
       alert('Erro de conexão com o servidor.');
     } finally {
+      resetarTurnstile('turnstile-registro');
       if (btnSubmitRegistro) {
         btnSubmitRegistro.disabled = false;
         btnSubmitRegistro.textContent = 'Enviar';
@@ -542,6 +555,7 @@ if (formLogin) {
             if (etapa2fa) etapa2fa.classList.add('hidden');
             const campoRegistroEmail = formRegistro ? formRegistro.querySelector('input[type="email"]') : null;
             if (campoRegistroEmail) campoRegistroEmail.value = email;
+            montarTurnstile('turnstile-registro');
           }
         } else {
           alert(dados.mensagem || 'Não foi possível fazer login.');
@@ -673,6 +687,7 @@ if (linkEsqueciSenha) {
     if (modalEsqueciSenha) {
       modalEsqueciSenha.classList.remove('hidden');
       resetarFluxoEsqueci();
+      montarTurnstile('turnstile-esqueci');
     }
   });
 }
@@ -685,6 +700,7 @@ if (linkIrRegistro) {
     if (modal) modal.classList.remove('hidden');
     if (etapaRegistro) etapaRegistro.classList.remove('hidden');
     if (etapa2fa) etapa2fa.classList.add('hidden');
+    montarTurnstile('turnstile-registro');
   });
 }
 
@@ -815,7 +831,10 @@ if (formEsqueciSenha) {
       const resposta = await fetch('https://open-sound.onrender.com/api/auth/esqueci-senha', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({
+          email,
+          turnstileToken: obterTokenTurnstile('turnstile-esqueci')
+        })
       });
 
       const dados = await resposta.json();
@@ -839,6 +858,7 @@ if (formEsqueciSenha) {
       console.error('Erro de conexão:', erro);
       alert('Erro de conexão com o servidor.');
     } finally {
+      resetarTurnstile('turnstile-esqueci');
       const btnSubmit = formEsqueciSenha.querySelector('button[type="submit"]');
       if (btnSubmit) {
         btnSubmit.disabled = false;

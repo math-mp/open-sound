@@ -155,26 +155,139 @@ async function obterAccessTokenGoogle() {
   return tokenGoogle.valor;
 }
 
-function montarMensagemMime({ de, para, assunto, texto }) {
-  const b64 = (valor) => Buffer.from(valor, 'utf8').toString('base64');
+// Nome que aparece para o usuário. Fica em ASCII de propósito: nome de remetente
+// e assunto codificados em base64 (encoded-word) são um dos sinais mais fortes
+// de spam, e o Gmail penaliza exatamente o que estamos tentando evitar.
+const NOME_APP = 'Open Sound';
+const NOME_APP_MINUTOS = Math.round(EXPIRACAO_CODIGO_MS / 60000);
+
+// Reply-To separado do From: o usuário responde para o e-mail de suporte sem
+// precisar trocar o remetente (que precisa ser o Gmail da API).
+const emailResponder = () => process.env.EMAIL_REPLY_TO || process.env.EMAIL_FROM;
+
+const codificarBase64 = (valor) =>
+  Buffer.from(valor, 'utf8').toString('base64').replace(/(.{76})/g, '$1\r\n');
+
+// Cabeçalho só aceita ASCII (RFC 2047). O assunto tem acento, então precisa
+// ir como encoded-word; sem isso o "é" chega como lixo ("Ã©") na caixa.
+const codificarCabecalho = (valor) =>
+  /^[\x20-\x7e]*$/.test(valor)
+    ? valor
+    : `=?UTF-8?B?${Buffer.from(valor, 'utf8').toString('base64')}?=`;
+
+const escaparHtml = (valor) =>
+  String(valor).replace(/[&<>"']/g, (caractere) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[caractere])
+  );
+
+// Um único modelo para todos os e-mails de código. `descricao` diz o motivo
+// (contexto, o que a pessoa fez), `instrucao` diz o passo seguinte. Mantém o
+// assunto com o código visível, que é o que a pessoa procura no e-mail.
+function mensagemCodigo({ codigo, titulo, descricao, instrucao }) {
+  const assunto = `${codigo} é o seu código do ${NOME_APP}`;
+
+  const texto = [
+    `${NOME_APP} — ${titulo}`,
+    '',
+    descricao,
+    '',
+    `Seu código: ${codigo}`,
+    '',
+    instrucao,
+    '',
+    `O código expira em ${NOME_APP_MINUTOS} minutos. Depois disso, peça um novo pela página.`,
+    '',
+    'Se não foi você, ignore este e-mail: sua conta continua segura e nada acontece.',
+    'O Open Sound nunca pede este código por telefone, WhatsApp ou resposta a este e-mail.',
+    '',
+    `Equipe ${NOME_APP}`
+  ].join('\n');
+
+  // Tabela e estilo inline: é o que sobrevive ao Outlook e ao Gmail mobile.
+  // A paleta é a do tema escuro do site (css/theme.css).
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<body style="margin:0;padding:0;background:#1d1a27;">
+<div style="display:none;font-size:1px;color:#1d1a27;max-height:0;overflow:hidden;">${escaparHtml(descricao)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#1d1a27;padding:32px 16px;">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#2d2838;border:1px solid rgba(255,255,255,0.10);border-radius:14px;">
+<tr><td style="padding:28px 28px 0;">
+<p style="margin:0;font:600 15px/1.4 Arial,Helvetica,sans-serif;color:#f1c0e8;letter-spacing:0.08em;text-transform:uppercase;">${escaparHtml(NOME_APP)}</p>
+<h1 style="margin:10px 0 0;font:700 21px/1.35 Arial,Helvetica,sans-serif;color:#fff8f3;">${escaparHtml(titulo)}</h1>
+</td></tr>
+<tr><td style="padding:14px 28px 0;">
+<p style="margin:0;font:400 15px/1.6 Arial,Helvetica,sans-serif;color:#d8cfd8;">${escaparHtml(descricao)}</p>
+</td></tr>
+<tr><td align="center" style="padding:26px 28px 0;">
+<div style="background:#1d1a27;border:1px solid #f1c0e8;border-radius:12px;padding:20px 12px;">
+<span style="font:700 40px/1 'Courier New',Courier,monospace;color:#f1c0e8;letter-spacing:0.22em;">${escaparHtml(codigo)}</span>
+</div>
+</td></tr>
+<tr><td align="center" style="padding:20px 28px 0;">
+<p style="margin:0;font:400 15px/1.6 Arial,Helvetica,sans-serif;color:#d8cfd8;">${escaparHtml(instrucao)}</p>
+<p style="margin:16px 0 0;font:400 13px/1.6 Arial,Helvetica,sans-serif;color:#9f96a3;">O código expira em ${NOME_APP_MINUTOS} minutos. Passou disso, peça um novo pela página.</p>
+</td></tr>
+<tr><td style="padding:24px 28px 28px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid rgba(255,255,255,0.10);">
+<tr><td style="padding-top:18px;">
+<p style="margin:0;font:400 13px/1.65 Arial,Helvetica,sans-serif;color:#9f96a3;">Se não foi você, ignore este e-mail: sua conta continua segura e nada acontece. O ${escaparHtml(NOME_APP)} nunca pede este código por telefone, WhatsApp ou resposta a este e-mail.</p>
+</td></tr></table>
+<p style="margin:18px 0 0;font:400 13px/1.6 Arial,Helvetica,sans-serif;color:#9f96a3;">Equipe ${escaparHtml(NOME_APP)}</p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+
+  return { assunto, texto, html };
+}
+
+// multipart/alternative: a parte text/plain vem primeiro de propósito, porque
+// é ela que os filtros antispam leem para decidir a reputação do remetente.
+// A parte HTML é o que o usuário vê.
+function montarMensagemMime({ de, para, assunto, texto, html, responderPara }) {
+  const limite = `----=_OpenSound_${crypto.randomBytes(12).toString('hex')}`;
+  const dominio = String(de).split('@')[1] || 'opensound.local';
+
   return [
-    `From: =?UTF-8?B?${b64('Open sound')}?= <${de}>`,
+    `From: ${NOME_APP} <${de}>`,
     `To: ${para}`,
-    `Subject: =?UTF-8?B?${b64(assunto)}?=`,
+    `Subject: ${codificarCabecalho(assunto)}`,
+    ...(responderPara ? [`Reply-To: ${responderPara}`] : []),
+    `Date: ${new Date().toUTCString()}`,
+    `Message-ID: <${crypto.randomUUID()}@${dominio}>`,
     'MIME-Version: 1.0',
+    `Content-Type: multipart/alternative; boundary="${limite}"`,
+    '',
+    `--${limite}`,
     'Content-Type: text/plain; charset="UTF-8"',
     'Content-Transfer-Encoding: base64',
     '',
-    b64(texto).replace(/(.{76})/g, '$1\r\n')
+    codificarBase64(texto),
+    `--${limite}`,
+    'Content-Type: text/html; charset="UTF-8"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    codificarBase64(html),
+    `--${limite}--`
   ].join('\r\n');
 }
 
-async function enviarEmail(para, assunto, texto) {
+async function enviarEmail(para, { assunto, texto, html }) {
   try {
     // Evita injeção de cabeçalhos: o destinatário não pode ter quebra de linha nem < >.
     if (/[\r\n<>,;]/.test(para)) throw new Error('Destinatário inválido.');
 
-    const mime = montarMensagemMime({ de: process.env.EMAIL_FROM, para, assunto, texto });
+    const mime = montarMensagemMime({
+      de: process.env.EMAIL_FROM,
+      para,
+      assunto,
+      texto,
+      html,
+      responderPara: emailResponder()
+    });
     const raw = Buffer.from(mime, 'utf8').toString('base64url');
 
     const resposta = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
@@ -214,6 +327,72 @@ const criarLimitador = (windowMs, max, mensagem) =>
     standardHeaders: true,
     legacyHeaders: false
   });
+
+// ============================================================
+// CAPTCHA — CLOUDFLARE TURNSTILE
+// ============================================================
+// O token chega do widget do front e é trocado aqui pela secret key. A
+// verificação precisa ser no backend: um captcha só no front se pula
+// chamando a API direto, que é exatamente o abuso que queremos travar.
+//
+// Chaves de teste do Cloudflare (funcionam em qualquer domínio):
+//   sitekey 1x00000000000000000000AA -> sempre aprova
+//   sitekey 2x00000000000000000000AB -> sempre reprova
+//   secret  1x0000000000000000000000000000000AA -> aprova tudo
+//   secret  2x0000000000000000000000000000000AA -> reprova tudo
+// A secret em falta não derruba o servidor: cai num aviso e segue sem
+// captcha, senão a variável esquecida no Render derrubaria o cadastro
+// inteiro. Ainda assim fica registrado no log.
+const TURNSTILE_SECRET = process.env.TURNSTILE_SECRET;
+const TURNSTILE_ATIVO = Boolean(TURNSTILE_SECRET);
+
+if (!TURNSTILE_ATIVO) {
+  logWarn('CAPTCHA', 'TURNSTILE_SECRET não definida: rotas de cadastro e recuperação ficam sem captcha');
+}
+
+async function validarTurnstile(req) {
+  if (!TURNSTILE_ATIVO) return true;
+
+  const token = req.body?.turnstileToken;
+  if (!ehTexto(token) || !token.trim()) {
+    logWarn('CAPTCHA', 'Token do Turnstile ausente', { ip: req.ip });
+    return false;
+  }
+
+  try {
+    const resposta = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        secret: TURNSTILE_SECRET,
+        response: token.trim(),
+        // O remoteip é opcional, mas amarra o token ao IP que o resolveu,
+        // o que encarece reuso de token de outra origem.
+        remoteip: req.ip
+      }),
+      signal: AbortSignal.timeout(10000)
+    });
+
+    if (!resposta.ok) {
+      logError('CAPTCHA', `Turnstile respondeu ${resposta.status}`, { ip: req.ip });
+      return false;
+    }
+
+    const dados = await resposta.json();
+    if (dados.success) {
+      logInfo('CAPTCHA', 'Turnstile validado', { ip: req.ip });
+      return true;
+    }
+
+    logWarn('CAPTCHA', 'Turnstile recusou', { ip: req.ip, erros: dados['error-codes'] || [] });
+    return false;
+  } catch (erro) {
+    // Falha de rede com o Cloudflare não pode virar bypass: o caminho
+    // seguro é recusar o pedido, não aceitar sem verificação.
+    logError('CAPTCHA', 'Falha ao consultar o Turnstile', { mensagem: erro.message });
+    return false;
+  }
+}
 
 // Traduz erros do Multer para JSON em português.
 function tratarMulter(middleware, limiteTexto) {
@@ -266,6 +445,14 @@ app.post('/api/registro', limitarRegistroIP, async (req, res) => {
 
   if (!ehTexto(emailBruto) || !ehTexto(password) || !ehTexto(nomeBruto) || !emailBruto.trim() || !password || !nomeBruto.trim()) {
     return falha(res, 400, 'E-mail, senha e nome de usuário são obrigatórios.');
+  }
+
+  // Antes de qualquer gravação e, principalmente, antes de gastar um envio
+  // de e-mail: é o registro que o bot quer repetir em massa.
+  if (!(await validarTurnstile(req))) {
+    return falha(res, 400, 'Verificação de segurança falhou. Recarregue a página e tente de novo.', {
+      codigo: 'CAPTCHA_INVALIDO'
+    });
   }
 
   const email = emailBruto.trim();
@@ -331,7 +518,15 @@ app.post('/api/registro', limitarRegistroIP, async (req, res) => {
     // resposta não precisa esperar por ele. Se falhar, o cadastro pendente é
     // mantido de propósito — o usuário usa "Reenviar código" (que avisa o erro
     // na hora) ou o pendente expira sozinho em 10 minutos.
-    enviarEmail(email, 'Seu código de verificação 2FA', `Seu código de confirmação é: ${codigo}`)
+    enviarEmail(
+      email,
+      mensagemCodigo({
+        codigo,
+        titulo: 'Confirme seu cadastro',
+        descricao: `Você está criando uma conta no ${NOME_APP} com este e-mail. Confirme o código para ativar o @${nomeUsuario}.`,
+        instrucao: 'Volte à tela de cadastro e digite os 6 dígitos acima para concluir.'
+      })
+    )
       .then((enviado) => {
         if (enviado) logInfo('2FA', 'Código enviado por e-mail', { email });
         else logError('2FA', 'Falha ao enviar e-mail de verificação (cadastro pendente mantido para reenvio)', { email });
@@ -459,7 +654,15 @@ app.post('/api/reenviar-2fa', limitarReenvioIP, async (req, res) => {
       [novoCodigoHash, idVerificacao]
     );
 
-    const enviado = await enviarEmail(verificacao.email, 'Seu novo código de verificação 2FA', `Seu novo código de confirmação é: ${novoCodigo}`);
+    const enviado = await enviarEmail(
+      verificacao.email,
+      mensagemCodigo({
+        codigo: novoCodigo,
+        titulo: 'Seu novo código de cadastro',
+        descricao: `Este é um novo código para ativar o @${verificacao.nome_usuario} no ${NOME_APP}. O anterior foi substituído e não vale mais.`,
+        instrucao: 'Volte à tela de cadastro e digite os 6 dígitos acima para concluir.'
+      })
+    );
     if (!enviado) {
       logError('2FA', 'Falha ao reenviar e-mail', { email: verificacao.email });
       return falha(res, 500, 'Falha ao reenviar o e-mail de verificação.');
@@ -583,6 +786,15 @@ app.post('/api/auth/esqueci-senha', limitarRecuperacaoSolicitarIP, async (req, r
   }
   const email = emailBruto.trim();
 
+  // Mesmo motivo do cadastro: esta rota dispara e-mail e é alvo do mesmo
+  // abuso. A resposta genérica abaixo continua escondendo se o e-mail existe,
+  // então o captcha não vira uma forma de sondar a base.
+  if (!(await validarTurnstile(req))) {
+    return falha(res, 400, 'Verificação de segurança falhou. Recarregue a página e tente de novo.', {
+      codigo: 'CAPTCHA_INVALIDO'
+    });
+  }
+
   try {
     logInfo('AUTH', 'Recuperação de senha solicitada', { email });
     const resultadoUsuario = await pool.query('SELECT id FROM usuarios WHERE email = $1', [email]);
@@ -611,7 +823,15 @@ app.post('/api/auth/esqueci-senha', limitarRecuperacaoSolicitarIP, async (req, r
       [idRecuperacao, email, codigoHash, expiraEm]
     );
 
-    const enviado = await enviarEmail(email, 'Código para recuperar sua senha', `Seu código de recuperação é: ${codigo}`);
+    const enviado = await enviarEmail(
+      email,
+      mensagemCodigo({
+        codigo,
+        titulo: 'Recupere o acesso à sua conta',
+        descricao: `Você pediu para redefinir a senha da sua conta do ${NOME_APP}. Use este código para escolher uma nova senha.`,
+        instrucao: 'Volte à tela de recuperação de senha e digite os 6 dígitos acima para continuar.'
+      })
+    );
     if (!enviado) {
       await pool.query('DELETE FROM recuperacoes_senha WHERE id = $1', [idRecuperacao]);
       logError('AUTH', 'Falha ao enviar e-mail de recuperação', { email });
@@ -658,7 +878,15 @@ app.post('/api/auth/reenviar-esqueci', limitarReenviarRecuperacaoIP, async (req,
       [novoCodigoHash, idVerificacao]
     );
 
-    const enviado = await enviarEmail(recuperacao.email, 'Seu novo código de recuperação', `Seu novo código de recuperação é: ${novoCodigo}`);
+    const enviado = await enviarEmail(
+      recuperacao.email,
+      mensagemCodigo({
+        codigo: novoCodigo,
+        titulo: 'Seu novo código de recuperação',
+        descricao: `Você pediu um novo código para redefinir a senha da sua conta do ${NOME_APP}. O anterior foi substituído e não vale mais.`,
+        instrucao: 'Volte à tela de recuperação de senha e digite os 6 dígitos acima para continuar.'
+      })
+    );
     if (!enviado) return falha(res, 500, 'Falha ao reenviar o e-mail.');
 
     return sucesso(res, { mensagem: 'Novo código enviado com sucesso!' });
@@ -867,8 +1095,12 @@ app.post('/api/usuarios/redefinir-senha/solicitar', verificarAutenticacao, limit
 
     const enviado = await enviarEmail(
       usuarioLogado.email,
-      'Código para redefinir sua senha',
-      `Seu código de confirmação para redefinir a senha é: ${codigo}`
+      mensagemCodigo({
+        codigo,
+        titulo: 'Troca de senha',
+        descricao: `Você está logado no ${NOME_APP} e pediu para trocar a senha da sua conta. Use este código para confirmar a troca.`,
+        instrucao: 'Volte à tela de troca de senha e digite os 6 dígitos acima para definir a nova senha.'
+      })
     );
     if (!enviado) {
       await pool.query('DELETE FROM redefinicoes_senha WHERE id = $1', [idRedefinicao]);
