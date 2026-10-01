@@ -120,7 +120,18 @@
     align-items: stretch;
     gap: var(--espaco-5);
     width: 100%;
-    flex-wrap: wrap;
+
+    /* nowrap, e não wrap. As três janelas tinham max-width somando
+       1080px (280 + 320 + 480) contra 1004px disponíveis dentro do
+       container de 1100px — ou seja, elas NÃO cabem em uma linha. Com
+       o wrap permitido, a Biblioteca caía sozinha para a linha de baixo.
+       Era o sintoma de "a aba da biblioteca foi pra baixo".
+
+       Rebalanceei os max-width para 280 + 300 + 400 = 980px (sobram 24px
+       de folga), e o nowrap garante que mesmo se algo crescer a linha
+       não quebre: as janelas encolhem em vez de descer. No celular o
+       @media lá no fim joga tudo para coluna. */
+    flex-wrap: nowrap;
 }
 
 .hidden {
@@ -128,12 +139,21 @@
 }
 
 /* ============================================================
-   JANELAS — etiqueta com leve rotação, estilo "colada à mão"
+   JANELAS
+
+   A lingueta hoje NÃO é rotacionada: com a faixa colada embaixo, uma
+   inclinação de 1.5deg abria uma fresta num dos cantos e a lingueta
+   passava a parecer solta em vez de apoiada.
    ============================================================ */
 
 .perfil-janela {
     position: relative;
     margin-top: 40px;
+
+    /* min-width:0 é o que permite a janela ENCOLHER abaixo do
+       flex-basis quando o espaço aperta. Sem isso o padrão do flex é
+       min-content, e a janela nunca encolhe — só transborda. */
+    min-width: 0;
 }
 
 .perfil-janela-identidade {
@@ -143,34 +163,48 @@
 
 .perfil-janela-config {
     flex: 1 1 260px;
-    max-width: 320px;
+    max-width: 300px;
 }
 
 .perfil-janela-biblioteca {
     flex: 1 1 340px;
-    max-width: 480px;
+    max-width: 400px;
 }
 
 .perfil-janela-tab {
     position: absolute;
-    top: -34px;
-    left: var(--espaco-3);
-    z-index: 2;
+
+    /* -33px, e não -34px: a lingueta tem 34px de altura, então ela
+       desce 1px DENTRO da faixa de cima em vez de só encostar nela.
+       Encostando no limite exato, o navegador arredonda a posição e
+       pode sobrar uma fresta de 1px entre as duas peças. */
+    top: -33px;
+
+    /* Rente à borda esquerda, como a aba do carrossel. Com 12px de
+       folga sobrava um pedacinho de faixa aparecendo à esquerda da
+       lingueta, e a emenda das duas peças não fechava. */
+    left: 0;
+
+    /* Acima do 2 das faixas: ela precisa passar NA faixa de cima, e
+       não por baixo dela. */
+    z-index: 3;
+
     display: flex;
     align-items: center;
     min-height: 34px;
     padding: var(--espaco-1) var(--espaco-4);
+    /* Base reta: é o que faz a lingueta e a faixa virarem uma peça só,
+       já que o canto esquerdo da faixa também é reto. */
     border-radius: var(--raio-pequeno) var(--raio-pequeno) 0 0;
     font-size: var(--texto-base);
     font-weight: 800;
     color: var(--texto-sobre-pastel);
     white-space: nowrap;
-    transform: rotate(-1.5deg);
-    box-shadow: var(--sombra-suave);
-}
 
-.perfil-janela-biblioteca .perfil-janela-tab {
-    transform: rotate(1deg);
+    /* Sem rotação de propósito. Com a faixa colada embaixo, uma
+       inclinação de 1.5deg abre uma fresta num dos cantos e a
+       lingueta passa a parecer solta em vez de apoiada. */
+    transform: none;
 }
 
 .perfil-janela-tab.aba-perfil {
@@ -395,7 +429,9 @@
     display: flex;
     flex-direction: column;
     gap: var(--espaco-1);
-    padding: 48px var(--espaco-4) var(--espaco-5);
+    /* 48px no topo porque a banner sangrada ocupa essa altura; 32px no
+       rodapé para a faixa de baixo não encostar no texto. */
+    padding: 48px var(--espaco-4) 32px;
 }
 
 .perfil-nome {
@@ -425,36 +461,87 @@
 }
 
 /* ============================================================
-   BIBLIOTECA — três colunas
+   BIBLIOTECA — dois blocos empilhados
+
+   Era uma grade de duas colunas (favorita | playlists) com divisor no
+   meio. Virou coluna única por um motivo concreto, não por gosto: as
+   playlists passaram a ser galeria de capas, e uma fileira horizontal
+   dentro de meia coluna vira tira de 2px de largura. Com a janela
+   inteira sobram ~330px de conteúdo, que comportam a capa de 100px da
+   favorita e três capas de 88px da galeria.
    ============================================================ */
 
-.perfil-biblioteca-colunas {
-    display: flex;
-}
-
-.perfil-coluna {
-    flex: 1;
-    min-width: 0;
-    padding: var(--espaco-5) var(--espaco-4);
-    border-right: 1px dashed var(--painel-borda);
+.perfil-biblioteca-corpo {
     display: flex;
     flex-direction: column;
-    gap: var(--espaco-2);
+    gap: var(--espaco-5);
 }
 
-.perfil-coluna:last-child {
-    border-right: none;
+.perfil-bib-bloco {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espaco-3);
 }
 
-.perfil-coluna-titulo {
-    font-size: var(--texto-base);
+.perfil-bib-titulo {
+    font-size: var(--texto-titulo);
     font-weight: 800;
     color: var(--cor-texto);
+    letter-spacing: 0.01em;
 }
 
-.perfil-acento-favorita { color: var(--aba-musicas); }
+/* "Playlists:" e o "+" dividem a linha. */
+.perfil-bib-topo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--espaco-3);
+}
+
+.perfil-bib-topo .perfil-bib-titulo {
+    margin-right: auto;
+}
+
+/* O "+" é um link para a página Biblioteca, onde o modal de criação já
+   existe. Por ser link (e não <span>), ele ganha os estilos de reset de
+   link do root.css de graça. */
+.perfil-bib-nova {
+    flex-shrink: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 30px;
+    height: 30px;
+
+    border-radius: 9px;
+
+    background: var(--biblioteca-acento);
+    color: var(--texto-sobre-pastel);
+
+    /* O "+" é um traço, e traço fino some em 30px: o peso 800 dá a
+       espessura que o desenho pede. */
+    font-size: var(--texto-grande);
+    font-weight: 800;
+    line-height: 1;
+
+    text-decoration: none;
+
+    transition: transform var(--transicao-rapida), filter var(--transicao-rapida);
+}
+
+.perfil-bib-nova:hover {
+    transform: scale(1.07);
+    filter: brightness(1.06);
+}
+
+.perfil-bib-nova:focus-visible {
+    outline: 2px solid var(--biblioteca-acento);
+    outline-offset: 3px;
+}
+
 .perfil-acento-curtidas { color: var(--aba-artistas); }
-.perfil-acento-playlists { color: var(--aba-generos); }
 
 .perfil-filtro {
     width: 100%;
@@ -560,20 +647,6 @@
     text-overflow: ellipsis;
 }
 
-.perfil-resultado-remover {
-    background: none;
-    border: none;
-    color: var(--cor-texto-fraco);
-    cursor: pointer;
-    font-size: var(--texto-base);
-    flex-shrink: 0;
-    padding: 0 var(--espaco-1);
-}
-
-.perfil-resultado-remover:hover {
-    color: var(--cor-erro);
-}
-
 .perfil-selecao-atual {
     font-size: var(--texto-pequeno);
     color: var(--cor-texto-secundario);
@@ -581,60 +654,173 @@
 }
 
 /* ============================================================
-   MODO VISITANTE
+   MÚSICA FAVORITA — capa à esquerda, infos à direita
 
-   A Favorita deixa de ser lista de escolha e vira um cartão com a
-   música: capa, título, artista e um botão de tocar. É o mesmo
-   formato dos cards do resto do site, com as cores de token.
+   O dono vê a peça de destaque E o botão "Trocar favorita"; quem só
+   visita vê só a peça. O seletor de escolha é uma gaveta, aberta pelo
+   botão — antes eram ~50 linhas de lista sempre abertas, que empurravam
+   as playlists para fora da dobra.
    ============================================================ */
+
 .perfil-favorita-card {
     display: flex;
     align-items: center;
-    gap: var(--espaco-3);
-    padding: var(--espaco-3);
+    gap: var(--espaco-4);
+}
+
+/* O "espaço próprio" da capa: 124px para a capa de 100px caber com
+   12px de folga em volta. A folga é o que dá a ideia de moldura e é o
+   que impede a linha de encostar na capa. */
+.perfil-favorita-moldura {
+    flex-shrink: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 124px;
+    height: 124px;
+
+    padding: 12px;
+
     border: 1px solid var(--painel-borda);
     border-radius: var(--raio-medio);
-    background: var(--painel-fundo);
+    background: var(--cor-superficie-clara);
 }
 
 .perfil-favorita-capa {
-    width: 56px;
-    height: 56px;
-    flex-shrink: 0;
+    width: 100px;
+    height: 100px;
     object-fit: cover;
     border-radius: var(--raio-pequeno);
 }
 
 .perfil-favorita-texto {
     flex: 1;
+    /* min-width:0 no flex: sem isto o título não encolhe e um nome
+       comprido empurra a moldura da capa para fora do painel em vez de
+       quebrar a linha. */
     min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 2px;
 }
 
-.perfil-favorita-titulo,
+.perfil-favorita-titulo {
+    font-size: var(--texto-titulo);
+    font-weight: 800;
+    color: var(--cor-texto);
+    line-height: 1.25;
+
+    /* Dois avisos no máximo: o título da música é o dado, o resto é
+       decoração. */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+}
+
 .perfil-favorita-artista {
+    font-size: var(--texto-base);
+    color: var(--cor-texto-secundario);
+
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* Pill pastel com texto escuro, a mesma receita do .perfil-btn-salvar
+   que o resto da janela usa. */
+.perfil-favorita-tocar {
+    flex-shrink: 0;
+    align-self: flex-start;
+    margin-top: var(--espaco-2);
+
+    padding: 6px 16px;
+    border: none;
+    border-radius: 999px;
+
+    background: var(--cor-primaria);
+    color: var(--texto-sobre-pastel);
+
+    font-family: inherit;
+    font-size: var(--texto-pequeno);
+    font-weight: 800;
     white-space: nowrap;
+
+    cursor: pointer;
+
+    transition: transform var(--transicao-rapida), filter var(--transicao-rapida);
 }
 
-.perfil-favorita-titulo {
-    font-size: var(--texto-base);
-    font-weight: 700;
-    color: var(--cor-texto);
+.perfil-favorita-tocar:hover:not(:disabled) {
+    filter: brightness(1.05);
+    transform: scale(1.03);
 }
 
-.perfil-favorita-artista {
-    font-size: var(--texto-minimo);
+.perfil-favorita-tocar:disabled {
+    cursor: not-allowed;
+    background: var(--cor-superficie-clara);
     color: var(--cor-texto-fraco);
 }
 
-.perfil-favorita-card .perfil-btn-secundario {
-    margin: 0;
-    flex-shrink: 0;
+/* ---------- o seletor, atrás do botão ---------- */
+
+.perfil-favorita-editar,
+.perfil-favorita-fechar {
+    align-self: flex-start;
+
+    padding: 4px 12px;
+    border: 1px solid var(--painel-borda);
+    border-radius: 999px;
+
+    background: none;
+    color: var(--cor-texto-secundario);
+
+    font-family: inherit;
+    font-size: var(--texto-minimo);
+    font-weight: 700;
+
+    cursor: pointer;
+
+    transition: background var(--transicao-rapida), color var(--transicao-rapida);
 }
+
+.perfil-favorita-editar:hover,
+.perfil-favorita-fechar:hover {
+    background: var(--cor-superficie-hover);
+    color: var(--cor-texto);
+}
+
+.perfil-favorita-escolha {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espaco-2);
+}
+
+/* O [hidden] precisa vencer o display:flex acima. Sem uma regra com
+   especificidade maior, o atributo hidden do navegador não faria
+   nada — é o atributo que esconde, o flex que o esconde, e o flex
+   ganha. */
+.perfil-favorita-escolha[hidden] {
+    display: none;
+}
+
+.perfil-favorita-escolha-topo {
+    display: flex;
+    align-items: center;
+    gap: var(--espaco-2);
+}
+
+.perfil-favorita-escolha-topo .perfil-filtro {
+    flex: 1;
+    min-width: 0;
+}
+
+/* O filtro continua com max-height de 200px herdado do
+   .perfil-resultados, e é isso que mantém a janela em três dobras:
+   com 50 linhas abertas o bloco empurrava as playlists para fora. */
 
 /* ============================================================
    CONFIGURAÇÕES — NOME DE EXIBIÇÃO
@@ -1053,6 +1239,443 @@
 }
 
 /* ============================================================
+   BARRAS DA "PASTA" NAS TRÊS JANELAS
+
+   As três já tinham a lingueta; faltava a parte de baixo — as duas
+   faixas coloradas que fecham a pasta. Sem elas a janela fica com uma
+   aba pendurada e nada a segurar, que é o que a tornava sem cara de
+   pasta.
+
+   Cada janela usa o acento QUE A PESSOA ESCOLHEU (--perfil-acento,
+   --config-acento, --biblioteca-acento). Ou seja: as barras acompanham
+   o color picker de graça, sem nenhuma linha nova de JavaScript.
+
+   O canto superior esquerdo da faixa de cima é RETO de propósito. É
+   ali que a lingueta emenda, e um canto arredondado abriria um vão
+   embaixo dela — foi exatamente o que aconteceu na primeira versão.
+   ============================================================ */
+
+/* As faixas ficam na .perfil-janela (a <section>) e NÃO dentro do
+   .perfil-painel por um motivo que custou uma volta: o painel tem
+   overflow:hidden, para a banner e as capas ficarem presas nos cantos
+   arredondados dele. E overflow:hidden também recorta o que for
+   pseudo-elemento dele — ou seja, arredondava o canto superior esquerdo
+   da faixa em 20px e abria um vão entre a faixa e a lingueta.
+
+   No carrossel o painel não tem overflow, e por isso a faixa de lá
+   fica com o canto reto. Aqui a faixa mora um nível acima, que é o
+   mesmo lugar onde a lingueta já morava. */
+
+.perfil-janela::before,
+.perfil-janela::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 20px;
+
+    /* Acima do conteúdo do painel: a banner é position:relative e,
+       vindo depois na árvore, pintaria por cima da faixa. */
+    z-index: 2;
+    pointer-events: none;
+}
+
+.perfil-janela::before {
+    top: 0;
+    /* Canto esquerdo RETO de propósito: é onde a lingueta emenda.
+       O direito arredonda em 10px, como no carrossel. */
+    border-radius: 0 10px 0 0;
+}
+
+.perfil-janela::after {
+    bottom: 0;
+    border-radius: 0 0 10px 10px;
+}
+
+/* A cor de cada janela é o acento que a pessoa escolheu
+   (--perfil-acento, --config-acento, --biblioteca-acento): as faixas
+   acompanham o color picker sem nenhuma linha nova de JavaScript. */
+.perfil-janela-identidade::before,
+.perfil-janela-identidade::after {
+    background: var(--perfil-acento);
+}
+
+.perfil-janela-config::before,
+.perfil-janela-config::after {
+    background: var(--config-acento);
+}
+
+.perfil-janela-biblioteca::before,
+.perfil-janela-biblioteca::after {
+    background: var(--biblioteca-acento);
+}
+
+/* ---------- espaço para as faixas não cobrirem o texto ----------
+
+   A janela de Perfil é a exceção: a banner é SANGADA de propósito
+   (ocupa a largura toda, como no Discord), então a faixa de cima
+   passa POR CIMA da foto — que é o efeito de pasta de verdade. Só o
+   rodapé dela precisa de folga. Configurações e Biblioteca não têm
+   nada sangrado, então precisam de folga nas duas pontas. */
+
+.perfil-janela-biblioteca .perfil-painel {
+    padding: 40px var(--espaco-4) 36px;
+}
+
+/* ============================================================
+   ALTURA DAS JANELAS E ROLAGEM DO CONTEÚDO
+
+   As três janelas cresciam junto com o conteúdo: uma lista grande de
+   playlists ou um status comprido esticavam a página inteira. Agora
+   elas têm teto, e o que passa do teto rola POR DENTRO.
+
+   O cálculo desconta o que existe na volta da janela:
+     98px  de topo do .perfil-container (espaço do botão voltar)
+     40px  da lingueta, que pendura para fora da janela
+     48px  de base
+    ~64px  da barra do player, quando ela aparece no rodapé
+
+   Não há min-height de propósito: em tela muito baixa a janela
+   encolhe e o conteúdo rola, que é o que se quer. Um min-height
+   fixo faria a página voltar a crescer por baixo da dobra.
+   ============================================================ */
+
+.perfil-janela {
+    /* ALTURA FIXA, e não teto (max-height). A diferença importa: as três
+       janelas esticam na mesma altura (align-items: stretch do
+       .perfil-conteudo), então qualquer conteúdo que cresça em UMA
+       janela empurra as três e as abas de todas descem. Acontecia ao
+       enviar um banner, porque o botão "Remover" da Configurações
+       aparece e ganha uma linha inteira.
+
+       Com a altura travada, o que muda de tamanho vira rolagem por
+       dentro e o layout não se move nunca mais.
+
+       O min-height é só um piso para tela muito baixa; aí a página
+       inteira passa a rolar, que é melhor do que janelas de 50px. */
+    height: calc(100vh - 250px);
+    min-height: 320px;
+}
+
+/* ---------- janela de PERFIL ----------
+
+   A banner é sangrada de propósito e não pode rolar: o que rola é o
+   bloco de baixo (nome, @, status, ouvindo agora, bio, estatísticas).
+   Para isso o painel precisa ser coluna — senão o bloco de baixo não
+   tem altura definida e a overflow não teria o que cortar. */
+.perfil-janela-identidade .perfil-painel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.perfil-janela-identidade .perfil-banner {
+    flex-shrink: 0;
+}
+
+.perfil-identidade {
+    flex: 1;
+    min-height: 0;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* ---------- janela de CONFIGURAÇÕES ----------
+
+   Não tem nada sangrado, então o próprio painel rola. */
+.perfil-painel-config {
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* ---------- janela de BIBLIOTECA ----------
+
+   A janela toda rola agora, e não só a lista. Antes os títulos das
+   colunas ficavam parados e só a lista deslizava; com os dois blocos
+   empilhados e a galeria de capas, isso obrigaria a galeria a ser o
+   elemento rolável dentro de uma coluna, e a altura da janela passaria
+   a mandar no tamanho das capas. Painel rolando é mais simples e é o
+   que as outras duas janelas já fazem.
+
+   O seletor da favorita continua com os 200px de .perfil-resultados: é
+   ele que segura a altura da janela quando a gaveta abre. */
+.perfil-janela-biblioteca .perfil-painel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+
+    /* A janela rola. O .perfil-painel da base é overflow:hidden, e sem
+       isto o conteúdo abaixo da dobra era CORTADO em vez de rolado —
+       as playlists desapareciam sem barra nenhuma. overflow-x fica
+       hidden para a galeria rolável não empurrar a página. */
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.perfil-janela-biblioteca .perfil-biblioteca-nota {
+    flex-shrink: 0;
+}
+
+/* ---------- GALERIA DE CAPAS DAS PLAYLISTS ----------
+
+   Fileira horizontal rolável. É <ul> porque o JS monta <li>, e um <li>
+   dentro de <div> seria HTML inválido — display:flex no <ul> vira a
+   lista numa fileira sem quebrar a semântica. */
+.perfil-playlists {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+
+    gap: var(--espaco-3);
+
+    list-style: none;
+    margin: 0;
+    padding: 2px 2px 8px;
+
+    /* overflow-x e não a janela: a fileira rola, a página não. */
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+    scrollbar-color: var(--biblioteca-acento) transparent;
+}
+
+/* Folga em volta da fileira, para a capa não encostar no divisor do
+   painel e a barra de rolagem não comer a sombra. */
+.perfil-janela-biblioteca .perfil-playlists {
+    margin: 0 -2px -8px;
+}
+
+.perfil-playlists::-webkit-scrollbar {
+    height: 6px;
+}
+
+.perfil-playlists::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.perfil-playlists::-webkit-scrollbar-thumb {
+    background: var(--biblioteca-acento);
+    border-radius: 999px;
+}
+
+.perfil-playlists::-webkit-scrollbar-thumb:hover {
+    background: var(--cor-secundaria);
+}
+
+/* flex: 0 0 auto é o que impede o item de encolher quando a fileira
+   aperta: sem ele a capa vira uma tira de poucos pixels. */
+.perfil-playlist-item {
+    flex: 0 0 auto;
+    width: 88px;
+
+    position: relative;
+
+    display: flex;
+    flex-direction: column;
+
+    scroll-snap-align: start;
+
+    border-radius: var(--raio-pequeno);
+    cursor: pointer;
+
+    transition: transform var(--transicao-rapida);
+}
+
+/* Em visita o item não navega (GET /api/playlists/:id é do dono), então
+   não pode nem parecer clicável. A classe é posta pelo JS junto com os
+   cliques: uma regra que checa :hover não tem como saber se o item é
+   clicável, e cursor:pointer em peça de leitura é promessa falsa. */
+.perfil-playlists:not(.com-navegacao) .perfil-playlist-item {
+    cursor: default;
+}
+
+.perfil-playlists:not(.com-navegacao) .perfil-playlist-item:hover {
+    transform: none;
+}
+
+.perfil-playlists:not(.com-navegacao) .perfil-playlist-item:hover .perfil-playlist-capa {
+    transform: none;
+}
+
+.perfil-playlist-item:hover {
+    transform: translateY(-3px);
+}
+
+.perfil-playlist-item:focus-visible {
+    outline: 2px solid var(--biblioteca-acento);
+    outline-offset: 2px;
+}
+
+.perfil-playlist-capa {
+    width: 88px;
+    height: 88px;
+
+    object-fit: cover;
+    border-radius: var(--raio-pequeno);
+
+    background: var(--cor-superficie-clara);
+
+    flex-shrink: 0;
+
+    transition: transform var(--transicao-lenta);
+}
+
+.perfil-playlist-item:hover .perfil-playlist-capa {
+    transform: scale(1.05);
+}
+
+/* Placeholder sem imagem: a inicial do nome. É o que permite achar a
+   playlist na galeria quando ela não tem capa nenhuma. */
+.perfil-playlist-capa-vazia {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    color: var(--texto-sobre-pastel);
+    font-size: var(--texto-titulo);
+    font-weight: 800;
+}
+
+.perfil-playlist-nome {
+    margin-top: 6px;
+
+    font-size: var(--texto-pequeno);
+    font-weight: 700;
+    color: var(--cor-texto);
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.perfil-playlist-faixas {
+    font-size: var(--texto-minimo);
+    color: var(--cor-texto-fraco);
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* O ✕ de excluir. Fica no canto da capa, e não abaixo do nome: ele é
+   um botão pequeno, e abaixo do nome empurraria a legenda para baixo
+   e desalinharia as capas vizinhas. */
+.perfil-playlist-remover {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+
+    width: 22px;
+    height: 22px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 0;
+    border: none;
+    border-radius: var(--raio-pequeno);
+
+    /* Véu escuro por cima da capa: a capa é uma imagem de cor
+       imprevisível, e um ✕ na cor do texto sumiria nela.
+       --cor-overlay é véu escuro nos DOIS temas (0.68 no escuro, 0.42
+       no claro), então serve aqui — mas é justamente por isso que o ✕
+       não pode ser --cor-texto, que vira #302a34 (escuro) no tema
+       claro e sumiria no véu. --pastel-amarelo não é redefinido no tema
+       claro, então é claro nos dois: medido no pior caso (véu sobre
+       uma capa quase branca) dá 7,11:1. */
+    background: var(--cor-overlay);
+    color: var(--pastel-amarelo);
+
+    font-size: var(--texto-minimo);
+    font-weight: 700;
+    line-height: 1;
+
+    cursor: pointer;
+
+    opacity: 0;
+
+    transition: opacity var(--transicao-padrao), background var(--transicao-rapida);
+}
+
+.perfil-playlist-item:hover .perfil-playlist-remover,
+.perfil-playlist-item:focus-within .perfil-playlist-remover {
+    opacity: 1;
+}
+
+.perfil-playlist-remover:hover {
+    background: var(--cor-erro);
+}
+
+/* A mensagem de "carregando"/"nenhuma playlist" ocupa a linha inteira
+   em vez de virar um quadradinho de 88px. */
+.perfil-playlists > .perfil-estado-mensagem {
+    flex: 1 0 100%;
+    font-style: normal;
+}
+
+/* ---------- a scrollbar ----------
+
+   Mesma receita das modais da home (6px, sem trilho, ponta
+   arredondada) e a cor da janela em que ela está: uma barra rosa
+   dentro da janela âmbar pareceria errada. Trocar pelas 4 linhas
+   do bloco seguinte deixa tudo na cor primária, se for essa a
+   preferência. */
+.perfil-identidade,
+.perfil-painel-config,
+.perfil-janela-biblioteca .perfil-painel {
+    scrollbar-width: thin;
+}
+
+.perfil-identidade {
+    scrollbar-color: var(--perfil-acento) transparent;
+}
+
+.perfil-painel-config {
+    scrollbar-color: var(--config-acento) transparent;
+}
+
+.perfil-janela-biblioteca .perfil-painel {
+    scrollbar-color: var(--biblioteca-acento) transparent;
+}
+
+.perfil-identidade::-webkit-scrollbar,
+.perfil-painel-config::-webkit-scrollbar,
+.perfil-janela-biblioteca .perfil-painel::-webkit-scrollbar {
+    width: 6px;
+}
+
+.perfil-identidade::-webkit-scrollbar-track,
+.perfil-painel-config::-webkit-scrollbar-track,
+.perfil-janela-biblioteca .perfil-painel::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.perfil-identidade::-webkit-scrollbar-thumb {
+    background: var(--perfil-acento);
+    border-radius: 999px;
+}
+
+.perfil-painel-config::-webkit-scrollbar-thumb {
+    background: var(--config-acento);
+    border-radius: 999px;
+}
+
+.perfil-janela-biblioteca .perfil-painel::-webkit-scrollbar-thumb {
+    background: var(--biblioteca-acento);
+    border-radius: 999px;
+}
+
+.perfil-identidade::-webkit-scrollbar-thumb:hover,
+.perfil-painel-config::-webkit-scrollbar-thumb:hover,
+.perfil-janela-biblioteca .perfil-painel::-webkit-scrollbar-thumb:hover {
+    background: var(--cor-secundaria);
+}
+
+/* ============================================================
    RESPONSIVIDADE
    ============================================================ */
 
@@ -1061,17 +1684,52 @@
     .perfil-janela-identidade,
     .perfil-janela-config,
     .perfil-janela-biblioteca { max-width: none; }
-    .perfil-biblioteca-colunas { flex-direction: column; }
-    .perfil-coluna { border-right: none; border-bottom: 1px dashed var(--painel-borda); }
-    .perfil-coluna:last-child { border-bottom: none; }
+
+    /* A galeria acompanha a largura: 88px fixos deixariam só duas capas
+       e meia visíveis numa janela de 400px. O clamp pega a janela
+       inteira, então ela acompanha qualquer largura. */
+    .perfil-playlist-item,
+    .perfil-playlist-capa {
+        width: clamp(64px, 22vw, 88px);
+        height: clamp(64px, 22vw, 88px);
+    }
+
+    /* A favorita precisa de 124px de moldura + folga + o que sobrar para
+       o texto. Abaixo disso a capa e o título disputam a mesma linha. */
+    .perfil-favorita-card {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--espaco-3);
+    }
+
+    .perfil-favorita-moldura {
+        align-self: center;
+    }
+
+    .perfil-favorita-tocar,
+    .perfil-favorita-editar {
+        align-self: stretch;
+        text-align: center;
+    }
+
+    .perfil-favorita-titulo {
+        font-size: var(--texto-grande);
+        text-align: center;
+    }
+
+    .perfil-favorita-artista {
+        text-align: center;
+    }
 }
 
 /* ============================================================
-   JANELA 2: CONFIGURAÇÕES
+    JANELA 2: CONFIGURAÇÕES
    ============================================================ */
 
 .perfil-painel-config {
-    padding: var(--espaco-5) var(--espaco-4);
+    /* 40px no topo e 36px no rodapé: as faixas da "pasta" ocupam 20px
+       cada, e o resto é folga para o texto não encostar nelas. */
+    padding: 40px var(--espaco-4) 36px;
     display: flex;
     flex-direction: column;
     gap: var(--espaco-4);
@@ -1100,23 +1758,44 @@
 .perfil-config-avatar-linha {
     display: flex;
     align-items: center;
-    gap: var(--espaco-3);
+    gap: var(--espaco-4);
 }
 
-.perfil-config-avatar-preview {
-    width: 56px;
-    height: 56px;
-    border-radius: var(--raio-circular);
-    object-fit: cover;
-    border: 3px dashed var(--aba-config);
-    flex-shrink: 0;
-}
-
+/* Os botões vão para a direita da bolinha em vez de ficarem colados nela.
+   margin-left:auto num flex joga o bloco para o fim da linha sem
+   precisar de justify-content, que também empurraria a bolinha. */
 .perfil-config-avatar-botoes {
     display: flex;
     flex-direction: column;
     gap: var(--espaco-1);
     align-items: flex-start;
+    margin-left: auto;
+}
+
+/* 72px, e não os 56px do .os-avatar-md.
+
+   O seletor tem DUAS classes de propósito. .os-avatar-md está em
+   sessao.css com uma classe só; um seletor de classe aqui empataria com
+   ele e o vencedor dependeria da ordem de carga das folhas — que é o
+   problema da §3 do RELATORIO. Duas classes (0,2,0) ganha de uma (0,1,0)
+   sem depender de nada.
+
+   72px cabe: a janela de Configurações tem 300px de largura máxima, a
+   bolinha ocupa 72px e sobram ~200px para a coluna de botões. */
+.perfil-config-avatar-linha .os-avatar-md {
+    width: 72px;
+    height: 72px;
+}
+
+/* A imagem preenche a caixa e é dela que vem a borda tracejada — o
+   3px dashed é o que desenha o anel ao redor da foto. */
+.perfil-config-avatar-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: var(--raio-circular);
+    border: 3px dashed var(--aba-config);
+    flex-shrink: 0;
 }
 
 .perfil-btn-secundario {
@@ -1283,7 +1962,6 @@
 
 .player-seek {
     flex-grow: 1;
-    accent-color: var(--cor-primaria);
 }
 
 /* --- Controle de Volume --- */

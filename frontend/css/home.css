@@ -548,7 +548,18 @@ body,
   font-weight: 800;
 }
 
-/* Card do artista */
+/* Card do artista.
+
+   O fundo é --painel-fundo, o mesmo do painel .artists que o envolve: o
+   card deixa de ser um bloco colorido e passa a ser um recorte do próprio
+   painel, definido só pela sombra e pela barra da esquerda. Isso exige
+   trocar o texto junto — --texto-sobre-pastel é escuro e existia para
+   ficar legível SOBRE o roxo; sobre o fundo do painel ele daria 1,5:1.
+
+   A barra da esquerda é a mesma roxa da lingueta do painel
+   (--aba-artistas): com o fundo neutro ela é a única coisa que dá a
+   borda do card, e sair de uma cor só deixa o bloco inteiro falando a
+   mesma língua. */
 .artista-card {
   display: flex;
   align-items: center;
@@ -559,9 +570,9 @@ body,
   padding: clamp(10px, 3cqw, 26px);
 
   border-radius: clamp(14px, 5cqw, 40px);
-  border-left: clamp(6px, 1.4cqw, 12px) solid var(--cor-secundaria);
-  background: var(--aba-artistas);
-  color: var(--texto-sobre-pastel);
+  border-left: clamp(6px, 1.4cqw, 12px) solid var(--aba-artistas);
+  background: var(--painel-fundo);
+  color: var(--cor-texto);
   box-shadow: var(--sombra-suave);
 
   transition: transform var(--transicao-padrao), box-shadow var(--transicao-padrao);
@@ -605,7 +616,7 @@ body,
   font-size: clamp(1rem, 5.2cqw, 2.6rem);
   font-weight: 800;
   line-height: 1.1;
-  color: var(--texto-sobre-pastel);
+  color: var(--cor-texto);
 
   overflow: hidden;
   display: -webkit-box;
@@ -614,14 +625,20 @@ body,
   overflow-wrap: anywhere;
 }
 
+/* O detalhe é o mesmo texto com menos peso, e quem faz essa diferença é
+   o token — não uma opacidade. Com opacidade 0.75 em cima do secundário
+   o texto desceria para fora do piso de leitura sem nenhum ganho. */
 .artista-detalhe {
   font-size: clamp(0.72rem, 2.4cqw, 1.1rem);
   font-weight: 600;
-  color: var(--texto-sobre-pastel);
-  opacity: 0.75;
+  color: var(--cor-texto-secundario);
 }
 
-/* Pílula de reproduções: número grande + rótulo */
+/* Pílula de reproduções: número grande + rótulo.
+
+   Fundo na mesma roxa da faixa do card e da lingueta do painel. O texto
+   continua --texto-sobre-pastel, que é escuro de propósito: ele foi feito
+   para ficar sobre pastel, e aqui dá 6,75:1 no escuro e 5,89:1 no claro. */
 .artista-reproducoes {
   display: inline-flex;
   flex-direction: column;
@@ -631,7 +648,7 @@ body,
   padding: clamp(4px, 1.2cqw, 12px) clamp(10px, 3cqw, 26px);
 
   border-radius: clamp(8px, 2.2cqw, 18px);
-  background: var(--aba-generos);
+  background: var(--aba-artistas);
   color: var(--texto-sobre-pastel);
 }
 
@@ -664,7 +681,11 @@ body,
   padding: clamp(6px, 1.6cqw, 14px);
   border-radius: clamp(10px, 3cqw, 24px);
   border-left-width: clamp(4px, 0.8cqw, 8px);
-  box-shadow: none;
+  /* Aqui a sombra era zerada porque o card tinha fundo roxo e o bloco
+     inteiro é pequeno: a cor bastava para separar. Agora o fundo é o do
+     painel e a sombra é a única coisa que desenha a borda — sem ela o
+     card compacto vira texto solto com uma faixa azul ao lado. */
+  box-shadow: var(--sombra-suave);
 }
 
 .artista-item--compacto .artista-avatar {
@@ -710,11 +731,19 @@ body,
 
 .genres {
     flex: 1;
-
     min-width: 0;
 
+    height: 620px;
+    max-height: 620px;
+
     padding: 46px 18px 34px;
+
+    align-self: stretch;
+
+    display: flex;
+    flex-direction: column;
 }
+
 
 /*===modal register css====*/
 
@@ -3249,13 +3278,19 @@ body,
   height: 100%;
 }
 
-/* Botão de adicionar à playlist, ancorado no canto superior direito da
-   CAPA (não do disco de vinil, que fica atrás). Reaproveita os mesmos
-   keyframes do carrossel pra entrar/sair junto com a troca de música. */
+/* Os três botões da capa — favoritar, adicionar à playlist e tocar
+   depois — ancorados no canto INFERIOR ESQUERDO da CAPA (não do disco de
+   vinil, que fica atrás). Reaproveita os mesmos keyframes do carrossel pra
+   entrar/sair junto com a troca de música.
+
+   Só a troca de canto: o grupo continua sendo o mesmo elemento com os
+   mesmos três botões dentro, então o JS não muda. A ordem na linha
+   continua favoritar, adicionar, tocar depois — da esquerda para a
+   direita. */
 .msc-acoes-capa {
   position: absolute;
-  right: 8px;
-  top: 8px;
+  left: 8px;
+  bottom: 8px;
   z-index: 5;
 
   display: flex;
@@ -3605,9 +3640,16 @@ body,
 .lista-descobrir {
     display: flex;
     flex-direction: column;
+
+    flex: 1;
+    min-height: 0;
+
     gap: var(--espaco-2);
+
     list-style: none;
-    max-height: 420px;
+
+    width: 100%;
+
     overflow-y: auto;
     overflow-x: hidden;
 
@@ -3628,6 +3670,10 @@ body,
     border-radius: 999px;
 }
 
+.lista-descobrir::-webkit-scrollbar-thumb:hover {
+    background: var(--cor-secundaria);
+}
+
 .lista-descobrir .mensagem-lista {
     text-align: center;
     padding: 24px 12px;
@@ -3640,6 +3686,12 @@ body,
     gap: var(--espaco-3);
     padding: var(--espaco-2) var(--espaco-3);
     border-radius: var(--raio-pequeno);
+
+    /* Fundo leve: --cor-superficie-clara é a superfície elevada do tema, e
+       é só um degrau acima do painel (1,3:1 no escuro, 1,23:1 no claro) —
+       o suficiente para a linha existir, sem virar cartão. */
+    background: var(--cor-superficie-clara);
+
     cursor: pointer;
     transition: background var(--transicao-rapida);
 }
@@ -3655,12 +3707,16 @@ body,
     object-fit: cover;
 }
 
-/* Sem capa: o mesmo quadradinho com 🎵 usado nas outras grades do projeto. */
+/* Sem capa: o mesmo quadradinho com 🎵 usado nas outras grades do projeto.
+
+   O fundo é --cor-superficie-hover e NÃO --cor-superficie-clara: o item
+   agora usa o clara, e com os dois iguais o quadradinho de 40px
+   desaparecia dentro da própria linha — sobraria um 🎵 solto no meio. */
 .descobrir-capa-vazia {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--cor-superficie-clara);
+    background: var(--cor-superficie-hover);
     color: var(--cor-texto-fraco);
 }
 
@@ -3686,8 +3742,13 @@ body,
     text-overflow: ellipsis;
 }
 
+/* A duração subiu um degrau de cor porque o item deixou de ser
+   transparente. Com --cor-texto-fraco sobre o novo fundo do item ela dava
+   2,71:1 no claro (era 3,34:1 sobre o branco do painel) — abaixo do piso
+   para um número que a pessoa usa para achar a faixa. Com o secundário
+   são 5,26:1 no claro e 7,25:1 no escuro. */
 .descobrir-duracao {
     font-size: var(--texto-pequeno);
-    color: var(--cor-texto-fraco);
+    color: var(--cor-texto-secundario);
     font-variant-numeric: tabular-nums;
 }

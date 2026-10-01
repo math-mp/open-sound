@@ -146,6 +146,8 @@ const elFavoritaTocar = document.getElementById('perfil-favorita-tocar');
 
 const elPlaylistsLista = document.getElementById('perfil-playlists-lista');
 const elBibliotecaNota = document.getElementById('perfil-biblioteca-nota');
+const elFavoritaEditar = document.querySelector('.perfil-favorita-editar');
+const elFavoritaFechar = document.querySelector('.perfil-favorita-fechar');
 
 // ================================================================
 // ESTADO EM MEMÓRIA
@@ -264,26 +266,42 @@ function renderizarPerfil(perfil) {
         atualizarContadorExibicao();
     }
     elConfigAvatarRemover.classList.toggle('hidden', !usuario.avatar_url);
-    elBibliotecaNota.textContent = 'A busca filtra as 50 músicas mais recentes. Clicar em uma salva como favorita.';
+    elBibliotecaNota.textContent = 'Abra “Trocar favorita” para escolher entre as 50 músicas mais recentes.';
 }
 
-// A favorita vira um cartão tocável quando a pessoa só está olhando.
+// A favorita vira a peça de destaque do bloco: capa à esquerda, infos à
+// direita, botão de ouvir. Sem favorita, o bloco NÃO some — ele mostra o
+// placeholder e um texto. Antes ele sumia e sobrava um retângulo vazio com
+// um título órfão no lugar.
 function renderizarFavorita(favorita) {
-    // O dono tem o seletor (para trocar de música) E o cartão (para
-    // ouvir). Quem só visita tem só o cartão — o seletor sai do DOM.
-    if (!favorita) {
-        elFavoritaCard.classList.add('hidden');
-        if (!modoVisitante) elFavoritaSelecionada.textContent = 'Nenhuma escolhida ainda.';
-        return;
+    const temFavorita = !!favorita;
+
+    if (temFavorita) {
+        elFavoritaTitulo.textContent = favorita.titulo || 'Sem título';
+        elFavoritaArtista.textContent = favorita.artista || 'Artista desconhecido';
+    } else {
+        elFavoritaTitulo.textContent = 'Nenhuma música favorita ainda.';
+        elFavoritaArtista.textContent = modoVisitante ? '' : 'Escolha uma abaixo.';
     }
 
-    elFavoritaCapa.src = favorita.url_capa || '../assets/avatar-padrao.png';
-    elFavoritaTitulo.textContent = favorita.titulo;
-    elFavoritaArtista.textContent = favorita.artista;
+    // A capa some por atributo, e não por src vazio: um <img> sem src não
+    // desaparece, ele mostra o ícone de imagem quebrada do navegador. E o
+    // src é removido de verdade, senão a imagem continua ocupando a caixa
+    // se algo mandar mostrar o <img> depois.
+    if (temFavorita && favorita.url_capa) {
+        elFavoritaCapa.src = favorita.url_capa;
+        elFavoritaCapa.hidden = false;
+    } else {
+        elFavoritaCapa.hidden = true;
+        elFavoritaCapa.removeAttribute('src');
+    }
+
     elFavoritaCard.classList.remove('hidden');
+    elFavoritaTocar.disabled = !temFavorita;
 
     if (!modoVisitante) {
-        elFavoritaSelecionada.textContent = `Favorita: ${favorita.titulo}`;
+        if (elFavoritaEditar) elFavoritaEditar.hidden = false;
+        elFavoritaSelecionada.textContent = temFavorita ? `Favorita: ${favorita.titulo}` : 'Nenhuma escolhida ainda.';
     }
 }
 
@@ -1149,6 +1167,36 @@ async function carregarCatalogo() {
     }
 }
 
+// O seletor da favorita é uma gaveta: abre com o botão "Trocar favorita"
+// e fecha com "Fechar". O catálogo só é buscado na primeira abertura —
+// ele traz as 50 músicas mais recentes e não tem por que ser baixado por
+// quem entrou no perfil só para olhar o próprio perfil.
+//
+// catalogoPedido trava a segunda chamada: abrir e fechar rápido não pode
+// disparar requisições repetidas enquanto a primeira ainda não voltou.
+let catalogoPedido = false;
+
+function abrirSeletorFavorita() {
+    if (elFavoritaEscolha) elFavoritaEscolha.hidden = false;
+    if (elFavoritaEditar) elFavoritaEditar.hidden = true;
+    if (elFavoritaFechar) elFavoritaFechar.focus();
+
+    if (catalogoMusicas.length > 0) { aplicarCatalogoCarregado(); return; }
+    if (catalogoPedido) return;
+
+    catalogoPedido = true;
+    carregarCatalogo().finally(() => { catalogoPedido = false; });
+}
+
+function fecharSeletorFavorita() {
+    if (elFavoritaEscolha) elFavoritaEscolha.hidden = true;
+    if (elFavoritaEditar) elFavoritaEditar.hidden = false;
+    if (elFavoritaEditar) elFavoritaEditar.focus();
+}
+
+if (elFavoritaEditar) elFavoritaEditar.addEventListener('click', abrirSeletorFavorita);
+if (elFavoritaFechar) elFavoritaFechar.addEventListener('click', fecharSeletorFavorita);
+
 function aplicarCatalogoCarregado() {
     elFavoritaFiltro.disabled = false;
     renderizarResultadosFavorita(catalogoMusicas);
@@ -1231,11 +1279,17 @@ async function definirFavorita(musica) {
 }
 
 // ================================================================
-// PLAYLISTS
+// PLAYLISTS — galeria de capas
 // ================================================================
 
 function renderizarPlaylists(playlists) {
     elPlaylistsLista.innerHTML = '';
+
+    // O cursor e o hover da galeria dependem de o item navegar ou não, e
+    // isso é o mesmo em toda a lista — por isso a classe vai no <ul>, e
+    // não em cada item.
+    elPlaylistsLista.classList.toggle('com-navegacao', !modoVisitante);
+
     if (playlists.length === 0) {
         exibirMensagemLista(elPlaylistsLista, modoVisitante
             ? 'Nenhuma playlist pública ainda.'
@@ -1245,31 +1299,66 @@ function renderizarPlaylists(playlists) {
 
     playlists.forEach((playlist) => {
         const item = document.createElement('li');
-        item.className = 'perfil-resultado-item';
+        item.className = 'perfil-playlist-item';
 
-        const texto = document.createElement('div');
-        texto.className = 'perfil-resultado-texto';
-        const titulo = document.createElement('span');
-        titulo.className = 'perfil-resultado-titulo';
-        titulo.textContent = playlist.nome;
+        // Capa e placeholder se alternam pelo mesmo motivo da favorita:
+        // <img> sem src mostra o ícone de imagem quebrada do navegador.
+        if (playlist.url_capa) {
+            const capa = document.createElement('img');
+            capa.className = 'perfil-playlist-capa';
+            capa.src = playlist.url_capa;
+            capa.alt = '';
+            capa.loading = 'lazy';
+            item.appendChild(capa);
+        } else {
+            const capa = document.createElement('span');
+            // A inicial do nome no lugar da capa: é o que permite achar
+            // a playlist na galeria quando ela não tem imagem nenhuma.
+            capa.className = 'perfil-playlist-capa perfil-playlist-capa-vazia';
+            capa.textContent = (playlist.nome || '?').trim().charAt(0).toUpperCase();
+            capa.setAttribute('aria-hidden', 'true');
+            item.appendChild(capa);
+        }
+
+        const nome = document.createElement('span');
+        nome.className = 'perfil-playlist-nome';
+        nome.textContent = playlist.nome;
+
         const faixas = document.createElement('span');
         faixas.className = 'perfil-playlist-faixas';
         faixas.textContent = playlist.total_faixas === 1 ? '1 faixa' : `${playlist.total_faixas} faixas`;
-        texto.append(titulo, faixas);
 
-        item.appendChild(texto);
+        item.append(nome, faixas);
 
-        // O ✕ de excluir e o link só existem para o dono. Em visita o
-        // item é só texto: GET /api/playlists/:id é restrito ao dono,
-        // então linkar levaria a um 404.
+        // O ✕ de excluir é só do dono. Em visita o item é peça de leitura:
+        // GET /api/playlists/:id é restrito ao dono, então linkar levaria a
+        // um 404 na página da playlist. Por isso o item só navega aqui
+        // quando a rota de fato funciona.
         if (!modoVisitante) {
+            item.tabIndex = 0;
+            item.setAttribute('role', 'link');
+            item.title = `Abrir ${playlist.nome}`;
+
+            const abrir = () => { window.location.href = `playlist.html?id=${playlist.id}`; };
+            item.addEventListener('click', abrir);
+            item.addEventListener('keydown', (evento) => {
+                if (evento.key !== 'Enter' && evento.key !== ' ') return;
+                evento.preventDefault();
+                abrir();
+            });
+
             const remover = document.createElement('button');
             remover.type = 'button';
-            remover.className = 'perfil-resultado-remover';
+            remover.className = 'perfil-playlist-remover';
             remover.textContent = '✕';
             remover.title = 'Excluir playlist';
             remover.setAttribute('aria-label', `Excluir playlist ${playlist.nome}`);
-            remover.addEventListener('click', () => excluirPlaylist(playlist.id));
+            remover.addEventListener('click', (evento) => {
+                // O item inteiro abre a playlist; sem isto, apagar também
+                // abriria a página que se ia apagar.
+                evento.stopPropagation();
+                excluirPlaylist(playlist.id);
+            });
             item.appendChild(remover);
         }
 
@@ -1304,6 +1393,11 @@ function aplicarModoVisitante() {
     if (elFavoritaEscolha && elFavoritaEscolha.parentNode) {
         elFavoritaEscolha.parentNode.removeChild(elFavoritaEscolha);
     }
+    // O botão que abre o seletor sai junto. Sem esta linha ele ficaria
+    // na tela de quem só está olhando, abrindo uma gaveta que não existe.
+    if (elFavoritaEditar && elFavoritaEditar.parentNode) {
+        elFavoritaEditar.parentNode.removeChild(elFavoritaEditar);
+    }
     if (elAbaIdentidade) elAbaIdentidade.textContent = 'Perfil';
     if (elJanelaIdentidade) {
         elJanelaIdentidade.setAttribute('aria-label', 'Perfil da pessoa visitada');
@@ -1326,7 +1420,6 @@ function iniciar() {
         atualizarContadorBio();
         atualizarContadorExibicao();
         carregarPerfil();
-        carregarCatalogo();
         return;
     }
 
@@ -1334,8 +1427,9 @@ function iniciar() {
     mostrarConteudo();
     aplicarModoVisitante();
     carregarPerfil();
-    // O catálogo (para escolher a favorita) é do dono; em visita não é
-    // preciso e a busca por ele só custaria uma requisição.
+    // O catálogo (para escolher a favorita) é do dono e só é buscado quando
+    // o seletor abre: em visita não existe, e no dono seria uma requisição
+    // das 50 músicas mais recentes para uma lista que começa fechada.
 }
 
 document.addEventListener('DOMContentLoaded', iniciar);

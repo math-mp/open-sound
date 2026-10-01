@@ -178,6 +178,18 @@
     --player-fundo: #292434;
     --player-borda: rgba(255, 255, 255, 0.12);
 
+    /* Cor do trecho já percorrido da barra de tempo e da de volume.
+       Lilás no escuro (8,55:1 sobre o fundo do player). No claro o lilás
+       dá 1,76:1 e sumiria, então o bloco [data-theme="light"] troca
+       pelo primário fundo — é o mesmo roxo da família, só escuro o
+       bastante para existir sobre branco. */
+    --player-progresso: #cfbaf0;
+
+    /* Cor do trilho (a parte ainda não tocada). Token próprio em vez de
+       --cor-superficie-clara: escurecer o fundo do player no tema claro
+       faria o trilho claro desaparecer dentro dele. */
+    --player-trilho: #40394c;
+
 
     /* -----------------------------------------------------
        INPUTS
@@ -328,8 +340,33 @@
        PLAYER
        ----------------------------------------------------- */
 
-    --player-fundo: #ffffff;
+    /* Fundo do player no claro: um cinza-rosado um tom abaixo do branco.
+       --cor-superficie-clara (#eee5ee) serviria, mas ele é justamente a
+       cor que faz o trilho da barra, e os dois ficariam com 1,02:1 — a
+       barra sumiria dentro do player. */
+    --player-fundo: #f2ebf1;
     --player-borda: rgba(48, 42, 52, 0.12);
+
+    /* Preenchimento roxo das barras no tema claro.
+
+       ESTE HEX NÃO É TOKEN DO TEMA. Os roxos que existem aqui são
+       --pastel-lilas (#cfbaf0) e --aba-artistas (#c5abed), e os dois
+       somem sobre fundo claro: 1,76:1 e 2,01:1. O --cor-primaria
+       (#c989b9) chega a 2,31:1, ainda menos que os 3:1 que uma barra de
+       progresso precisa para o trecho pintado existir.
+
+       Então é uma cor nova, criada só para isto, e o critério foi o
+       contraste medido: 3,84:1 contra o fundo do player e 3,07:1 contra
+       o trilho. Quem preferir puxar para a paleta aceita perder a barra
+       clara — a alternativa é um trilho escuro com pastel lilás em cima,
+       que também resolve, mas inverte a peça. */
+    --player-progresso: #b5568c;
+
+    /* Trilho escurecido junto com o fundo, para manter a mesma leitura de
+       antes: 1,25:1 contra o player novo, contra 1,23:1 que o #eee5ee
+       dava sobre o branco. O que separa pintado de não pintado continua
+       sendo o roxo, com 3,07:1 contra este trilho. */
+    --player-trilho: #ddd2de;
 
 
     /* -----------------------------------------------------
@@ -644,8 +681,121 @@
     color: var(--cor-texto-fraco);
 }
 
-.player-seek {
-    accent-color: var(--cor-primaria);
+/* O contador de tempo é o único texto do player que ficaria ruim com o
+   fundo do tema claro mais escuro: o --cor-texto-fraco drops de 3,34:1
+   para 2,85:1, e é texto pequeno demais para aceitar. Só no claro ele
+   sobe um degrau, para 5,52:1.
+
+   No escuro o --cor-texto-fraco continua valendo (3,86:1) — a correção é
+   do tema claro, e não da barra. */
+[data-theme="light"] .player-tempo {
+    color: var(--cor-texto-secundario);
+}
+
+/* -----------------------------------------------------
+   BARRAS DO PLAYER (tempo e volume)
+
+   As duas são o mesmo desenho: trilho arredondado em ponta, o trecho já
+   percorrido pintado de roxo, e um botão redondo com um anel da cor do
+   fundo por cima — é esse anel que faz o botão parecerfuradeira em vez
+   de um disco chapado sobre o preenchimento.
+
+   POR QUE ESTE BLOCO ESTÁ AQUI E NÃO NUMA FOLHA DE PÁGINA
+
+   A barra do player aparece nas quatro páginas e a sua geometria está
+   copiada em home.css, minhas-musicas.css e perfil.css (o item 7 da §5
+   do RELATORIO). Aquelas cópias setting: flex-grow, a largura e a
+   aparência nativa. Tudo que é APARÊNCIA mora aqui, num lugar só — se
+   cada página tivesse a sua, trocar a cor do progresso significaria
+   editar três folhas e esquecer uma.
+
+   O seletor leva .player-barra na frente porque home.css/minhas-musicas
+   /perfil.css carregam DEPOIS do theme.css e redeclaram .volume-slider
+   com border-radius e background. Duas classes (0,2,0) ganham de uma
+   (0,1,0) sem depender de ordem de carga — que é o problema da §3.
+   ----------------------------------------------------- */
+
+.player-barra .player-seek,
+.player-barra .volume-slider {
+    /* -webkit-appearance e appearance juntos: sem o prefixo o Chrome não
+       desiste do desenho nativo e o trilho quadrado volta. */
+    -webkit-appearance: none;
+    appearance: none;
+
+    height: 6px;
+    border-radius: 999px;
+
+    outline: none;
+    cursor: pointer;
+
+    /* O preenchimento é um gradiente com a parada no valor do slider. Não
+       dá para fazer isso só com CSS de slider: o navegador não expõe o
+       valor para o CSS, e o truque do ::-moz-range-progress só existe no
+       Firefox. O player.js escreve a fração (0 a 100) em
+       --player-preenchido. */
+    background:
+        linear-gradient(to right,
+            var(--player-progresso) 0%,
+            var(--player-progresso) calc(var(--player-preenchido, 0) * 1%),
+            var(--player-trilho) calc(var(--player-preenchido, 0) * 1%),
+            var(--player-trilho) 100%);
+}
+
+/* O Firefox tem pseudo-elemento próprio e pinta o percorrido sozinho, sem
+   precisar do gradiente nem da variável do JS. */
+.player-barra .player-seek::-moz-range-progress,
+.player-barra .volume-slider::-moz-range-progress {
+    background: var(--player-progresso);
+    border-radius: 999px;
+}
+
+.player-barra .player-seek::-moz-range-track,
+.player-barra .volume-slider::-moz-range-track {
+    height: 6px;
+    background: var(--player-trilho);
+    border-radius: 999px;
+}
+
+/* Firefox não deixa estilizar o trilho e o polegar em regras separadas do
+   próprio input. */
+.player-barra .player-seek::-moz-range-thumb,
+.player-barra .volume-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--player-fundo);
+    border-radius: 50%;
+    background: var(--player-progresso);
+    box-shadow: var(--sombra-suave);
+}
+
+.player-barra .player-seek::-webkit-slider-thumb,
+.player-barra .volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--player-fundo);
+    border-radius: 50%;
+
+    background: var(--player-progresso);
+    box-shadow: var(--sombra-suave);
+
+    cursor: pointer;
+
+    transition: transform var(--transicao-rapida);
+}
+
+.player-barra .player-seek::-webkit-slider-thumb:hover,
+.player-barra .volume-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+}
+
+/* O foco precisa continuar visível depois que o desenho nativo saiu. */
+.player-barra .player-seek:focus-visible {
+    outline: 2px solid var(--player-progresso);
+    outline-offset: 4px;
+    border-radius: 999px;
 }
 
 /* -----------------------------------------------------

@@ -1626,8 +1626,13 @@ app.get('/api/perfil', verificarAutenticacao, async (req, res) => {
       lerFavorita(pool, usuarioId),
       lerCurtidas(pool, usuarioId),
       // Favoritos é playlist do sistema: não aparece no perfil.
+      // url_capa entrou aqui para a galeria da aba Biblioteca mostrar a
+      // capa de verdade. Não precisa entrar no GROUP BY: p.id é a chave
+      // primária, e o Postgres aceita na lista de colunas qualquer campo
+      // de playlists que dependa funcionalmente dela.
       pool.query(
-        `SELECT p.id, p.nome, p.criado_em, COUNT(pm.musica_id)::int AS total_faixas
+        `SELECT p.id, p.nome, p.url_capa, p.criado_em,
+                COUNT(pm.musica_id)::int AS total_faixas
            FROM playlists p
            LEFT JOIN playlist_musicas pm ON pm.playlist_id = p.id
           WHERE p.usuario_id = $1 AND p.publica = TRUE AND p.eh_favoritos = FALSE
@@ -1735,8 +1740,11 @@ app.get('/api/perfil/publico/:identificador', limitarPerfilPublicoIP, verificarA
       ),
       lerFavorita(pool, usuarioId),
       // Favoritos é a playlist do sistema e não aparece no perfil de ninguém.
+      // Mesma coluna url_capa da rota do dono, e pelo mesmo motivo: a
+      // galeria da aba Biblioteca é a mesma nos dois modos.
       pool.query(
-        `SELECT p.id, p.nome, p.criado_em, COUNT(pm.musica_id)::int AS total_faixas
+        `SELECT p.id, p.nome, p.url_capa, p.criado_em,
+                COUNT(pm.musica_id)::int AS total_faixas
            FROM playlists p
            LEFT JOIN playlist_musicas pm ON pm.playlist_id = p.id
           WHERE p.usuario_id = $1 AND p.publica = TRUE AND p.eh_favoritos = FALSE

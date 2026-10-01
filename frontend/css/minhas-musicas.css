@@ -625,7 +625,6 @@ body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
 
 .player-seek {
     flex-grow: 1;
-    accent-color: var(--cor-primaria);
 }
 
 /* --- Controle de Volume --- */

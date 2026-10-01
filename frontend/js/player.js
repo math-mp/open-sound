@@ -124,6 +124,37 @@ function formatarTempo(segundosTotais) {
   return `${minutos}:${segundos}`;
 }
 
+// === PREENCHIMENTO DAS BARRAS ===
+
+// O CSS não consegue ler o valor de um <input type="range">. Para a barra
+// pintar o trecho já percorrido, o player converte a posição numa fração
+// de 0 a 100 e escreve em --player-preenchido, que o gradiente do trilho
+// consome (ver o bloco "BARRAS DO PLAYER" no theme.css).
+//
+// Passar por UMA função é o que evita o bug de sempre: escrever o
+// .value do slider sem atualizar a variável, e a barra ficar parada
+// enquanto a música corre. Todo lugar que mexe em .value passa por aqui.
+function pintarPreenchimento(elemento, valor) {
+  if (!elemento) return;
+
+  const max = Number(elemento.max);
+  // max só vale depois do loadedmetadata. Antes disso a divisão daria
+  // Infinity e o gradiente viraria uma faixa sólida inteira.
+  if (!Number.isFinite(max) || max <= 0) {
+    elemento.style.setProperty('--player-preenchido', '0');
+    return;
+  }
+
+  const fracao = Math.min(100, Math.max(0, (Number(valor) / max) * 100));
+  elemento.style.setProperty('--player-preenchido', fracao.toFixed(2));
+}
+
+// Atalho para as duas barras da barra do player, que são o mesmo desenho.
+function pintarBarrasPlayer() {
+  pintarPreenchimento(playerSeek, playerSeek ? playerSeek.value : 0);
+  pintarPreenchimento(playerVolume, playerVolume ? playerVolume.value : 0);
+}
+
 // === PERSISTÊNCIA LOCAL (render instantâneo, sem esperar a API) ===
 function salvarEstadoPlayer() {
   if (!musicaNoPlayer) {
@@ -631,6 +662,7 @@ function encerrarPlayer() {
 
   if (playerPlayPause) playerPlayPause.textContent = '▶';
   if (playerSeek) playerSeek.value = 0;
+  pintarBarrasPlayer();
   if (playerTempoAtual) playerTempoAtual.textContent = '0:00';
   if (playerTempoTotal) playerTempoTotal.textContent = '0:00';
 
@@ -662,12 +694,16 @@ elementoAudio.addEventListener('ended', () => {
 
 elementoAudio.addEventListener('loadedmetadata', () => {
   if (playerSeek) playerSeek.max = elementoAudio.duration;
+  // Só agora o max vale. Antes dele a fração é NaN e a barra ficaria
+  // vazia mesmo com a música tocando.
+  pintarBarrasPlayer();
   if (playerTempoTotal) playerTempoTotal.textContent = formatarTempo(elementoAudio.duration);
 });
 
 elementoAudio.addEventListener('timeupdate', () => {
   if (!arrastandoSeek) {
     if (playerSeek) playerSeek.value = elementoAudio.currentTime;
+    pintarBarrasPlayer();
     if (playerTempoAtual) playerTempoAtual.textContent = formatarTempo(elementoAudio.currentTime);
   }
   salvarEstadoPlayer();
@@ -677,12 +713,17 @@ elementoAudio.addEventListener('timeupdate', () => {
 if (playerSeek) {
   playerSeek.addEventListener('input', () => {
     arrastandoSeek = true;
+    // Arrastar muda o .value pelo navegador, não por uma atribuição daqui —
+    // sem esta linha a barra só voltaria a andar no próximo timeupdate, e
+    // pareceria presa enquanto a pessoa arrasta.
+    pintarPreenchimento(playerSeek, playerSeek.value);
     if (playerTempoAtual) playerTempoAtual.textContent = formatarTempo(playerSeek.value);
   });
 
   playerSeek.addEventListener('change', () => {
     elementoAudio.currentTime = playerSeek.value;
     arrastandoSeek = false;
+    pintarPreenchimento(playerSeek, playerSeek.value);
     salvarEstadoPlayer();
     sincronizarEstado();
   });
@@ -734,11 +775,13 @@ if (playerVolume) {
       playerVolume.value = vol;
     }
   }
+  pintarPreenchimento(playerVolume, playerVolume.value);
   atualizarIconeVolume();
 
   playerVolume.addEventListener('input', () => {
     elementoAudio.volume = playerVolume.value;
     elementoAudio.muted = false;
+    pintarPreenchimento(playerVolume, playerVolume.value);
     localStorage.setItem('opensound_volume', elementoAudio.volume);
     atualizarIconeVolume();
   });
@@ -761,6 +804,7 @@ if (playerVolumeBtn) {
       elementoAudio.muted = true;
       playerVolume.value = 0;
     }
+    pintarPreenchimento(playerVolume, playerVolume.value);
     localStorage.setItem('opensound_volume', elementoAudio.volume);
     atualizarIconeVolume();
   });
@@ -768,7 +812,10 @@ if (playerVolumeBtn) {
 
 // Sincroniza o slider se o volume for alterado programaticamente
 elementoAudio.addEventListener('volumechange', () => {
-  if (playerVolume) playerVolume.value = elementoAudio.volume;
+  if (playerVolume) {
+    playerVolume.value = elementoAudio.volume;
+    pintarPreenchimento(playerVolume, playerVolume.value);
+  }
   atualizarIconeVolume();
 });
 
@@ -844,6 +891,10 @@ fila = lerFilaLocal();
       if (playerVolume) playerVolume.value = 0;
     }
 
+    // Só dá para pintar as duas barras aqui: é o primeiro ponto onde o
+    // max da barra de tempo vale. Retomando de um F5 no meio de uma
+    // música, sem isto a barra voltaria vazia até o próximo timeupdate.
+    pintarBarrasPlayer();
     atualizarIconeVolume();
 
     if (estado.tocando) {
