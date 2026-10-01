@@ -1093,6 +1093,10 @@ function criarDestaqueMusica(musica) {
   // favoritar/desfavoritar) continua a mesma de sempre.
   const btnFavoritar = criarBotaoIcone('btn-favoritar-destaque', '♡', 'Favoritar');
   btnFavoritar.dataset.musicaId = musica.id;
+  // O atributo é o que o atualizarTodosCoracoes usa para repintar, e ele
+  // precisa estar nos dois botões de favoritar da página (o do carrossel e
+  // o da lista de descobertas).
+  btnFavoritar.dataset.favoritavel = 'sim';
   pintarCoracao(btnFavoritar, idsFavoritos.has(Number(musica.id)));
   btnFavoritar.addEventListener('click', () => alternarFavorito(musica));
 
@@ -2099,7 +2103,48 @@ function criarItemDescobrir(musica) {
     duracao.textContent = formatarDuracao(segundos);
   });
 
-  item.append(info, duracao);
+  // Os mesmos três botões que o carrossel tem: favoritar, adicionar à
+  // playlist e tocar depois.
+  //
+  // stopPropagation em TODOS os três é obrigatório, e não um detalhe: o
+  // item inteiro é clicável e chama tocarMusica. Sem isso, favoritar uma
+  // música também tocaria ela.
+  const botoes = document.createElement('div');
+  botoes.className = 'descobrir-botoes';
+
+  const btnFavoritar = criarBotaoIcone('btn-favoritar-descobrir', '♡', 'Favoritar');
+  btnFavoritar.dataset.musicaId = musica.id;
+  btnFavoritar.dataset.favoritavel = 'sim';
+  pintarCoracao(btnFavoritar, idsFavoritos.has(Number(musica.id)));
+  btnFavoritar.addEventListener('click', (evento) => {
+    evento.stopPropagation();
+    alternarFavorito(musica);
+  });
+
+  const btnAddPlaylist = criarBotaoIcone('btn-playlist-descobrir', '＋', 'Adicionar à playlist');
+  btnAddPlaylist.addEventListener('click', (evento) => {
+    evento.stopPropagation();
+    abrirModalAddPlaylist(musica);
+  });
+
+  const btnFila = criarBotaoIcone('btn-fila-descobrir', '⇥', 'Tocar depois');
+  btnFila.addEventListener('click', (evento) => {
+    evento.stopPropagation();
+    if (!estaLogado()) {
+      alert('Faça login para usar a fila.');
+      if (modalLogin) modalLogin.classList.remove('hidden');
+      return;
+    }
+    adicionarAFila(musica);
+  });
+
+  botoes.append(btnFavoritar, btnAddPlaylist, btnFila);
+
+  // A ordem desta linha é a ordem das colunas do grid: capa, texto,
+  // botões, duração. Os botões vêm antes da duração porque é essa a
+  // ordem em que as coisas fazem sentido — primeiro o que se faz com a
+  // música, depois quanto tempo ela dura.
+  item.append(info, botoes, duracao);
 
   // Tocar pelo player global: mesma função e mesma guarda de login que o
   // carrossel usa. O botão que receive o rótulo é o da barra do player,

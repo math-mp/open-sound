@@ -548,7 +548,13 @@ body,
   min-width: 0;
 }
 
-/* Bloco da posição, à esquerda */
+/* Bloco da posição, à esquerda.
+
+   O fundo desce um degrau para --cor-superficie-hover porque o card
+   passou a usar o --cor-superficie-clara: com os dois no mesmo valor o
+   quadradinho do "4º" desaparecia dentro do próprio card, e sobrava o
+   número solto. Agora ele é uma caixa dentro de outra (1,13:1 no
+   escuro, 1,08:1 no claro). */
 .artista-posicao {
   display: flex;
   align-items: center;
@@ -559,7 +565,7 @@ body,
   flex-shrink: 0;
 
   border-radius: clamp(10px, 3.5cqw, 28px);
-  background: var(--cor-superficie-clara);
+  background: var(--cor-superficie-hover);
   color: var(--cor-texto);
 
   font-size: clamp(1.4rem, 7.5cqw, 3.6rem);
@@ -574,10 +580,15 @@ body,
    trocar o texto junto — --texto-sobre-pastel é escuro e existia para
    ficar legível SOBRE o roxo; sobre o fundo do painel ele daria 1,5:1.
 
-   A barra da esquerda é a mesma roxa da lingueta do painel
+   A faixa da esquerda é a mesma roxa da lingueta do painel
    (--aba-artistas): com o fundo neutro ela é a única coisa que dá a
    borda do card, e sair de uma cor só deixa o bloco inteiro falando a
-   mesma língua. */
+   mesma língua.
+
+   O fundo é --cor-superficie-clara, um degrau acima do painel que o
+   envolve (1,3:1 no escuro, 1,23:1 no claro) — o mesmo degrau que os
+   itens de "Descubra novas músicas" usam, para os dois blocos lerem
+   igual. */
 .artista-card {
   display: flex;
   align-items: center;
@@ -589,7 +600,7 @@ body,
 
   border-radius: clamp(14px, 5cqw, 40px);
   border-left: clamp(6px, 1.4cqw, 12px) solid var(--aba-artistas);
-  background: var(--painel-fundo);
+  background: var(--cor-superficie-clara);
   color: var(--cor-texto);
   box-shadow: var(--sombra-suave);
 
@@ -601,7 +612,12 @@ body,
 }
 
 /* Avatar: <img> quando o artista tem foto enviada, <span> com as iniciais
-   quando não tem. O mesmo bloco serve pros dois casos. */
+   quando não tem. O mesmo bloco serve pros dois casos.
+
+   O fundo é --cor-superficie-hover pelo mesmo motivo do quadrado da
+   posição: o card é --cor-superficie-clara agora, e no mesmo valor o
+   avatar de iniciais viraria um retângulo invisível. Com <img> o fundo
+   não aparece — a foto cobre — então a regra só importa no fallback. */
 .artista-avatar {
   display: flex;
   align-items: center;
@@ -612,7 +628,7 @@ body,
   flex-shrink: 0;
 
   border-radius: clamp(10px, 4cqw, 32px);
-  background: var(--cor-superficie-clara);
+  background: var(--cor-superficie-hover);
   color: var(--cor-texto);
 
   font-size: clamp(1.1rem, 5.5cqw, 2.6rem);
@@ -721,13 +737,25 @@ body,
   display: none;
 }
 
+/* A pílula de reproduções volta no compacto.
+
+   Aqui ela era zerada inteira — padding: 0 e background: none — e o
+   resultado era o 4º e o 5º sem nenhum bloco roxo: nome, faixa e nada
+   mais. O padding volta menor que o do card grande porque a coluna é
+   metade da largura. */
 .artista-item--compacto .artista-reproducoes {
-  margin-top: 0;
-  padding: 0;
-  background: none;
+  margin-top: clamp(2px, 1cqw, 10px);
+  padding: clamp(3px, 0.7cqw, 7px) clamp(6px, 1.5cqw, 13px);
 }
 
-.artista-item--compacto .artista-reproducoes::before {
+/* O ♫ entra pelo ::before do VALOR, e não do .artista-reproducoes.
+
+   Motivo: .artista-reproducoes é display:inline-flex com
+   flex-direction:column, e um ::before nesse elemento vira ITEM DE LINHA
+   do flex — ele empilhava em cima do número em vez de ficar ao lado dele.
+   Dentro do .artista-reproducoes-valor, que é um span de texto comum, o
+   ♫ é só um caractere antes do número. */
+.artista-item--compacto .artista-reproducoes-valor::before {
   content: "♫ ";
 }
 
@@ -3699,7 +3727,12 @@ body,
 
 .descobrir-item {
     display: grid;
-    grid-template-columns: auto 1fr auto;
+
+    /* [capa][título e artista][botões][duração] — a coluna dos botões
+       entra antes da duração porque é essa a ordem em que as coisas fazem
+       sentido: primeiro o que se faz com a música, depois quanto tempo ela
+       dura. */
+    grid-template-columns: auto 1fr auto auto;
     align-items: center;
     gap: var(--espaco-3);
     padding: var(--espaco-2) var(--espaco-3);
@@ -3712,6 +3745,63 @@ body,
 
     cursor: pointer;
     transition: background var(--transicao-rapida);
+}
+
+/* Os três botões de ação.
+
+   O .btn-icone da base (theme.css) não tem fundo nenhum — só a barra do
+   player ganha um. Aqui eles precisam do seu, senão ficam invisíveis
+   sobre a superfície elevada. --cor-superficie-hover é um degrau acima do
+   fundo do item, o que dá separação sem precisar de borda.
+
+   A coluna é estreita de propósito: se os botões ficassem sempre
+   visíveis, cada linha da lista carregaria três alvos de clique disputando
+   espaço com o clique do próprio item. Aparecem no hover e no focus-within, e o
+   item continua sendo clicável em cima. */
+.descobrir-botoes {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+
+    opacity: 0;
+    transition: opacity var(--transicao-padrao);
+}
+
+.descobrir-item:hover .descobrir-botoes,
+.descobrir-item:focus-within .descobrir-botoes {
+    opacity: 1;
+}
+
+.descobrir-botoes .btn-icone {
+    width: 26px;
+    height: 26px;
+    font-size: var(--texto-base);
+
+    background: var(--cor-superficie-hover);
+    color: var(--cor-texto-secundario);
+}
+
+.descobrir-botoes .btn-icone:hover {
+    background: var(--cor-primaria);
+    color: var(--texto-sobre-pastel);
+    transform: scale(1.1);
+}
+
+.descobrir-botoes .btn-icone:focus-visible {
+    outline: 2px solid var(--cor-primaria);
+    outline-offset: 2px;
+}
+
+/* O coração preenchido: --cor-erro é o rosa do próprio tema, e é a mesma
+   cor que o .btn-icone.ativo usa na barra do player. */
+.descobrir-botoes .btn-icone.ativo {
+    color: var(--cor-erro);
+    background: var(--cor-superficie-hover);
+}
+
+.descobrir-botoes .btn-icone.ativo:hover {
+    background: var(--cor-primaria);
+    color: var(--texto-sobre-pastel);
 }
 
 .descobrir-item:hover {

@@ -118,10 +118,17 @@ function favoritosAtuais() {
 // Repinta o coração dos cards da página e o da barra do player. Os dois
 // são procurados na hora (e não guardados em const no load) porque o
 // player.js pode ter montado a barra depois deste arquivo rodar.
+//
+// O alvo é [data-favoritavel], e não a classe .btn-favoritar-destaque: o
+// botão do carrossel e o da lista "Descubra novas músicas" são o mesmo
+// controle em lugares diferentes. Amarrar a repintada na classe do
+// carrossel fazia o segundo botão envelhecer sozinho — ele parava de
+// mostrar o coração preenchido quando o favorito mudava em outro lugar,
+// sem nenhum erro para apontar isso.
 function atualizarTodosCoracoes() {
   const favoritos = favoritosAtuais();
 
-  document.querySelectorAll('.btn-favoritar-destaque').forEach((botao) => {
+  document.querySelectorAll('[data-favoritavel]').forEach((botao) => {
     pintarCoracao(botao, favoritos.has(Number(botao.dataset.musicaId)));
   });
 

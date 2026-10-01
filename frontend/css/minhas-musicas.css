@@ -156,13 +156,63 @@ body:has(.player-barra:not(.hidden)) .main-ctt-biblioteca {
     display: none;
 }
 
-/* As barras superior e inferior NÃO são definidas aqui: elas já vêm
-   prontas (formato, cantos, z-index) do bloco .secao-musicas em
-   home.css, e a cor verde-água vem da regra
-   ".secao-musicas:has(> .aba-biblioteca)" de lá também. A cópia local
-   que existia neste arquivo era idêntica e foi o que deixou a aba
-   desta página certa por acaso, enquanto a biblioteca e a playlist
-   ficavam com a faixa rosa. */
+/* ------------------------------------------------------------
+   BARRAS SUPERIOR E INFERIOR DO PAINEL
+
+   Estas duas faixas eram o que faltava nesta página. A versão
+   anterior deste arquivo dizia que elas "já vêm prontas do
+   .secao-musicas em home.css" — mas esta página NÃO carrega o
+   home.css (as folhas são root, theme, modal-playlist e esta). A
+   dependência existia só no comentário, e o resultado era o painel
+   sem faixa nenhuma, com a aba verde-água pendurada no topo de uma
+   caixa lisa.
+
+   A geometria é a mesma da home, e a cor é a da aba: verde-água no
+   escuro, pêssego no claro (--aba-biblioteca), que é a cor que o
+   :has() da home aplicaria aqui.
+
+   Se um dia as barras forem para um lugar só de verdade, o caminho
+   não é este comentário: é um CSS da camada compartilhada carregado
+   pelas duas páginas. Enquanto não existir esse arquivo, cada
+   página mantém a sua cópia — como já acontece com a aba e com o
+   painel inteiro. */
+.secao-musicas::before,
+.secao-musicas::after {
+    content: "";
+
+    position: absolute;
+
+    left: 0;
+    right: 0;
+
+    height: 20px;
+
+    box-shadow: none;
+
+    z-index: 2;
+
+    /* A faixa é decoração: ela passa por cima da borda do painel e,
+       sem isso, o clique no topo do carrossel morre aqui. */
+    pointer-events: none;
+
+    /* A transição da virada de tema vem da lista do topo deste arquivo,
+       que já cobre ::before e ::after. */
+    background: var(--aba-biblioteca);
+}
+
+.secao-musicas::before {
+    top: 0;
+
+    /* Canto superior esquerdo reto (é onde a aba se apoia),
+       superior direito arredondado. */
+    border-radius: 0 10px 0 0;
+}
+
+.secao-musicas::after {
+    bottom: 0;
+
+    border-radius: 0 0 10px 10px;
+}
 
 /* =========================================================
    CARROSSEL HORIZONTAL DE MÚSICAS
