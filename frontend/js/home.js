@@ -1658,89 +1658,6 @@ function criarItemPessoa(pessoa) {
   link.href = 'perfil.html?u=' + encodeURIComponent(pessoa.nome_usuario);
   link.title = `Ver o perfil de @${pessoa.nome_usuario}`;
 
-    // Avatar pela mesma pintura da navbar: cai no avatar-padrao e nas
-    // iniciais quando a pessoa não tem foto.
-    const caixa = document.createElement('span');
-    caixa.className = 'os-avatar os-avatar-sm';
-    const iniciais = document.createElement('span');
-    iniciais.className = 'os-avatar-iniciais';
-    const img = document.createElement('img');
-    img.className = 'os-avatar-img';
-    img.src = pessoa.avatar_url || '';
-    img.alt = '';
-    img.loading = 'lazy';
-    caixa.appendChild(iniciais);
-    caixa.appendChild(img);
-    if (window.OS && typeof OS.pintarCaixa === 'function') {
-      OS.pintarCaixa(caixa, pessoa.avatar_url || null, pessoa.nome);
-    }
-
-    const nome = document.createElement('span');
-    nome.className = 'busca-pessoa-nome';
-    nome.textContent = pessoa.nome;
-
-    const arroba = document.createElement('span');
-    arroba.className = 'busca-pessoa-arroba';
-    arroba.textContent = `@${pessoa.nome_usuario}`;
-
-    link.appendChild(caixa);
-    link.appendChild(nome);
-    link.appendChild(arroba);
-    item.appendChild(link);
-    elBuscaPessoasLista.appendChild(item);
-  });
-
-  elBuscaPessoas.classList.remove('hidden');
-}
-
-async function buscarPessoas(termo) {
-  // O servidor exige ao menos 2 letras; nem vale a pena pedir.
-  if (!termo || termo.trim().length < 2) { esconderResultadosDePessoas(); return; }
-  try {
-    const resposta = await fetch(`https://open-sound.onrender.com/api/perfil/buscar?q=${encodeURIComponent(termo.trim())}`);
-    if (!resposta.ok) { esconderResultadosDePessoas(); return; }
-    const dados = await resposta.json();
-    renderizarPessoas(dados.pessoas);
-  } catch (erro) {
-    console.error('Erro ao buscar perfis:', erro);
-    esconderResultadosDePessoas();
-  }
-}
-
-if (formBusca) {
-  formBusca.addEventListener('submit', async (event) => {
-    event.preventDefault(); // intercepta — sem isso ele navegaria pro action do form
-    const termo = campoBusca ? campoBusca.value.trim() : '';
-    if (!termo) return;
-    // As duas buscas saem juntas; a faixa de pessoas esconde sozinha se
-    // não houver ninguém com aquele @ ou nome.
-    buscarPessoas(termo);
-    executarBusca(termo);
-  });
-}
-
-async function executarBusca(termo) {
-  if (!listaMusicas) return;
-
-  if (tituloSecaoMusicas) tituloSecaoMusicas.textContent = `Resultados para "${termo}"`;
-  listaMusicas.innerHTML = '';
-  const carregando = document.createElement('p');
-  carregando.className = 'mensagem-lista';
-  carregando.textContent = 'Buscando...';
-  listaMusicas.appendChild(carregando);
-
-  try {
-    const resposta = await fetch(`https://open-sound.onrender.com/api/musicas/buscar?q=${encodeURIComponent(termo)}`);
-    const dados = await resposta.json();
-
-    if (!resposta.ok) {
-      listaMusicas.innerHTML = '';
-      const mensagem = document.createElement('p');
-      mensagem.className = 'mensagem-lista';
-      mensagem.textContent = dados.mensagem || 'Não foi possível buscar as músicas.';
-      listaMusicas.appendChild(mensagem);
-      return;
-    }
   const nome = pessoa.nome || pessoa.nome_usuario;
   const ehArtista = Boolean(pessoa.eh_artista);
 
@@ -1817,10 +1734,12 @@ async function buscarNoDropdown(termo) {
   const pedirPessoas = alvo.length >= 2;
 
   // As duas requisições são independentes: uma falhar não esconde a outra.
+  // API_BASE, e não a URL literal: o resto do arquivo fala com o servidor
+  // de produção e o dropdown não pode ficar apontando para o localhost.
   const [respostaMusicas, respostaPessoas] = await Promise.all([
-    fetch(`http://localhost:3000/api/musicas/buscar?q=${encodeURIComponent(alvo)}`).catch(() => null),
+    fetch(`${API_BASE}/api/musicas/buscar?q=${encodeURIComponent(alvo)}`).catch(() => null),
     pedirPessoas
-      ? fetch(`http://localhost:3000/api/perfil/buscar?q=${encodeURIComponent(alvo)}`).catch(() => null)
+      ? fetch(`${API_BASE}/api/perfil/buscar?q=${encodeURIComponent(alvo)}`).catch(() => null)
       : Promise.resolve(null),
   ]);
 
