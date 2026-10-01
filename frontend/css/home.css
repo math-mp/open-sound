@@ -3691,3 +3691,292 @@ body,
     color: var(--cor-texto-fraco);
     font-variant-numeric: tabular-nums;
 }
+/* ============================================================
+   BUSCA DA HOME — DROPDOWN
+
+   A busca inteira acontece dentro da caixa que desce do campo:
+   as buscas recentes quando o campo está vazio, os resultados da
+   API quando há texto. Nada é desenhado no corpo da página, então
+   o carrossel e o ranking de artistas ficam intocados.
+
+   Nenhuma regra acima é alterada — as classes daqui são novas, e
+   todas usam as variáveis de cor já existentes, então os dois temas
+   (claro e escuro) funcionam sem regra extra.
+   ============================================================ */
+
+/* --- Ancoragem ---------------------------------------------
+   O <form> e o <input> continuam como estavam: quem impede a
+   navegação é o preventDefault() do submit. Este div serve só
+   para dar a referência de posicionamento do dropdown. */
+.busca-wrapper {
+    position: relative;
+    display: flex;
+}
+
+.dropdown-busca {
+    position: absolute;
+
+    /* Colado no campo, com uma folga para não parecer parte dele. */
+    top: calc(100% + 8px);
+    left: 0;
+
+    /* Dentro da navbar (que é z-index 1000 e cria seu próprio
+       contexto de empilhamento), 20 basta para ficar acima do
+       campo. Os modais vivem fora desse contexto, em 1001+, e
+       continuam por cima — como deve ser. */
+    z-index: 20;
+
+    /* Acompanha a largura do input, que é o que dá largura ao
+       form. O teto evita que a caixa encoste na borda da tela. */
+    width: 100%;
+    min-width: 100%;
+    max-width: min(88vw, 440px);
+
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+
+    padding: 8px;
+
+    border-radius: var(--raio-medio);
+    border: 1px solid var(--cor-borda);
+
+    background: var(--cor-superficie);
+    box-shadow: var(--sombra-forte);
+
+    color: var(--cor-texto);
+    text-align: left;
+}
+
+/* --- Cabeçalho ("Buscas recentes" / "Resultados") --------- */
+.busca-header {
+    flex-shrink: 0;
+
+    padding: 6px 10px 8px;
+
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--cor-texto-fraco);
+}
+
+/* A lista rola por dentro da caixa: o resto da página não desce
+   nem ganha barra de rolagem. */
+.busca-lista {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    list-style: none;
+
+    scrollbar-width: thin;
+    scrollbar-color: var(--cor-superficie-clara) transparent;
+}
+
+.busca-lista::-webkit-scrollbar {
+    width: 6px;
+}
+
+.busca-lista::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.busca-lista::-webkit-scrollbar-thumb {
+    background: var(--cor-superficie-clara);
+    border-radius: 999px;
+}
+
+/* --- Item (recente, música ou pessoa) ---------------------- */
+.busca-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    border-radius: var(--raio-pequeno);
+}
+
+.busca-item:hover {
+    background: var(--cor-superficie-hover);
+}
+
+/* A área clicável é um <button> nas músicas e recentes e um <a> nos
+   artistas: por isso a classe é compartilhada e o alinhamento/fonte
+   vivem aqui. */
+.busca-item-acao {
+    flex: 1;
+    min-width: 0;
+
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    padding: 8px 10px;
+
+    border: none;
+    border-radius: var(--raio-pequeno);
+    background: none;
+
+    font-family: inherit;
+    font-size: 0.85rem;
+    color: var(--cor-texto);
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.busca-item-capa {
+    flex-shrink: 0;
+
+    width: 40px;
+    height: 40px;
+
+    border-radius: var(--raio-pequeno);
+    object-fit: cover;
+}
+
+/* Sem capa: o mesmo quadradinho com 🎵 usado nas outras grades. */
+.busca-item-capa-vazia {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: var(--cor-superficie-clara);
+    color: var(--cor-texto-fraco);
+}
+
+.busca-item-info {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Título longo não empurra o "×" para fora: corta com reticências. */
+.busca-item-titulo,
+.busca-item-subtitulo {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.busca-item-titulo {
+    font-weight: 700;
+    color: var(--cor-texto);
+}
+
+.busca-item-subtitulo {
+    font-size: 0.75rem;
+    color: var(--cor-texto-secundario);
+}
+
+.busca-item-remover {
+    flex-shrink: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 26px;
+    height: 26px;
+    margin-right: 6px;
+    padding: 0;
+
+    border: none;
+    border-radius: var(--raio-circular);
+
+    background: none;
+    color: var(--cor-texto-fraco);
+    font-size: 1.05rem;
+    line-height: 1;
+    cursor: pointer;
+
+    transition:
+        background var(--transicao-rapida),
+        color var(--transicao-rapida);
+}
+
+.busca-item-remover:hover {
+    background: var(--cor-superficie-clara);
+    color: var(--cor-erro);
+}
+
+/* --- Avisos ("Buscando...", "Nenhum resultado encontrado") */
+.busca-aviso {
+    padding: 14px 10px;
+
+    font-size: 0.82rem;
+    color: var(--cor-texto-fraco);
+    text-align: center;
+}
+
+.busca-carregando {
+    color: var(--cor-texto-secundario);
+}
+
+.busca-vazio {
+    font-style: italic;
+}
+
+/* --- Foco visível ------------------------------------------
+   Sem isto o teclado navega pelos itens sem nenhuma indicação de
+   onde está. Vale para o botão, para o link e para o "×". */
+.busca-item-acao:focus-visible,
+.busca-item-remover:focus-visible,
+.busca-limpar:focus-visible {
+    outline: 2px solid var(--cor-primaria);
+    outline-offset: 2px;
+}
+
+/* --- "Limpar buscas recentes" ------------------------------ */
+.busca-limpar {
+    flex-shrink: 0;
+
+    display: block;
+    width: 100%;
+    margin-top: 6px;
+    padding: 9px 10px;
+
+    border: none;
+    border-top: 1px solid var(--cor-borda);
+    border-radius: var(--raio-pequeno);
+
+    background: none;
+
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--cor-texto-fraco);
+    text-align: left;
+    cursor: pointer;
+
+    transition:
+        background var(--transicao-rapida),
+        color var(--transicao-rapida);
+}
+
+.busca-limpar:hover {
+    background: var(--cor-superficie-hover);
+    color: var(--cor-texto);
+}
+
+/* --- Telas menores ----------------------------------------
+   O navbar não tinha ajuste de largura até aqui; com o dropdown
+   preso ao campo, o campo precisa encolher para não estourar. */
+@media (max-width: 700px) {
+    .nav-center input[type="search"] {
+        width: 200px;
+    }
+
+    .dropdown-busca {
+        max-width: 92vw;
+    }
+
+    .busca-item-capa {
+        width: 34px;
+        height: 34px;
+    }
+}
