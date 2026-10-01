@@ -27,6 +27,9 @@
 
 <!-- parte esquerda navbar-->
         <div class="nav-left">
+            <button class="btn-navbar btn-logo" id="btn-inicio" aria-label="Início" title="Início">
+            <img src="../assets/favicon-192.png" alt="Open Sound" class="logo-navbar-img">
+            </button>
             <!-- Menu hamburguer: hoje só tem Configurações, mas é aqui que
                  Biblioteca/Perfil vão entrar mais pra frente. -->
             <div class="menu-hamburguer">
@@ -38,14 +41,35 @@
             </div>
             </div>
             <button class="btn-navbar" id="btn-biblioteca">Minha Biblioteca</button>
-            <button class="btn-navbar" id="btn-inicio">inicio</button>
             <button class="btn-navbar" id="btn-upload">Upload</button>
         </div>
 
         <!-- parte central navbar-->
         <div class="nav-center">
             <form action="/buscar" method="get">
-            <input class="search-input" type="search" name="q" placeholder="procure musicas e artistas..." required>
+                <!-- Wrapper só para dar referência de posicionamento ao dropdown,
+                     que abre colado abaixo do campo. O action/method continuam
+                     aqui de propósito: é o preventDefault() do submit que
+                     impede a navegação, e ele precisa continuar existindo para
+                     o áudio não ser cortado. -->
+                <div class="busca-wrapper">
+                    <input class="search-input" type="search" name="q" placeholder="procure musicas e artistas..." required
+                        autocomplete="off">
+
+                    <!-- Dropdown da busca. Tem dois estados, e só um aparece por
+                         vez: campo vazio mostra "Buscas recentes"; campo com
+                         texto mostra "Resultados".
+
+                         Todo botão aqui é type="button": sem isso, o "×" e o
+                         "Limpar" submeteriam o form e disparariam uma busca. -->
+                    <div id="dropdown-busca" class="dropdown-busca hidden">
+                        <p id="busca-header" class="busca-header" aria-live="polite"></p>
+                        <ul id="busca-lista" class="busca-lista"></ul>
+                        <button type="button" id="btn-limpar-recentes" class="busca-limpar hidden">
+                            Limpar buscas recentes
+                        </button>
+                    </div>
+                </div>
             </form>
         </div>
 
@@ -75,14 +99,6 @@
         <div class="secao-musicas">
             <h2 class="secao-titulo aba-musicas">Músicas mais tocadas</h2>
 
-            <!-- Só aparece durante a busca. Fica acima do carrossel porque
-                 a lista de pessoas não cabe no formato de destaque+setas:
-                 o carrossel abaixo continua com as músicas encontradas. -->
-            <div id="busca-pessoas" class="busca-pessoas hidden">
-                <h3 class="busca-pessoas-titulo">Pessoas</h3>
-                <ul id="busca-pessoas-lista" class="busca-pessoas-lista"></ul>
-            </div>
-
             <div class="carrossel-controle">
                 <button type="button" id="msc-seta-esq" class="msc-seta" aria-label="Música anterior">‹</button>
                 <div id="lista-musicas" class="lista-musicas">
@@ -103,9 +119,9 @@
             <!--div dinamica musicas-->
             <div class="genres">
             <h2 class="secao-titulo aba-generos">Descubra novas músicas</h2>
-            <ul id="lista-descobrir" class="lista-descobrir" data-estado="carregando">
-                <li class="mensagem-lista">Carregando músicas...</li>
-            </ul>
+                <ul id="lista-descobrir" class="lista-descobrir" data-estado="carregando">
+                    <li class="mensagem-lista">Carregando músicas...</li>
+                </ul>
             </div>
         </div>
     </div>

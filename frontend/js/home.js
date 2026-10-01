@@ -1032,6 +1032,14 @@ const formBusca = document.querySelector('.nav-center form');
 const campoBusca = formBusca ? formBusca.querySelector('input[name="q"]') : null;
 const tituloSecaoMusicas = document.querySelector('.secao-titulo.aba-musicas');
 
+// Peças do dropdown da busca. Ele é a única superfície da busca agora:
+// os resultados não existem em nenhum outro lugar da Home.
+const wrapperBusca = campoBusca ? campoBusca.closest('.busca-wrapper') : null;
+const dropdownBusca = document.getElementById('dropdown-busca');
+const buscaHeader = document.getElementById('busca-header');
+const buscaLista = document.getElementById('busca-lista');
+const btnLimparRecentes = document.getElementById('btn-limpar-recentes');
+
 // ============================================================
 // CARROSSEL "MÚSICAS MAIS TOCADAS"
 // ============================================================
@@ -1322,143 +1330,550 @@ carregarArtistasMaisOuvidos();
 carregarDescobrirMusicas();
 
 // ============================================================
-// BUSCA INLINE (mesma página — não navega, pra não matar o áudio tocando)
+// BUSCA DA HOME — DROPDOWN
 //
-// A busca acha duas coisas: músicas (viram o carrossel, como sempre) e
-// pessoas (viram uma faixa de resultados com link para o perfil). As duas
-// requisições são independentes: uma falhar não esconde a outra.
+// A busca é uma camada SOBRE a Home, nunca no lugar dela: tudo que ela
+// pinta acontece dentro do dropdown colado no campo de pesquisa. O
+// carrossel de "Músicas mais tocadas", o ranking de "Artistas mais
+// ouvidos" e o player não são tocados em momento nenhum — nem quando a
+// busca acha 50 músicas, nem quando não acha nenhuma.
+//
+// São dois estados, e nunca ao mesmo tempo:
+//
+//   campo vazio        → "Buscas recentes" (localStorage)
+//   campo com texto    → "Resultados"      (GET /api/musicas/buscar
+//                                          + GET /api/perfil/buscar)
+//
+// O submit continua interceptado com preventDefault(): sem isso o <form>
+// navegaria para o action e o áudio em andamento seria cortado.
 // ============================================================
 
-const elBuscaPessoas = document.getElementById('busca-pessoas');
-const elBuscaPessoasLista = document.getElementById('busca-pessoas-lista');
+// ------------------------------------------------------------
+// PESQUISAS RECENTES (localStorage)
+// ------------------------------------------------------------
+//
+// Nada de servidor, nada de tabela, nenhuma mudança no backend. Além do
+// termo, guardamos o pedaço do resultado que ele encontrou (título,
+// artista, url da capa e tipo) para o item abrir já com capa e rótulo,
+// sem chamar a API de novo a cada vez que o dropdown abre.
+//
+// Guarda só dado público de catálogo. Nunca token, senha, código de 2FA
+// ou dado privado de conta.
+//
+// O localStorage pode não existir (modo privativo, permissão negada,
+// quota cheia), então toda leitura e escrita é encapsulada: a busca
+// continua funcionando mesmo sem histórico.
 
-function esconderResultadosDePessoas() {
-  if (elBuscaPessoas) elBuscaPessoas.classList.add('hidden');
+const CHAVE_PESQUISAS_RECENTES = 'opensound_pesquisas_recentes';
+const LIMITE_PESQUISAS_RECENTES = 6;
+const DEBOUNCE_BUSCA_MS = 300;
+
+// Só http(s) do storage e data:image (prévia local) valem. Uma url
+// guardada que não passe por aqui viraria javascript: no src de uma <img>.
+function urlDeCapaSegura(valor) {
+  if (typeof valor !== 'string') return '';
+  const url = valor.trim();
+  if (!url) return '';
+  return /^(https?:\/\/|data:image\/)/i.test(url) ? url : '';
 }
 
-function renderizarPessoas(pessoas) {
-  if (!elBuscaPessoas || !elBuscaPessoasLista) return;
+// Aceita tanto o formato novo (objeto) quanto o antigo (a lista era só de
+// strings). Qualquer histórico vira item com capa ou não — nunca quebra.
+function normalizarRecente(bruto) {
+  if (typeof bruto === 'string') {
+    const termo = bruto.trim();
+    return termo ? { termo, titulo: termo, artista: '', urlCapa: '', tipo: 'texto' } : null;
+  }
 
-  elBuscaPessoasLista.innerHTML = '';
-  if (!pessoas || pessoas.length === 0) { esconderResultadosDePessoas(); return; }
+  if (!bruto || typeof bruto !== 'object') return null;
 
-  pessoas.forEach((pessoa) => {
-    const item = document.createElement('li');
-    item.className = 'busca-pessoa';
+  const termo = typeof bruto.termo === 'string' ? bruto.termo.trim() : '';
+  if (!termo) return null;
 
-    const link = document.createElement('a');
-    link.className = 'busca-pessoa-link';
-    link.href = 'perfil.html?u=' + encodeURIComponent(pessoa.nome_usuario);
-    link.title = `Ver o perfil de @${pessoa.nome_usuario}`;
-
-    // Avatar pela mesma pintura da navbar: cai no avatar-padrao e nas
-    // iniciais quando a pessoa não tem foto.
-    const caixa = document.createElement('span');
-    caixa.className = 'os-avatar os-avatar-sm';
-    const iniciais = document.createElement('span');
-    iniciais.className = 'os-avatar-iniciais';
-    const img = document.createElement('img');
-    img.className = 'os-avatar-img';
-    img.src = pessoa.avatar_url || '';
-    img.alt = '';
-    img.loading = 'lazy';
-    caixa.appendChild(iniciais);
-    caixa.appendChild(img);
-    if (window.OS && typeof OS.pintarCaixa === 'function') {
-      OS.pintarCaixa(caixa, pessoa.avatar_url || null, pessoa.nome);
-    }
-
-    const nome = document.createElement('span');
-    nome.className = 'busca-pessoa-nome';
-    nome.textContent = pessoa.nome;
-
-    const arroba = document.createElement('span');
-    arroba.className = 'busca-pessoa-arroba';
-    arroba.textContent = `@${pessoa.nome_usuario}`;
-
-    link.appendChild(caixa);
-    link.appendChild(nome);
-    link.appendChild(arroba);
-    item.appendChild(link);
-    elBuscaPessoasLista.appendChild(item);
-  });
-
-  elBuscaPessoas.classList.remove('hidden');
+  return {
+    termo,
+    titulo: typeof bruto.titulo === 'string' && bruto.titulo.trim() ? bruto.titulo.trim() : termo,
+    artista: typeof bruto.artista === 'string' ? bruto.artista.trim() : '',
+    urlCapa: urlDeCapaSegura(bruto.urlCapa),
+    tipo: ['musica', 'artista', 'pessoa', 'texto'].includes(bruto.tipo) ? bruto.tipo : 'texto',
+  };
 }
 
-async function buscarPessoas(termo) {
-  // O servidor exige ao menos 2 letras; nem vale a pena pedir.
-  if (!termo || termo.trim().length < 2) { esconderResultadosDePessoas(); return; }
+function carregarPesquisasRecentes() {
   try {
-    const resposta = await fetch(`https://open-sound.onrender.com/api/perfil/buscar?q=${encodeURIComponent(termo.trim())}`);
-    if (!resposta.ok) { esconderResultadosDePessoas(); return; }
-    const dados = await resposta.json();
-    renderizarPessoas(dados.pessoas);
+    const bruto = localStorage.getItem(CHAVE_PESQUISAS_RECENTES);
+    if (!bruto) return [];
+    const dados = JSON.parse(bruto);
+    if (!Array.isArray(dados)) return [];
+    return dados
+      .map(normalizarRecente)
+      .filter(Boolean)
+      .slice(0, LIMITE_PESQUISAS_RECENTES);
   } catch (erro) {
-    console.error('Erro ao buscar perfis:', erro);
-    esconderResultadosDePessoas();
+    console.warn('Não foi possível ler as buscas recentes:', erro);
+    return [];
   }
 }
+
+function gravarPesquisasRecentes(lista) {
+  try {
+    localStorage.setItem(CHAVE_PESQUISAS_RECENTES, JSON.stringify(lista));
+  } catch (erro) {
+    console.warn('Não foi possível salvar as buscas recentes:', erro);
+  }
+}
+
+// Substitui o registro do mesmo termo. A comparação ignora maiúsculas
+// ("bk" e "BK" são a mesma busca), mas o registro novo — com a capa e o
+// tipo mais atuais — é o que fica.
+function registrarBuscaRecente(termo, parcial) {
+  const alvo = String(termo || '').trim();
+  if (!alvo) return;
+
+  const chave = alvo.toLowerCase();
+  const restantes = carregarPesquisasRecentes().filter((item) => item.termo.toLowerCase() !== chave);
+
+  const novo = normalizarRecente({ termo: alvo, ...(parcial || {}) });
+  if (!novo) return;
+
+  // O slice descarta a mais antiga quando passa de 6.
+  gravarPesquisasRecentes([novo, ...restantes].slice(0, LIMITE_PESQUISAS_RECENTES));
+}
+
+function removerPesquisaRecente(termo) {
+  const alvo = String(termo || '').trim().toLowerCase();
+  const restantes = carregarPesquisasRecentes().filter((item) => item.termo.toLowerCase() !== alvo);
+
+  gravarPesquisasRecentes(restantes);
+  mostrarEstadoAtual(); // a lista encolhe na hora, sem fechar o dropdown
+}
+
+function limparPesquisasRecentes() {
+  try {
+    localStorage.removeItem(CHAVE_PESQUISAS_RECENTES);
+  } catch (erro) {
+    console.warn('Não foi possível limpar as buscas recentes:', erro);
+    gravarPesquisasRecentes([]);
+  }
+
+  mostrarEstadoAtual();
+}
+
+// ------------------------------------------------------------
+// DROPDOWN — dois estados
+// ------------------------------------------------------------
+
+function definirCabecalho(texto) {
+  if (buscaHeader) buscaHeader.textContent = texto;
+}
+
+function mostrarBotaoLimpar(visivel) {
+  if (btnLimparRecentes) btnLimparRecentes.classList.toggle('hidden', !visivel);
+}
+
+function abrirDropdown() {
+  if (dropdownBusca) dropdownBusca.classList.remove('hidden');
+}
+
+function fecharDropdown() {
+  if (dropdownBusca) dropdownBusca.classList.add('hidden');
+}
+
+function dropdownAberto() {
+  return Boolean(dropdownBusca) && !dropdownBusca.classList.contains('hidden');
+}
+
+function mostrarAvisoDropdown(texto, modificador) {
+  if (!buscaLista) return;
+
+  buscaLista.innerHTML = '';
+  const aviso = document.createElement('li');
+  aviso.className = modificador ? `busca-aviso ${modificador}` : 'busca-aviso';
+  aviso.textContent = texto; // textContent: o texto nunca vira HTML.
+  buscaLista.appendChild(aviso);
+}
+
+// Parte visual compartilhada por recentes, músicas e pessoas: capa (ou o
+// quadradinho com 🎵) e as duas linhas de texto. O elemento clicável é
+// montado por fora, porque o de música é <button> e o de pessoa é <a>.
+function pintarCapaETexto(item, dados) {
+  if (dados.capaUrl) {
+    const capa = document.createElement('img');
+    capa.className = 'busca-item-capa';
+    capa.src = dados.capaUrl;
+    capa.alt = '';
+    capa.loading = 'lazy';
+    item.appendChild(capa);
+  } else {
+    const capaVazia = document.createElement('span');
+    capaVazia.className = 'busca-item-capa busca-item-capa-vazia';
+    capaVazia.setAttribute('aria-hidden', 'true');
+    capaVazia.textContent = '🎵';
+    item.appendChild(capaVazia);
+  }
+
+  const info = document.createElement('span');
+  info.className = 'busca-item-info';
+
+  const titulo = document.createElement('span');
+  titulo.className = 'busca-item-titulo';
+  titulo.textContent = dados.titulo;
+  titulo.title = dados.titulo;
+  info.appendChild(titulo);
+
+  if (dados.subtitulo) {
+    const subtitulo = document.createElement('span');
+    subtitulo.className = 'busca-item-subtitulo';
+    subtitulo.textContent = dados.subtitulo;
+    info.appendChild(subtitulo);
+  }
+
+  item.appendChild(info);
+}
+
+// Rótulo da linha de baixo. Vem do que a API devolveu: o endpoint de
+// músicas não tem coluna de tipo, então "Música" é etiqueta nossa; artista
+// e pessoa usam o campo eh_artista que o endpoint de pessoas devolve.
+function rotuloDe(tipo, artista) {
+  if (tipo === 'musica') return artista ? `Música • ${artista}` : 'Música';
+  if (tipo === 'artista') return 'Artista';
+  if (tipo === 'pessoa') return 'Pessoa';
+  return '';
+}
+
+// --- Estado 1: buscas recentes ---------------------------------
+
+function criarItemRecente(recente) {
+  const item = document.createElement('li');
+  item.className = 'busca-item';
+
+  const botao = document.createElement('button');
+  botao.type = 'button'; // sem isso, submeteria o form da navbar
+  botao.className = 'busca-item-acao';
+  botao.title = `Buscar por "${recente.termo}"`;
+
+  pintarCapaETexto(botao, {
+    capaUrl: recente.urlCapa,
+    titulo: recente.titulo,
+    subtitulo: rotuloDe(recente.tipo, recente.artista),
+  });
+
+  // Clicou num recente: preenche o campo e refaz a busca. O dropdown fica
+  // aberto mostrando os resultados — é para isso que o usuário clicou.
+  botao.addEventListener('click', () => {
+    if (campoBusca) campoBusca.value = recente.termo;
+    clearTimeout(timerBusca);
+    buscarNoDropdown(recente.termo);
+  });
+
+  item.appendChild(botao);
+
+  // O "×" é irmão do botão, não filho: precisa parar o evento sozinho,
+  // senão o clique também executaria a busca daquele termo.
+  const remover = document.createElement('button');
+  remover.type = 'button';
+  remover.className = 'busca-item-remover';
+  remover.setAttribute('aria-label', `Remover a busca "${recente.termo}"`);
+  remover.textContent = '×';
+  remover.addEventListener('click', (event) => {
+    event.stopPropagation();
+    event.preventDefault();
+    removerPesquisaRecente(recente.termo);
+  });
+
+  item.appendChild(remover);
+  return item;
+}
+
+function renderizarRecentes() {
+  definirCabecalho('Buscas recentes');
+  if (!buscaLista) return;
+
+  const recentes = carregarPesquisasRecentes();
+  buscaLista.innerHTML = '';
+
+  if (!recentes.length) {
+    mostrarAvisoDropdown('Nenhuma busca salva ainda.');
+    mostrarBotaoLimpar(false);
+    return;
+  }
+
+  recentes.forEach((recente) => buscaLista.appendChild(criarItemRecente(recente)));
+  mostrarBotaoLimpar(true);
+}
+
+// --- Estado 2: resultados da API -------------------------------
+
+function criarItemMusica(musica) {
+  const item = document.createElement('li');
+  item.className = 'busca-item';
+
+  const botao = document.createElement('button');
+  botao.type = 'button';
+  botao.className = 'busca-item-acao';
+
+  const titulo = musica.titulo || 'Música sem título';
+  pintarCapaETexto(botao, {
+    capaUrl: musica.url_capa,
+    titulo,
+    subtitulo: rotuloDe('musica', musica.artista),
+  });
+
+  // Selecionar uma música toca no player de verdade: mesma função e mesma
+  // guarda de login que o carrossel e a lista "Descubra" já usam. Não há
+  // segundo estado de áudio no projeto — o botão que muda é o da barra.
+  botao.addEventListener('click', () => {
+    const termo = campoBusca ? campoBusca.value.trim() : '';
+    // O histórico guarda capa e tipo a partir de agora.
+    registrarBuscaRecente(termo, {
+      titulo,
+      artista: musica.artista || '',
+      urlCapa: musica.url_capa || '',
+      tipo: 'musica',
+    });
+
+    fecharDropdown();
+
+    if (!estaLogado()) {
+      alert('Faça login para tocar as músicas.');
+      if (modalLogin) modalLogin.classList.remove('hidden');
+      return;
+    }
+    tocarMusica(musica);
+  });
+
+  item.appendChild(botao);
+  return item;
+}
+
+// Artista/pessoa é <a> para o perfil, como já era antes desta busca: o
+// endpoint de pessoas não devolve músicas, então não há o que tocar ali —
+// abrir a página de quem a pessoa procurou é a ação da linha.
+function criarItemPessoa(pessoa) {
+  const item = document.createElement('li');
+  item.className = 'busca-item';
+
+  const link = document.createElement('a');
+  link.className = 'busca-item-acao';
+  link.href = 'perfil.html?u=' + encodeURIComponent(pessoa.nome_usuario);
+  link.title = `Ver o perfil de @${pessoa.nome_usuario}`;
+
+  const nome = pessoa.nome || pessoa.nome_usuario;
+  const ehArtista = Boolean(pessoa.eh_artista);
+
+  pintarCapaETexto(link, {
+    capaUrl: pessoa.avatar_url,
+    titulo: nome,
+    subtitulo: rotuloDe(ehArtista ? 'artista' : 'pessoa'),
+  });
+
+  // Só conta como busca realizada quando a pessoa escolhe o resultado, e
+  // não a cada tecla digitada.
+  link.addEventListener('click', () => {
+    const termo = campoBusca ? campoBusca.value.trim() : '';
+    registrarBuscaRecente(termo, {
+      titulo: nome,
+      artista: '',
+      urlCapa: pessoa.avatar_url || '',
+      tipo: ehArtista ? 'artista' : 'pessoa',
+    });
+  });
+
+  item.appendChild(link);
+  return item;
+}
+
+function renderizarResultados(musicas, pessoas) {
+  definirCabecalho('Resultados');
+  if (!buscaLista) return;
+
+  buscaLista.innerHTML = '';
+
+  if (!musicas.length && !pessoas.length) {
+    mostrarAvisoDropdown('Nenhum resultado encontrado', 'busca-vazio');
+    mostrarBotaoLimpar(false);
+    return;
+  }
+
+  // Músicas primeiro (é o endpoint principal), depois artistas/pessoas,
+  // para um nome como "Teto" já aparecer na primeira linha.
+  musicas.forEach((musica) => buscaLista.appendChild(criarItemMusica(musica)));
+  pessoas.forEach((pessoa) => buscaLista.appendChild(criarItemPessoa(pessoa)));
+  mostrarBotaoLimpar(false);
+}
+
+// ------------------------------------------------------------
+// BUSCA COM DEBOUNCE
+// ------------------------------------------------------------
+
+let ultimaBusca = { termo: '', musicas: [], pessoas: [] };
+let timerBusca = null;
+// Só a resposta mais recente pode pintar. Sem isso, digitar rápido
+// deixaria uma resposta lenta antiga sobrescrever o resultado novo.
+let buscaEmCurso = 0;
+
+async function buscarNoDropdown(termo) {
+  const alvo = String(termo || '').trim();
+
+  if (!alvo) {
+    buscaEmCurso++; // invalida uma resposta que ainda esteja voando
+    ultimaBusca = { termo: '', musicas: [], pessoas: [] };
+    renderizarRecentes();
+    abrirDropdown();
+    return;
+  }
+
+  const seq = ++buscaEmCurso;
+  definirCabecalho('Resultados');
+  mostrarAvisoDropdown('Buscando...', 'busca-carregando');
+  mostrarBotaoLimpar(false);
+  abrirDropdown();
+
+  // O endpoint de pessoas recusa menos de 2 letras (400) e tem limite por
+  // IP: com uma letra só não há o que pedir.
+  const pedirPessoas = alvo.length >= 2;
+
+  // As duas requisições são independentes: uma falhar não esconde a outra.
+  // API_BASE, e não a URL literal: o resto do arquivo fala com o servidor
+  // de produção e o dropdown não pode ficar apontando para o localhost.
+  const [respostaMusicas, respostaPessoas] = await Promise.all([
+    fetch(`${API_BASE}/api/musicas/buscar?q=${encodeURIComponent(alvo)}`).catch(() => null),
+    pedirPessoas
+      ? fetch(`${API_BASE}/api/perfil/buscar?q=${encodeURIComponent(alvo)}`).catch(() => null)
+      : Promise.resolve(null),
+  ]);
+
+  // Enquanto isso o usuário continuou digitando: esta resposta é velha.
+  if (seq !== buscaEmCurso) return;
+
+  let musicas = [];
+  if (respostaMusicas && respostaMusicas.ok) {
+    try {
+      const dados = await respostaMusicas.json();
+      musicas = Array.isArray(dados.musicas) ? dados.musicas : [];
+    } catch (erro) {
+      musicas = [];
+    }
+  }
+
+  let pessoas = [];
+  if (respostaPessoas && respostaPessoas.ok) {
+    try {
+      const dados = await respostaPessoas.json();
+      pessoas = Array.isArray(dados.pessoas) ? dados.pessoas : [];
+    } catch (erro) {
+      pessoas = [];
+    }
+  }
+
+  if (seq !== buscaEmCurso) return;
+
+  ultimaBusca = { termo: alvo, musicas, pessoas };
+  renderizarResultados(musicas, pessoas);
+}
+
+// O que o dropdown mostra, olhando só o campo: vazio → recentes; com texto
+// → os resultados daquele termo, refazendo a requisição se ainda não existem.
+function mostrarEstadoAtual() {
+  const termo = campoBusca ? campoBusca.value.trim() : '';
+
+  if (!termo) {
+    renderizarRecentes();
+    abrirDropdown();
+    return;
+  }
+
+  if (ultimaBusca.termo === termo) {
+    renderizarResultados(ultimaBusca.musicas, ultimaBusca.pessoas);
+    abrirDropdown();
+    return;
+  }
+
+  buscarNoDropdown(termo);
+}
+
+// 300ms sem digitar. É o que segura a quantidade de requisições: sem isso
+// seria uma por tecla, e o endpoint de pessoas ainda tem limite por IP.
+function agendarBusca() {
+  clearTimeout(timerBusca);
+
+  const termo = campoBusca ? campoBusca.value.trim() : '';
+  if (!termo) {
+    // Apagou tudo: volta para as buscas recentes na hora, sem esperar o timer.
+    buscaEmCurso++;
+    renderizarRecentes();
+    abrirDropdown();
+    return;
+  }
+
+  timerBusca = setTimeout(() => buscarNoDropdown(termo), DEBOUNCE_BUSCA_MS);
+}
+
+// ------------------------------------------------------------
+// EVENTOS
+// ------------------------------------------------------------
 
 if (formBusca) {
-  formBusca.addEventListener('submit', async (event) => {
-    event.preventDefault(); // intercepta — sem isso ele navegaria pro action do form
+  formBusca.addEventListener('submit', (event) => {
+    event.preventDefault(); // sem isso ele navegaria pro action do form e cortaria o áudio
     const termo = campoBusca ? campoBusca.value.trim() : '';
     if (!termo) return;
-    // As duas buscas saem juntas; a faixa de pessoas esconde sozinha se
-    // não houver ninguém com aquele @ ou nome.
-    buscarPessoas(termo);
-    executarBusca(termo);
+
+    clearTimeout(timerBusca);
+    // Enter é uma busca realizada, então o termo entra no histórico. A capa
+    // e o tipo são preenchidos depois, quando um resultado for escolhido.
+    registrarBuscaRecente(termo);
+    buscarNoDropdown(termo);
   });
 }
 
-async function executarBusca(termo) {
-  if (!listaMusicas) return;
-
-  if (tituloSecaoMusicas) tituloSecaoMusicas.textContent = `Resultados para "${termo}"`;
-  listaMusicas.innerHTML = '';
-  const carregando = document.createElement('p');
-  carregando.className = 'mensagem-lista';
-  carregando.textContent = 'Buscando...';
-  listaMusicas.appendChild(carregando);
-
-  try {
-    const resposta = await fetch(`https://open-sound.onrender.com/api/musicas/buscar?q=${encodeURIComponent(termo)}`);
-    const dados = await resposta.json();
-
-    if (!resposta.ok) {
-      listaMusicas.innerHTML = '';
-      const mensagem = document.createElement('p');
-      mensagem.className = 'mensagem-lista';
-      mensagem.textContent = dados.mensagem || 'Não foi possível buscar as músicas.';
-      listaMusicas.appendChild(mensagem);
-      return;
-    }
-
-    if (!dados.musicas || dados.musicas.length === 0) {
-      listaMusicas.innerHTML = '';
-      const mensagem = document.createElement('p');
-      mensagem.className = 'mensagem-lista';
-      mensagem.textContent = `Nenhuma música encontrada para "${termo}".`;
-      listaMusicas.appendChild(mensagem);
-      return;
-    }
-
-    // Reaproveita o mesmo carrossel do catálogo principal — só troca os
-    // dados; a forma de renderizar (destaque + setas) continua igual.
-    musicasAtuais = dados.musicas;
-    indiceMscAtual = 0;
-    renderCarrosselMusicas(musicasAtuais);
-
-  } catch (erro) {
-    console.error('Erro ao buscar músicas:', erro);
-    listaMusicas.innerHTML = '';
-    const mensagem = document.createElement('p');
-    mensagem.className = 'mensagem-lista';
-    mensagem.textContent = 'Erro de conexão ao buscar músicas.';
-    listaMusicas.appendChild(mensagem);
-  }
+if (campoBusca) {
+  campoBusca.addEventListener('focus', mostrarEstadoAtual);
+  campoBusca.addEventListener('click', mostrarEstadoAtual);
+  campoBusca.addEventListener('input', agendarBusca);
 }
+
+if (btnLimparRecentes) {
+  btnLimparRecentes.addEventListener('click', (event) => {
+    event.preventDefault(); // "Limpar" não é uma busca
+    limparPesquisasRecentes();
+  });
+}
+
+document.addEventListener('click', (event) => {
+  if (!dropdownAberto()) return;
+  // Clicar dentro da barra ou do próprio dropdown não fecha — senão não
+  // daria para escolher um item.
+  if (wrapperBusca && wrapperBusca.contains(event.target)) return;
+  fecharDropdown();
+});
+
+document.addEventListener('keydown', (event) => {
+  if (!dropdownAberto()) return;
+
+  // Esc fecha e devolve o foco ao campo, para continuar digitando.
+  if (event.key === 'Escape') {
+    fecharDropdown();
+    if (campoBusca) campoBusca.focus();
+    return;
+  }
+
+  // Setas sobem e descem entre os itens; o Enter é o do próprio botão.
+  if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+
+  const acoes = dropdownBusca.querySelectorAll('.busca-item-acao');
+  if (!acoes.length) return;
+
+  const atual = Array.prototype.indexOf.call(acoes, document.activeElement);
+  const passo = event.key === 'ArrowDown' ? 1 : -1;
+  const proximo = atual === -1
+    ? (passo === 1 ? 0 : acoes.length - 1)
+    : (atual + passo + acoes.length) % acoes.length;
+
+  event.preventDefault();
+  acoes[proximo].focus();
+});
+
 
 // ============================================================
 // RANKING DE ARTISTAS MAIS OUVIDOS
@@ -1733,8 +2148,13 @@ const btnInicio = document.getElementById('btn-inicio');
 if (btnInicio) {
   btnInicio.addEventListener('click', () => {
     if (campoBusca) campoBusca.value = '';
-    // A faixa de pessoas é resultado de busca: sai junto com o campo.
-    if (typeof esconderResultadosDePessoas === 'function') esconderResultadosDePessoas();
+
+    // O dropdown some e a busca volta ao estado inicial: só "Buscas
+    // recentes". O histórico do localStorage continua de pé — ele pertence
+    // ao navegador, não à tela.
+    clearTimeout(timerBusca);
+    fecharDropdown();
+
     // Só o carrossel: o ranking de artistas não depende da busca e não
     // precisa ser recarregado aqui.
     carregarMusicasMaisTocadas();
