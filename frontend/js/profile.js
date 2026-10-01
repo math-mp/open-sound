@@ -11,7 +11,7 @@
 // controles de edição.
 // ================================================================
 
-const API_BASE = 'http://localhost:3000';
+const API_BASE = 'https://open-sound.onrender.com';
 const CHAVE_SESSAO = 'tokenSessao';
 const BIO_MAX = 220; // mesmo limite de LIMITES no backend/server.js
 const EXIBICAO_MAX = 40; // mesmo limite de NOME_EXIBICAO_MAX no backend

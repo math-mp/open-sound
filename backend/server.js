@@ -1,6 +1,7 @@
 // Professora, nosso códgo ja virou legado....
 require('dotenv').config();
-const express = require('express');
+const express = require('express');  
+app.set('trust proxy', 1);
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
